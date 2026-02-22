@@ -1,0 +1,76 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:medlink/core/theme/app_theme.dart';
+import 'package:medlink/views/Register/register_viewmodel.dart';
+import 'package:medlink/views/Patient%20App/home/home_viewmodel.dart';
+import 'package:medlink/views/Patient%20App/emergency/emergency_viewmodel.dart';
+import 'package:medlink/views/Patient%20App/prescription/doctor_viewmodel.dart';
+import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
+import 'package:medlink/views/Patient%20App/profile/profile_viewmodel.dart';
+import 'package:medlink/views/Login/user_view_model.dart';
+import 'package:medlink/views/main/main_screen.dart';
+import 'package:medlink/views/doctor/doctor_main_screen.dart';
+import 'package:medlink/views/Ambulance/Ambulance%20main/ambulance_main_view.dart';
+import 'package:medlink/views/Patient%20App/health/health_hub_viewmodel.dart';
+import 'package:medlink/views/Login/login_view_model.dart';
+import 'package:medlink/views/Login/login_view.dart';
+import 'package:medlink/views/Onboarding/splash_view.dart';
+// import 'package:medlink/views/home/home_view.dart'; // Removed direct access
+
+import 'package:flutter/services.dart';
+
+void main() {
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.light, 
+  ));
+  runApp(const MedLinkApp());
+}
+
+class MedLinkApp extends StatelessWidget {
+  const MedLinkApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => RegisterViewModel()),
+        ChangeNotifierProvider(create: (_) => HomeViewModel()),
+        ChangeNotifierProvider(create: (_) => EmergencyViewModel()),
+        ChangeNotifierProvider(create: (_) => DoctorViewModel()),
+        ChangeNotifierProvider(create: (_) => AppointmentViewModel()),
+        ChangeNotifierProvider(create: (_) => ProfileViewModel()),
+        ChangeNotifierProvider(create: (_) => UserViewModel()), // Session Management
+        ChangeNotifierProvider(create: (_) => LoginViewModel()),
+        ChangeNotifierProvider(create: (_) => HealthHubViewModel()),
+      ],
+      child: MaterialApp(
+        title: 'MedLink Africa',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        // Start with Splash Screen
+        home: const SplashView(),
+      ),
+    );
+  }
+}
+
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // Basic auth check using the global user state
+    final userViewModel = Provider.of<UserViewModel>(context);
+    
+    if (userViewModel.patient != null) {
+      return const MainScreen();
+    } else if (userViewModel.doctor != null) {
+      return const DoctorMainScreen();
+    } else if (userViewModel.driver != null) {
+      return const AmbulanceMainView();
+    }
+    
+    return const LoginView();
+  }
+}
