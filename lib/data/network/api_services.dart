@@ -82,9 +82,23 @@ class ApiServices {
     }
   }
 
+  Future<dynamic> getAvailableDoctorsBySpecialty(int specialtyId) async {
+    try {
+      return await _apiServices.getGetApiResponse('${AppUrl.get_doctors_by_specialty}?specialtyId=$specialtyId');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<dynamic> getAppointments() async {
     try {
       return await _apiServices.getGetApiResponse(AppUrl.get_appointments);
+    } catch (e) { rethrow; }
+  }
+
+  Future<dynamic> getPatientProfile() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.get_patient_profile);
     } catch (e) { rethrow; }
   }
 
@@ -92,6 +106,47 @@ class ApiServices {
     try {
       return await _apiServices.getPostApiResponse(AppUrl.book_appointments, jsonEncode(data));
     } catch (e) { rethrow; }
+  }
+
+  Future<dynamic> cancelAppointment(String appointmentId, String reason) async {
+    try {
+      final url = '${AppUrl.cancel_appointment}/$appointmentId/cancel';
+      final payload = jsonEncode({"reason": reason});
+      return await _apiServices.getPatchApiResponse(url, payload);
+    } catch (e) { rethrow; }
+  }
+
+
+  Future<dynamic> getUpcomingAppointments() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.get_upcoming_appointments);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getCancelledAppointments() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.get_cancelled_appointments);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getPastAppointments() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.get_past_appointments);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getHealthArticles() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.get_health_articles);
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<List<dynamic>> getPatientAppointments(String patientId, {String? status}) async {
@@ -115,10 +170,44 @@ class ApiServices {
     }
   }
 
+  // --- Doctor Specific Methods ---
+
+  Future<dynamic> getDoctorPatients() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.get_doctor_patients);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<dynamic> getFirstAidTopics() async {
     try {
       print("Fetching First Aid Topics from: ${AppUrl.get_first_aid_topics}");
       return await _apiServices.getGetApiResponse(AppUrl.get_first_aid_topics);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getDoctorMonthlyEarnings(int year, int month) async {
+    try {
+      return await _apiServices.getGetApiResponse('${AppUrl.get_doctor_earnings_by_month}?year=$year&month=$month');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getDoctorBalance() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.get_doctor_balance);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getDoctorUpcomingAppointments() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.get_doctor_upcoming_appointments);
     } catch (e) {
       rethrow;
     }

@@ -36,12 +36,13 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   }
 
   int _selectedIndex = 0;
-  List<Widget> _pages = [
+  final List<Widget> _pages = [
     const HomeView(),
     const AppointmentListView(), // Swapped to index 1
     const HealthHubView(),       // Swapped to index 2
     const ProfileView(),
   ];
+  final List<Widget?> _loadedPages = List.filled(4, null);
 
   @override
   Widget build(BuildContext context) {
@@ -49,14 +50,19 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     // Assuming MultiProvider is at app root.
     final emergencyVM = Provider.of<EmergencyViewModel>(context);
 
+    // Lazy load the current page
+    if (_loadedPages[_selectedIndex] == null) {
+      _loadedPages[_selectedIndex] = _pages[_selectedIndex];
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9),
       body: Stack(
         children: [
-          // 1. Main Content
+          // 1. Main Content (Lazy loaded IndexedStack)
           IndexedStack(
             index: _selectedIndex,
-            children: _pages,
+            children: _loadedPages.map((page) => page ?? const SizedBox.shrink()).toList(),
           ),
 
           // 3. Floating SOS Status (Fixed Position above Navbar)

@@ -4,6 +4,7 @@ import 'package:medlink/core/constants/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/models/appointment_model.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart'; // We can reuse this or create a doctor specific one if needed
+import 'package:medlink/views/doctor/doctor_appointments_view_model.dart';
 // Reuse existing view
 import 'package:provider/provider.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
@@ -23,8 +24,10 @@ class DoctorAppointmentView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appointmentVM = Provider.of<AppointmentViewModel>(context);
+    final docApptVM = Provider.of<DoctorAppointmentsViewModel>(context);
+
     // In a real app, we would filter by doctor ID. For now, we assume the VM has the data.
-    final upcoming = appointmentVM.appointments.where((a) => a.status == AppointmentStatus.upcoming).toList();
+    final upcoming = docApptVM.upcomingAppointments;
     final completed = appointmentVM.appointments.where((a) => a.status == AppointmentStatus.completed || a.status == AppointmentStatus.unconfirmed).toList();
     final cancelled = appointmentVM.appointments.where((a) => a.status == AppointmentStatus.cancelled).toList();
 
@@ -73,7 +76,9 @@ class DoctorAppointmentView extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
-            _buildAppointmentList(upcoming, "No upcoming appointments"),
+            docApptVM.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _buildAppointmentList(upcoming, "No upcoming appointments"),
             _buildAppointmentList(completed, "No past appointments"),
             _buildAppointmentList(cancelled, "No canceled appointments"),
           ],

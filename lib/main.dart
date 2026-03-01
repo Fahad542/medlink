@@ -7,7 +7,7 @@ import 'package:medlink/views/Patient%20App/emergency/emergency_viewmodel.dart';
 import 'package:medlink/views/Patient%20App/prescription/doctor_viewmodel.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
 import 'package:medlink/views/Patient%20App/profile/profile_viewmodel.dart';
-import 'package:medlink/views/Login/user_view_model.dart';
+import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/main/main_screen.dart';
 import 'package:medlink/views/doctor/doctor_main_screen.dart';
 import 'package:medlink/views/Ambulance/Ambulance%20main/ambulance_main_view.dart';
@@ -15,6 +15,8 @@ import 'package:medlink/views/Patient%20App/health/health_hub_viewmodel.dart';
 import 'package:medlink/views/Login/login_view_model.dart';
 import 'package:medlink/views/Login/login_view.dart';
 import 'package:medlink/views/Onboarding/splash_view.dart';
+import 'package:medlink/views/doctor/doctor_appointments_view_model.dart';
+import 'package:medlink/views/doctor/Doctor%20patients/doctor_patients_view_model.dart';
 // import 'package:medlink/views/home/home_view.dart'; // Removed direct access
 
 import 'package:flutter/services.dart';
@@ -43,6 +45,8 @@ class MedLinkApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => UserViewModel()), // Session Management
         ChangeNotifierProvider(create: (_) => LoginViewModel()),
         ChangeNotifierProvider(create: (_) => HealthHubViewModel()),
+        ChangeNotifierProvider(create: (_) => DoctorAppointmentsViewModel()),
+        ChangeNotifierProvider(create: (_) => DoctorPatientsViewModel()),
       ],
       child: MaterialApp(
         title: 'MedLink Africa',

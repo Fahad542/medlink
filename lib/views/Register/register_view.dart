@@ -149,7 +149,8 @@ class _RegisterViewState extends State<RegisterView> {
     }
   }
 
-  List<Widget> _getStepsForRole(RegisterViewModel authViewModel) {
+  List<Widget> _getStepsForRole(RegisterViewModel authViewModel)
+  {
     final commonStep1 = Step1Credentials(
       nameController: authViewModel.nameController,
       phoneController: authViewModel.phoneController,

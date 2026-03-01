@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/views/Patient App/health/article_detail_view.dart';
 import 'package:medlink/views/Patient App/health/health_hub_viewmodel.dart';
+import 'package:medlink/widgets/shimmer_widgets.dart';
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HealthHubView extends StatefulWidget {
@@ -23,6 +25,13 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(_handleTabSelection);
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final viewModel = Provider.of<HealthHubViewModel>(context, listen: false);
+      if (viewModel.healthArticles.isEmpty && !viewModel.isLoadingArticles) {
+        viewModel.fetchHealthArticles();
+      }
+    });
   }
 
   void _handleTabSelection() {
@@ -147,155 +156,153 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
   }
 
   Widget _buildArticlesTab() {
-    final articles = [
-      {
-        "title": "10 Natural Foods to Boost Testosterone and Men's Health",
-        "category": "Healthy Lifestyle",
-        "date": "November 12, 2025",
-        "time": "5 min read",
-        "image": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=2070&auto=format&fit=crop"
-      },
-      {
-        "title": "Understanding Anxiety and Stress Management",
-        "category": "Mental Health",
-        "date": "October 24, 2025",
-        "time": "7 min read",
-        "image": "https://images.unsplash.com/photo-1474418397713-7ede21d49118?q=80&w=2053&auto=format&fit=crop"
-      },
-      {
-        "title": "The Ultimate Guide to Superfoods",
-        "category": "Nutrition",
-        "date": "September 05, 2025",
-        "time": "4 min read",
-        "image": "https://images.unsplash.com/photo-1490645935967-10de6ba17061?q=80&w=2053&auto=format&fit=crop"
-      },
-    ];
+    return Consumer<HealthHubViewModel>(
+      builder: (context, viewModel, child) {
+        if (viewModel.isLoadingArticles) {
+          return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
+            physics: const BouncingScrollPhysics(),
+            itemCount: 3,
+            separatorBuilder: (context, index) => const SizedBox(height: 20),
+            itemBuilder: (context, index) => const ArticleShimmer(),
+          );
+        }
 
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
-      physics: const BouncingScrollPhysics(),
-      itemCount: articles.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 20),
-      itemBuilder: (context, index) {
-        final article = articles[index];
-        return GestureDetector(
-          onTap: () {
-             Navigator.push(context, MaterialPageRoute(builder: (context) => ArticleDetailView(article: article)));
-          },
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 20,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+        if (viewModel.healthArticles.isEmpty) {
+          return Center(
+            child: Text(
+              "No health articles available.",
+              style: GoogleFonts.inter(color: Colors.grey),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. Large Image
-                ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24), bottom: Radius.circular(0)), // Reference has image at top, but usually card style implies top rounded. Wait, reference image shows card with padding around image? No, image is full width top.
-                // Re-checking reference: Image is at the top of the card.
-                // BUT, looking closely at the provided image, the image HAS rounded corners on all sides and sits INSIDE the white card with padding?
-                // Left/Right/Top have padding? 
-                // Let's look: The image has rounded corners. There is white space above and sides? No, it looks like a standard card with image at top.
-                // Wait, "10 Natural Foods..." text is below.
-                // Let's assume standard "Blog Card" look: Image Top (Rounded), Content Bottom.
-                // Actually, let's add some padding around the image like a "contained" look if that's what's implied, but standard is full width.
-                // User said "is tarha ki" (like this).
-                // I will use full width top image for cleanliness, or maybe padding 12 and rounded image.
-                // Let's go with Padding 12 + Rounded Image for a "premium" look.
-                
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: ClipRRect(
-                     borderRadius: BorderRadius.circular(20),
-                     child: Image.network(
-                        article['image']!,
-                        height: 120, // Reduced height
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
-                  ),
+          );
+        }
+
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
+          physics: const BouncingScrollPhysics(),
+          itemCount: viewModel.healthArticles.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 20),
+          itemBuilder: (context, index) {
+            final article = viewModel.healthArticles[index];
+            DateTime date;
+            String formattedDate = "5 min read";
+            try {
+              date = DateTime.parse(article.publishedAt);
+              formattedDate = DateFormat('MMM d, yyyy').format(date);
+            } catch (e) {
+              // fallback
+            }
+
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => ArticleDetailView(article: article)));
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 20,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-              ),
-              
-              // 2. Content
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            article['title']!,
-                            style: GoogleFonts.inter(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: const Color(0xFF1E293B),
-                              height: 1.3,
-                            ),
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Image.network(
+                          article.coverImageUrl,
+                          height: 120, // Reduced height
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            height: 120,
+                            color: Colors.grey[200],
+                            child: const Icon(Icons.image, color: Colors.grey),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        const Icon(Icons.share_outlined, color: Colors.black, size: 20), // Share Icon
-                      ],
+                      ),
                     ),
-                    const SizedBox(height: 12),
                     
-                    // Date & Category & Button
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Date: ${article['date']}",
-                              style: GoogleFonts.inter(
-                                color: Colors.grey[500],
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  article.title,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: const Color(0xFF1E293B),
+                                    height: 1.3,
+                                  ),
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                             Text(
-                              article['category']!,
-                              style: GoogleFonts.inter(
-                                color: Colors.grey[500], 
-                                fontSize: 13,
-                                fontWeight: FontWeight.normal,
-                              ),
-                            ),
-                          ],
-                        ),
-                        
-                        // Blue Button
-                        Container(
-                          height: 44, width: 44,
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary, // Theme Color
-                            shape: BoxShape.circle,
+                              const SizedBox(width: 12),
+                              const Icon(Icons.share_outlined, color: Colors.black, size: 20), // Share Icon
+                            ],
                           ),
-                          child: const Icon(Icons.arrow_outward_rounded, color: Colors.white, size: 20),
-                        ),
-                      ],
+                          const SizedBox(height: 12),
+                          
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Date: $formattedDate",
+                                    style: GoogleFonts.inter(
+                                      color: Colors.grey[500],
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    article.category,
+                                    style: GoogleFonts.inter(
+                                      color: Colors.grey[500], 
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.normal,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              
+                              Container(
+                                height: 44, width: 44,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.primary, 
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.arrow_outward_rounded, color: Colors.white, size: 20),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-            ],
-          )));});
-
+            );
+          },
+        );
+      },
+    );
   }
 
   Widget _buildEmergencyTab() {

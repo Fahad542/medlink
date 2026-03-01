@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/models/doctor_model.dart';
-import 'package:medlink/views/Login/user_view_model.dart';
+import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/widgets/custom_button.dart';
@@ -21,6 +21,8 @@ class AppointmentBookingView extends StatefulWidget {
 class _AppointmentBookingViewState extends State<AppointmentBookingView> {
   DateTime _selectedDate = DateTime.now();
   String? _selectedTime;
+  final TextEditingController _reasonController = TextEditingController();
+  
   final List<String> _timeSlots = [
     "09:00 AM",
     "09:30 AM",
@@ -31,6 +33,12 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
     "04:00 PM",
     "05:00 PM",
   ];
+
+  @override
+  void dispose() {
+    _reasonController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -182,6 +190,33 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
                       );
                     }).toList(),
                   ),
+                  const SizedBox(height: 30),
+                  
+                  // 4. Reason for visit
+                  Text("Reason for Visit", style: _sectionTitleStyle),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _reasonController,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      hintText: "E.g., Headache and nausea since 2 days",
+                      fillColor: Colors.white,
+                      filled: true,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey.withOpacity(0.2)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Colors.grey.withOpacity(0.2)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: AppColors.primary),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
@@ -226,6 +261,7 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
                       date: _selectedDate,
                       time: _selectedTime!,
                       patientId: patientId,
+                      description: _reasonController.text.trim(),
                     );
 
                     if (!context.mounted) return;

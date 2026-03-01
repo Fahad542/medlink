@@ -17,12 +17,14 @@ class QuickActionItem {
 }
 
 class CategoryItem {
+  final int? id;
   final String name;
   final String image;
   final Color color;
   final Color iconColor;
 
   CategoryItem({
+    this.id,
     required this.name,
     required this.image,
     required this.color,

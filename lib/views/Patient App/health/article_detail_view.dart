@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/models/health_article_model.dart';
+import 'package:intl/intl.dart';
 
 class ArticleDetailView extends StatelessWidget {
-  final Map<String, String> article;
+  final HealthArticle article;
 
   const ArticleDetailView({super.key, required this.article});
 
@@ -24,9 +26,9 @@ class ArticleDetailView extends StatelessWidget {
                 fit: StackFit.expand,
                 children: [
                    Hero(
-                    tag: article['image']!,
+                    tag: article.coverImageUrl,
                     child: Image.network(
-                      article['image']!,
+                      article.coverImageUrl,
                       fit: BoxFit.cover,
                     ),
                   ),
@@ -91,7 +93,7 @@ class ArticleDetailView extends StatelessWidget {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          article['category']!,
+                          article.category,
                           style: const TextStyle(
                             color: AppColors.primary,
                             fontWeight: FontWeight.bold,
@@ -103,7 +105,7 @@ class ArticleDetailView extends StatelessWidget {
                       const Icon(Icons.access_time_rounded, size: 16, color: Colors.grey),
                       const SizedBox(width: 4),
                       Text(
-                        article['time']!,
+                        _formatDate(article.publishedAt),
                         style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w500),
                       ),
                     ],
@@ -112,7 +114,7 @@ class ArticleDetailView extends StatelessWidget {
 
                   // Title
                   Text(
-                    article['title']!,
+                    article.title,
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -149,26 +151,14 @@ class ArticleDetailView extends StatelessWidget {
                   const Divider(),
                   const SizedBox(height: 24),
 
-                  // Article Content (Mock)
+                  // Article Content
                   Text(
                     "Overview",
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey[800]),
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    "Maintaing a healthy heart is crucial for overall well-being. "
-                    "Cardiovascular diseases are the leading cause of death globally, but many can be prevented with simple lifestyle changes.\n\n"
-                    "Here are 5 essential tips to keep your heart strong:\n\n"
-                    "1. Eat a Heart-Healthy Diet\n"
-                    "Focus on fruits, vegetables, whole grains, and lean proteins. Limit sodium, sugar, and saturated fats. Foods rich in omega-3 fatty acids, like salmon and flaxseeds, are excellent for heart health.\n\n"
-                    "2. Get Active\n"
-                    "Aim for at least 150 minutes of moderate-intensity exercise per week. Activities like brisk walking, swimming, or cycling can significantly lower your risk of heart disease.\n\n"
-                    "3. Manage Stress\n"
-                    "Chronic stress can increase blood pressure and strain your heart. Practice relaxation techniques such as meditation, deep breathing exercises, or yoga.\n\n"
-                    "4. Quit Smoking\n"
-                    "Smoking damages your blood vessels and reduces the oxygen in your blood. Quitting is the single best thing you can do for your heart.\n\n"
-                    "5. Get Quality Sleep\n"
-                    "Poor sleep has been linked to high blood pressure and heart disease. Aim for 7-9 hours of quality sleep each night.",
+                    _stripHtml(article.contentHtml),
                     style: TextStyle(
                       fontSize: 16,
                       height: 1.8,
@@ -183,6 +173,21 @@ class ArticleDetailView extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _formatDate(String isoString) {
+    if (isoString.isEmpty) return '5 min read';
+    try {
+      DateTime date = DateTime.parse(isoString);
+      return DateFormat('MMM d, yyyy').format(date);
+    } catch (e) {
+      return '5 min read';
+    }
+  }
+
+  String _stripHtml(String htmlString) {
+    RegExp exp = RegExp(r"<[^>]*>", multiLine: true, caseSensitive: true);
+    return htmlString.replaceAll(exp, '');
   }
 
   Widget _buildAppBarButton({required IconData icon, required VoidCallback onPressed}) {

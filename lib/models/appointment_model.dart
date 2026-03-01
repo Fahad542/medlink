@@ -26,20 +26,31 @@ class AppointmentModel {
   });
 
   factory AppointmentModel.fromJson(Map<String, dynamic> json) {
-    var doctorObj = json['doctor_id'];
-    String doctorId = '';
+    var doctorObj = json['doctor'] ?? json['doctor_id'];
+    String doctorId = json['doctorId']?.toString() ?? '';
     DoctorModel? doctorModel;
 
     if (doctorObj is Map<String, dynamic>) {
-      doctorId = doctorObj['_id'] ?? '';
+      doctorId = doctorObj['id']?.toString() ?? doctorObj['_id']?.toString() ?? doctorId;
+      
+      String clinicName = '';
+      if (doctorObj['doctorProfile'] is Map) {
+         clinicName = doctorObj['doctorProfile']['clinicName'] ?? '';
+      }
+
+      String photoUrl = doctorObj['profilePhotoUrl'] ?? doctorObj['profile_image_url'] ?? '';
+      if (photoUrl.isNotEmpty && !photoUrl.startsWith('http')) {
+        photoUrl = 'https://medlink-be-production.up.railway.app$photoUrl';
+      }
+
       // Create a partial doctor model if we have data
       doctorModel = DoctorModel(
         id: doctorId,
-        name: doctorObj['full_name'] ?? 'Unknown',
-        specialty: doctorObj['specialty'] ?? '',
-        hospital: '', // Not provided in this endpoint
+        name: doctorObj['fullName'] ?? doctorObj['full_name'] ?? 'Unknown',
+        specialty: doctorObj['specialty'] ?? 'Specialist',
+        hospital: clinicName,
         rating: 0.0,
-        imageUrl: '', // Not provided
+        imageUrl: photoUrl,
         isAvailable: true,
         consultationFee: 0.0,
         about: '',
@@ -48,14 +59,27 @@ class AppointmentModel {
       doctorId = doctorObj;
     }
 
+    DateTime parsedDate = DateTime.now();
+    if (json['scheduledStart'] != null) {
+      parsedDate = DateTime.tryParse(json['scheduledStart'])?.toLocal() ?? DateTime.now();
+    } else if (json['date'] != null && json['time'] != null) {
+      parsedDate = DateTime.tryParse("${json['date']}T${json['time']}") ?? DateTime.now();
+    }
+
+    UserModel? patientModel;
+    if (json['patient'] != null && json['patient'] is Map<String, dynamic>) {
+      patientModel = UserModel.fromJson(json['patient']);
+    }
+
     return AppointmentModel(
-      id: json['_id'] ?? json['id'] ?? '',
+      id: json['id']?.toString() ?? json['_id']?.toString() ?? '',
       doctorId: doctorId,
-      userId: json['patient_id'] ?? '',
-      dateTime: DateTime.tryParse("${json['date']}T${json['time']}") ?? DateTime.now(),
+      userId: json['patientId']?.toString() ?? json['patient_id']?.toString() ?? '',
+      dateTime: parsedDate,
       status: _parseStatus(json['status']),
-      type: AppointmentType.inPerson, 
+      type: json['consultKind'] == 'VIDEO' ? AppointmentType.online : AppointmentType.inPerson, 
       doctor: doctorModel, 
+      user: patientModel,
     );
   }
 
@@ -63,6 +87,8 @@ class AppointmentModel {
     switch (status?.toLowerCase()) {
       case 'booked': 
       case 'upcoming': 
+      case 'pending':
+      case 'confirmed':
         return AppointmentStatus.upcoming;
       case 'completed': 
       case 'past':

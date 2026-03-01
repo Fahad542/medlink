@@ -4,15 +4,57 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:medlink/data/app_exceptions.dart';
 import 'package:medlink/data/network/base_api_services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class NetworkApiService extends BaseApiServices {
+  Future<Map<String, String>> _getHeaders() async {
+    final SharedPreferences sp = await SharedPreferences.getInstance();
+    
+    // First try V2 session
+    final String? sessionV2 = sp.getString('user_session_v2');
+    Map<String, String> headers = {'Content-Type': 'application/json'};
+    
+    if (sessionV2 != null) {
+      try {
+        final Map<String, dynamic> data = jsonDecode(sessionV2);
+        final String? token = data['data'] != null ? data['data']['access_token'] : null;
+        if (token != null && token.isNotEmpty) {
+          print("Extracted Token for Header: $token");
+          headers['Authorization'] = 'Bearer $token'; 
+          return headers;
+        }
+      } catch (e) {
+        print("Error parsing session_v2 string: $e");
+      }
+    }
+
+    // Fallback to V1 session
+    final String? sessionStr = sp.getString('user_session');
+    if (sessionStr != null) {
+      try {
+        final Map<String, dynamic> data = jsonDecode(sessionStr);
+        final String? token = data['access_token'] ?? data['token'];
+        if (token != null && token.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $token'; // or according to backend requirement
+        } else {
+          print("Token is null or empty in SharedPreferences");
+        }
+      } catch (e) {
+        // Ignore JSON parse error
+        print("Error parsing session string: $e");
+      }
+    }
+    return headers;
+  }
+
   @override
   Future getGetApiResponse(String url) async {
     print(url);
     dynamic responseJson;
     try {
+      final headers = await _getHeaders();
       final response = await http
-          .get(Uri.parse(url))
+          .get(Uri.parse(url), headers: headers)
           .timeout(const Duration(seconds: 10));
       responseJson = returnResponse(response);
     } on SocketException {
@@ -27,11 +69,34 @@ class NetworkApiService extends BaseApiServices {
     print(url);
     dynamic responseJson;
     try {
+      final headers = await _getHeaders();
       final response = await http
           .post(
             Uri.parse(url),
             body: data,
-            headers: {'Content-Type': 'application/json'},
+            headers: headers,
+          )
+          .timeout(const Duration(seconds: 10));
+
+      responseJson = returnResponse(response);
+    } on SocketException {
+      throw FetchDataException('No Internet Connection');
+    }
+
+    return responseJson;
+  }
+
+  @override
+  Future getPatchApiResponse(String url, dynamic data) async {
+    print(url);
+    dynamic responseJson;
+    try {
+      final headers = await _getHeaders();
+      final response = await http
+          .patch(
+            Uri.parse(url),
+            body: data,
+            headers: headers,
           )
           .timeout(const Duration(seconds: 10));
 
@@ -51,6 +116,8 @@ class NetworkApiService extends BaseApiServices {
       var request = http.MultipartRequest('POST', Uri.parse(url));
       
       // Add headers
+      final headers = await _getHeaders();
+      request.headers.addAll(headers);
       request.headers['accept'] = '*/*';
       
       print("Req URL: $url");
@@ -113,6 +180,13 @@ class NetworkApiService extends BaseApiServices {
            throw BadRequestException(responseJson['message']);
         } catch (e) {
            throw BadRequestException(response.body);
+        }
+      case 401:
+        try {
+          dynamic responseJson = jsonDecode(response.body);
+          throw UnauthorizedException(responseJson['message'] ?? 'Invalid credentials');
+        } catch (e) {
+           throw UnauthorizedException('Invalid credentials');
         }
       case 404:
         try {

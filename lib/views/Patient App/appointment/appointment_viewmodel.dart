@@ -26,25 +26,78 @@ class AppointmentViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-
-      
-      final data = await _apiService.getPatientAppointments(patientId, status: status);
-      
-      List<AppointmentModel> fetched = data.map((json) => AppointmentModel.fromJson(json)).toList();
-
+      List<AppointmentModel> fetched = [];
       if (status == 'upcoming') {
+        final response = await _apiService.getUpcomingAppointments();
+        if (response != null && response['success'] == true) {
+          final List<dynamic> data = response['data'];
+          fetched = data.map((json) => AppointmentModel.fromJson(json)).toList();
+        }
         _upcomingAppointments = fetched;
-      } else if (status == 'past') {
-        _pastAppointments = fetched;
       } else if (status == 'cancelled') {
+        final response = await _apiService.getCancelledAppointments();
+        if (response != null && response['success'] == true) {
+          final List<dynamic> data = response['data'];
+          fetched = data.map((json) => AppointmentModel.fromJson(json)).toList();
+        }
         _cancelledAppointments = fetched;
+      } else if (status == 'past') {
+        final response = await _apiService.getPastAppointments();
+        if (response != null && response['success'] == true) {
+          final List<dynamic> data = response['data'];
+          fetched = data.map((json) => AppointmentModel.fromJson(json)).toList();
+        }
+        _pastAppointments = fetched;
+      } else {
+        // Fallback for other status
+        final data = await _apiService.getPatientAppointments(patientId, status: status);
+        fetched = data.map((json) => AppointmentModel.fromJson(json)).toList();
       }
-      
-      // Also update the main list if needed, or just rely on specific lists
-      // _appointments = [..._upcomingAppointments, ..._pastAppointments, ..._cancelledAppointments];
 
     } catch (e) {
-      print("ViewModel Error: $e");
+      print("ViewModel Error fetching $status appointments: $e");
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> cancelAppointment(String appointmentId, String reason) async {
+    try {
+      final response = await _apiService.cancelAppointment(appointmentId, reason);
+      if (response != null && response['success'] == true) {
+        // Find it in upcoming list and move it to cancelled, or just refetch
+        _upcomingAppointments.removeWhere((a) => a.id == appointmentId);
+        
+        // Since we removed it, ideally we'd re-fetch cancelled or add it if we had the full model
+        // To be safe, just notify listeners so UI updates. The user might switch to cancelled tab which will refetch.
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print("Error cancelling appointment: $e");
+      return false;
+    }
+  }
+
+
+
+  Future<void> loadUpcomingAppointments() async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final response = await _apiService.getUpcomingAppointments();
+      if (response != null && response['success'] == true) {
+         final List<dynamic> data = response['data'];
+         _upcomingAppointments = data.map((json) => AppointmentModel.fromJson(json)).toList();
+      } else {
+         _upcomingAppointments = [];
+      }
+    } catch (e) {
+      print("Error loading upcoming appointments: $e");
+      _upcomingAppointments = [];
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -59,37 +112,43 @@ class AppointmentViewModel extends ChangeNotifier {
     required DateTime date,
     required String time,
     required String patientId,
+    String description = "General Consultation",
   }) async {
-    // Convert Time to 24h format (HH:mm)
-    String formattedTime = time; 
+    // Parse start time and calculate end time
+    DateTime? parsedStartTime;
     try {
-       if (time.contains("PM") || time.contains("AM")) {
-          final dt = DateFormat("h:mm a").parse(time); // Needs intl package
-          formattedTime = DateFormat("HH:mm").format(dt); 
-       }
+       parsedStartTime = DateFormat("h:mm a").parse(time); 
     } catch (e) {
-      print("Time parsing error: $e, sending original");
+       parsedStartTime = DateFormat("HH:mm").parse(time);
     }
 
+    String formattedStartTime = DateFormat("HH:mm").format(parsedStartTime);
+    DateTime parsedEndTime = parsedStartTime.add(const Duration(minutes: 30));
+    String formattedEndTime = DateFormat("HH:mm").format(parsedEndTime);
+
+    int doctorIdInt = int.tryParse(doctor.id) ?? 0;
+
     final appointmentData = {
-      "doctor_id": doctor.id,
-      "patient_id": patientId,
-      "date": date.toIso8601String().split('T')[0], // YYYY-MM-DD
-      "time": formattedTime,
-      "duration": 30, // Default duration
-      "price": doctor.consultationFee > 0 ? doctor.consultationFee.toInt() : 500, 
-      "note": "General Consultation"
+      "doctorId": doctorIdInt,
+      "date": DateFormat('yyyy-MM-dd').format(date),
+      "startTime": formattedStartTime,
+      "endTime": formattedEndTime,
+      "description": description.isEmpty ? "General Consultation" : description,
     };
 
     print("Sending Appointment Data: $appointmentData");
 
-    final result = await _apiService.bookAppointment(appointmentData);
-    
-    if (result != null && (result['success'] == true || result['appointment'] != null)) {
-       // Refresh upcoming list or add locally
-       // For now just return success
-       return result;
+    try {
+      final result = await _apiService.bookAppointment(appointmentData);
+      
+      if (result != null && (result['success'] == true || result['appointment'] != null || result['data'] != null)) {
+         return {'success': true, 'message': 'Booking confirmed.'};
+      } else {
+         return {'success': false, 'message': result?['message'] ?? 'Failed to book appointment'};
+      }
+    } catch (e) {
+      print("Booking error: $e");
+      return {'success': false, 'message': 'An error occurred during booking: $e'};
     }
-    return result;
   }
 }

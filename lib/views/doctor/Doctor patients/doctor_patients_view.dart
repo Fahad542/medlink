@@ -25,11 +25,9 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => DoctorPatientsViewModel(),
-      child: Consumer<DoctorPatientsViewModel>(
-        builder: (context, viewModel, child) {
-          return Scaffold(
+    return Consumer<DoctorPatientsViewModel>(
+      builder: (context, viewModel, child) {
+        return Scaffold(
             backgroundColor: const Color(0xFFF8F9FB),
             appBar: const CustomAppBar(
               title: "My Patients",
@@ -51,22 +49,30 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
 
                 // Patient List
                 Expanded(
-                  child: ListView.builder(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.only(left: 16, right: 16, top: 0, bottom: 100),
-                    itemCount: viewModel.patients.length,
-                    itemBuilder: (context, index) {
-                      final patient = viewModel.patients[index];
-                      return _buildPatientCard(patient);
-                    },
-                  ),
+                  child: viewModel.isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : viewModel.patients.isEmpty
+                          ? Center(
+                              child: Text(
+                                "No patients found.",
+                                style: GoogleFonts.inter(color: Colors.grey[500]),
+                              ),
+                            )
+                          : ListView.builder(
+                              physics: const BouncingScrollPhysics(),
+                              padding: const EdgeInsets.only(left: 16, right: 16, top: 0, bottom: 100),
+                              itemCount: viewModel.patients.length,
+                              itemBuilder: (context, index) {
+                                final patient = viewModel.patients[index];
+                                return _buildPatientCard(patient);
+                              },
+                            ),
                 ),
               ],
             ),
           );
         },
-      ),
-    );
+      );
   }
 
   Widget _buildSearchBar(DoctorPatientsViewModel viewModel) {

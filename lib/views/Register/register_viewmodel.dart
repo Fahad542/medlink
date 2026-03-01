@@ -6,7 +6,7 @@ import 'package:medlink/models/doctor_model.dart';
 import 'package:medlink/models/ambulance_model.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/utils/utils.dart';
-import 'package:medlink/views/Login/user_view_model.dart';
+import 'package:medlink/views/services/session_view_model.dart';
 import 'package:provider/provider.dart';
 
 enum UserRole { patient, doctor, driver }

@@ -11,8 +11,9 @@ import 'package:provider/provider.dart';
 
 class DoctorListView extends StatelessWidget {
   final String? initialCategory;
+  final int? categoryId;
 
-  const DoctorListView({super.key, this.initialCategory});
+  const DoctorListView({super.key, this.initialCategory, this.categoryId});
 
   @override
   Widget build(BuildContext context) {
@@ -24,6 +25,12 @@ class DoctorListView extends StatelessWidget {
           String cat = initialCategory!;
           if(cat == "General") cat = "General Practitioner";
           vm.setSelectedSpecialty(cat);
+        }
+        // Fetch according to category or all doctors via the new logic
+        if (categoryId != null) {
+          vm.loadDoctorsBySpecialty(categoryId!);
+        } else {
+          vm.loadAllDoctors();
         }
         return vm;
       },
@@ -37,8 +44,8 @@ class _DoctorListViewContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final doctorVM = Provider.of<DoctorViewModel>(context); // Global Data
-    final localVM = Provider.of<DoctorListViewModel>(context); // Local UI Logic
+    final doctorVM = Provider.of<DoctorViewModel>(context); // Global Data for Categories
+    final localVM = Provider.of<DoctorListViewModel>(context); // Local UI Logic & Data
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -108,7 +115,7 @@ class _DoctorListViewContent extends StatelessWidget {
             child: SizedBox(
               width: double.infinity,
               child: Text(
-                localVM.selectedSpecialty != null ? "${localVM.selectedSpecialty}s" : "All Doctors",
+                localVM.selectedSpecialty != null ? "${localVM.selectedSpecialty} Doctors" : "All Doctors",
                 style: GoogleFonts.inter(
                   fontSize: 16, // Smaller header
                   fontWeight: FontWeight.bold,
@@ -120,14 +127,14 @@ class _DoctorListViewContent extends StatelessWidget {
 
           // 3. Doctor List
           Expanded(
-            child: doctorVM.isLoading
+            child: localVM.isLoadingDoctors
                 ? const DoctorListShimmer()
                 : ListView.builder(
                     physics: const BouncingScrollPhysics(),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), // Adjusted padding
-                    itemCount: doctorVM.doctors.length, 
+                    itemCount: localVM.localDoctors.length, 
                     itemBuilder: (context, index) {
-                      final doctor = doctorVM.doctors[index];
+                      final doctor = localVM.localDoctors[index];
                       // Simple client-side filter check
                       bool matchesSearch = localVM.searchQuery.isEmpty || doctor.name.toLowerCase().contains(localVM.searchQuery.toLowerCase());
                       bool matchesSpecialty = localVM.selectedSpecialty == null || doctor.specialty == localVM.selectedSpecialty;

@@ -3,7 +3,7 @@ import 'package:shimmer/shimmer.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
-import 'package:medlink/views/Login/user_view_model.dart';
+import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/Patient%20App/emergency/emergency_viewmodel.dart';
 import 'package:medlink/widgets/sos_button.dart';
 import 'package:medlink/views/Patient%20App/Find%20a%20doctor/doctor_list_view.dart';
@@ -28,6 +28,14 @@ class HomeView extends StatefulWidget {
 
 class _HomeViewState extends State<HomeView> {
   final PageController _pageController = PageController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+       Provider.of<AppointmentViewModel>(context, listen: false).loadUpcomingAppointments();
+    });
+  }
 
   @override
   void dispose() {
@@ -300,22 +308,37 @@ class _HomeViewState extends State<HomeView> {
 
                         const SizedBox(height: 24),
 
-                        _buildSectionHeader(
-                          "Doctors Categories",
-                          actionLabel: "See all",
-                          onAction: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => CategoryListView(categories: homeVM.categories)),
+                        if (homeVM.categoriesLoading || homeVM.categories.isNotEmpty) ...[
+                          _buildSectionHeader(
+                            "Doctors Categories",
+                            actionLabel: "See all",
+                            onAction: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => CategoryListView(categories: homeVM.categories)),
+                            ),
                           ),
-                        ),
 
-                        _buildDoctorCategories(context),
+                          _buildDoctorCategories(context),
 
-                        const SizedBox(height: 24),
+                          const SizedBox(height: 24),
+                        ],
 
                         // 4. Upcoming Appointment
-                        if (appointmentVM.appointments.any((a) => a.status == AppointmentStatus.upcoming)) ...[
+                        if (appointmentVM.isLoading) ...[
+                          _buildSectionHeader(
+                            "Upcoming Appointment",
+                            actionLabel: "See all",
+                            onAction: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const AppointmentListView()),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          const AppointmentCardShimmer(),
+                          const SizedBox(height: 15),
+                        ] else if (appointmentVM.appointments.any((a) => a.status == AppointmentStatus.upcoming)) ...[
                           _buildSectionHeader(
                             "Upcoming Appointment",
                             actionLabel: "See all",
@@ -657,7 +680,7 @@ class _HomeViewState extends State<HomeView> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => DoctorListView(initialCategory: cat.name),
+                  builder: (_) => DoctorListView(initialCategory: cat.name, categoryId: cat.id),
                 ),
               );
             },

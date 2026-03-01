@@ -5,7 +5,7 @@ import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:provider/provider.dart';
-import 'package:medlink/views/Login/user_view_model.dart';
+import 'package:medlink/views/services/session_view_model.dart';
 
 class DoctorPersonalInfoView extends StatefulWidget {
   const DoctorPersonalInfoView({super.key});

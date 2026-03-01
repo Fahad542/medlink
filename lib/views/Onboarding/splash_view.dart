@@ -4,7 +4,7 @@ import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/views/Onboarding/onboarding_view.dart';
 import 'package:medlink/views/Login/login_view.dart';
 
-import 'package:medlink/views/Login/user_view_model.dart'; // Session
+import 'package:medlink/views/services/session_view_model.dart'; // Session
 import 'package:provider/provider.dart';
 import 'package:medlink/views/main/main_screen.dart'; // Patient Home
 import 'package:medlink/views/doctor/doctor_main_screen.dart'; // Doctor Home

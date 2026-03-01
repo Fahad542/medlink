@@ -5,6 +5,9 @@ import 'package:medlink/models/appointment_model.dart';
 import 'package:medlink/views/Patient App/consultation/chat_view.dart';
 import 'package:medlink/views/Patient App/consultation/waiting_room_view.dart';
 import 'package:medlink/views/doctor/Doctor%20profile/doctor_profile_view.dart';
+import 'package:provider/provider.dart';
+import 'package:medlink/views/Patient App/appointment/appointment_viewmodel.dart';
+import 'package:medlink/utils/utils.dart';
 
 class AppointmentInfoCard extends StatelessWidget {
   final AppointmentModel appointment;
@@ -134,64 +137,91 @@ class AppointmentInfoCard extends StatelessWidget {
   void _showCancelDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 8),
-              const Text(
-                "Cancel Appointment?",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "Are you sure you want to cancel this appointment? This action cannot be undone.",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[600], fontSize: 14),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        foregroundColor: Colors.grey.shade700,
-                      ),
-                      child: const Text("Back"),
+      builder: (context) {
+        bool isCancelling = false;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              backgroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 8),
+                    const Text(
+                      "Cancel Appointment?",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                         // TODO: Implement actual cancel logic
-                         Navigator.pop(context);
-                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Appointment Cancelled")));
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        elevation: 0,
-                      ),
-                      child: const Text("Yes, Cancel"),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Are you sure you want to cancel this appointment? This action cannot be undone.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
                     ),
-                  ),
-                ],
-              )
-            ],
-          ),
-        ),
-      ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: isCancelling ? null : () => Navigator.pop(context),
+                            style: OutlinedButton.styleFrom(
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              foregroundColor: Colors.grey.shade700,
+                            ),
+                            child: const Text("Back"),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: isCancelling
+                                ? null
+                                : () async {
+                                    setState(() => isCancelling = true);
+                                    
+                                    final vm = Provider.of<AppointmentViewModel>(context, listen: false);
+                                    bool success = await vm.cancelAppointment(appointment.id.toString(), "Patient requested cancellation");
+                                    
+                                    if (context.mounted) {
+                                      setState(() => isCancelling = false);
+                                      Navigator.pop(context); // Close dialog
+
+                                      Utils.toastMessage(
+                                        context, 
+                                        success ? "Appointment cancelled successfully" : "Failed to cancel appointment", 
+                                        isError: !success
+                                      );
+                                    }
+                                  },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              elevation: 0,
+                            ),
+                            child: isCancelling
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                                  )
+                                : const Text("Yes, Cancel"),
+                          ),
+                        ),
+                      ],
+                    )
+                  ],
+                ),
+              ),
+            );
+          }
+        );
+      },
     );
   }
 

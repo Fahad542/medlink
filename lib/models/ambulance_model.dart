@@ -19,15 +19,25 @@ class AmbulanceModel {
     required this.estimatedArrival,
   });
   factory AmbulanceModel.fromJson(Map<String, dynamic> json) {
+    final profile = json['driver'] is Map<String, dynamic> 
+        ? json['driver'] 
+        : (json['ambulance'] is Map<String, dynamic> 
+            ? json['ambulance'] 
+            : (json['user'] is Map<String, dynamic>
+                ? json['user']
+                : {}));
+
+    dynamic getField(String key) => json[key] ?? profile[key];
+
     return AmbulanceModel(
-      id: json['id'] ?? json['user_id'] ?? '',
-      driverName: json['driverName'] ?? json['driver_name'] ?? '',
-      plateNumber: json['plateNumber'] ?? json['plate_number'] ?? '',
-      currentLat: (json['currentLat'] ?? 0).toDouble(),
-      currentLng: (json['currentLng'] ?? 0).toDouble(),
-      vehicleType: json['vehicleType'] ?? json['vehicle_type'] ?? 'Ambulance',
-      status: json['status'] ?? 'Idle',
-      estimatedArrival: json['estimatedArrival'] ?? '20 min',
+      id: getField('id')?.toString() ?? getField('user_id')?.toString() ?? '',
+      driverName: getField('driverName') ?? getField('fullName') ?? getField('driver_name') ?? '',
+      plateNumber: getField('plateNumber') ?? getField('plate_number') ?? '',
+      currentLat: double.tryParse(getField('currentLat')?.toString() ?? '0') ?? 0.0,
+      currentLng: double.tryParse(getField('currentLng')?.toString() ?? '0') ?? 0.0,
+      vehicleType: getField('vehicleType') ?? getField('vehicle_type') ?? 'Ambulance',
+      status: getField('status') ?? 'Idle',
+      estimatedArrival: getField('estimatedArrival') ?? '20 min',
     );
   }
 

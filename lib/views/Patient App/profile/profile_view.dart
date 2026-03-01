@@ -3,20 +3,51 @@ import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'package:medlink/views/Login/user_view_model.dart';
+import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/Patient App/profile/personal_info_view.dart';
 import 'package:medlink/views/Patient App/profile/payment_methods_view.dart';
 import 'package:medlink/views/Patient App/profile/emergency_contacts_view.dart';
+import 'package:medlink/data/network/api_services.dart';
+import 'package:medlink/models/user_model.dart';
 
 import 'package:medlink/widgets/logout_confirmation_dialog.dart';
 import 'package:medlink/views/Login/login_view.dart';
-import 'package:medlink/views/Patient App/consultation/my_appointments_view.dart';
 import 'package:provider/provider.dart';
 
-class ProfileView extends StatelessWidget {
+class ProfileView extends StatefulWidget {
   const ProfileView({super.key});
 
   @override
+  State<ProfileView> createState() => _ProfileViewState();
+}
+
+class _ProfileViewState extends State<ProfileView> {
+
+  @override
+  void initState() {
+    super.initState();
+    // Fetch profile as soon as tab opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchLatestProfile();
+    });
+  }
+
+  Future<void> _fetchLatestProfile() async {
+    final userVM = Provider.of<UserViewModel>(context, listen: false);
+    if (userVM.role == 'patient') {
+      try {
+        final apiServices = ApiServices();
+        final response = await apiServices.getPatientProfile();
+        if (response != null && response['success'] == true) {
+           final updatedUser = UserModel.fromJson(response['data']);
+           userVM.updatePatient(updatedUser);
+        }
+      } catch(e) {
+        print("Error auto-fetching profile: $e");
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final userVM = Provider.of<UserViewModel>(context);
@@ -104,21 +135,6 @@ class ProfileView extends StatelessWidget {
                                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const PersonalInformationView())),
                               ),
                               _buildDivider(),
-
-                              _buildPremiumTile(
-                                context,
-                                icon: Icons.calendar_today_rounded,
-                                color: AppColors.primary,
-                                title: "My Appointments",
-                                subtitle: "Upcoming & Past",
-                                onTap: () {
-                                  if (user != null) {
-                                      Navigator.push(context, MaterialPageRoute(builder: (context) => MyAppointmentsView(patientId: user.id)));
-                                  } else {
-                                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please login to view appointments")));
-                                  }
-                                },
-                              ),
 
                               _buildPremiumTile(
                                 context,

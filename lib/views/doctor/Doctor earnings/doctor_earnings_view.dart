@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/views/doctor/payout_settings_view.dart';
 
 import 'package:provider/provider.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:medlink/views/doctor/Doctor%20earnings/doctor_earnings_view_model.dart';
 // ... other imports ...
 
@@ -91,22 +92,35 @@ class DoctorEarningsView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              viewModel.formatCurrency(viewModel.balance),
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            viewModel.isLoading
+                ? Shimmer.fromColors(
+                    baseColor: Colors.white.withOpacity(0.5),
+                    highlightColor: Colors.white,
+                    child: Container(
+                      height: 32,
+                      width: 140,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  )
+                : Text(
+                    viewModel.formatCurrency(viewModel.totalBalance),
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
             const SizedBox(height: 20),
             
             // Stat Cards
             Row(
               children: [
-                _buildStatCard("Today", "\$120", Icons.today_rounded),
+                _buildStatCard("Today", viewModel.isLoading ? "..." : viewModel.formatCurrency(viewModel.todayEarning), Icons.today_rounded),
                 const SizedBox(width: 12),
-                _buildStatCard("This Week", "\$850", Icons.calendar_view_week_rounded),
+                _buildStatCard("This Week", viewModel.isLoading ? "..." : viewModel.formatCurrency(viewModel.thisWeekEarning), Icons.calendar_view_week_rounded),
               ],
             ),
           ],
@@ -200,14 +214,23 @@ class DoctorEarningsView extends StatelessWidget {
 
           SizedBox(
             height: 350,
-            child: ListView.builder(
-              padding: EdgeInsets.zero,
-              physics: const BouncingScrollPhysics(),
-              itemCount: viewModel.transactions.length,
-              itemBuilder: (context, index) {
-                return _buildTransactionItem(viewModel.transactions[index], viewModel);
-              },
-            ),
+            child: viewModel.isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : viewModel.recentTransactions.isEmpty
+                  ? Center(
+                      child: Text(
+                        "No recent transactions",
+                        style: GoogleFonts.inter(color: Colors.grey),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: EdgeInsets.zero,
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: viewModel.recentTransactions.length,
+                      itemBuilder: (context, index) {
+                        return _buildTransactionItem(viewModel.recentTransactions[index], viewModel);
+                      },
+                    ),
           ),
           
           const SizedBox(height: 32),
@@ -266,11 +289,12 @@ class DoctorEarningsView extends StatelessWidget {
     );
   }
 
-  Widget _buildTransactionItem(Map<String, dynamic> transaction, DoctorEarningsViewModel viewModel) {
-    bool isCredit = transaction['isCredit'];
-    double amount = transaction['amount'];
-    String user = transaction['user'];
-    DateTime date = transaction['date'];
+  Widget _buildTransactionItem(dynamic transaction, DoctorEarningsViewModel viewModel) {
+    bool isCredit = transaction['isCredit'] ?? true;
+    double amount = (transaction['amount'] ?? 0).toDouble();
+    String user = transaction['user'] ?? 'Unknown User';
+    String dateStr = transaction['date'] ?? '';
+    String title = transaction['title'] ?? 'Consultation';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -306,7 +330,7 @@ class DoctorEarningsView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Consultation",
+                  title,
                   style: GoogleFonts.inter(
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
@@ -315,7 +339,7 @@ class DoctorEarningsView extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  "$user • ${viewModel.formatDate(date)}",
+                  "$user • ${dateStr != '' ? viewModel.formatDate(dateStr) : ''}",
                   style: GoogleFonts.inter(
                     color: Colors.grey[500],
                     fontSize: 12,

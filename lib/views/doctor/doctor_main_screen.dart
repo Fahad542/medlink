@@ -4,6 +4,8 @@ import 'package:medlink/views/doctor/Dashboard/doctor_dashboard_view.dart';
 import 'package:medlink/views/doctor/doctor_appointment_view.dart';
 import 'package:medlink/views/doctor/doctor_settings_profile_view.dart';
 import 'package:medlink/views/doctor/Doctor%20patients/doctor_patients_view.dart';
+import 'package:medlink/views/doctor/Doctor%20patients/doctor_patients_view_model.dart';
+import 'package:provider/provider.dart';
 
 class DoctorMainScreen extends StatefulWidget {
   const DoctorMainScreen({super.key});
@@ -76,6 +78,11 @@ class _DoctorMainScreenState extends State<DoctorMainScreen> {
         setState(() {
           _selectedIndex = index;
         });
+        
+        // Lazy load patients if the patients tab is tapped
+        if (index == 2) {
+          Provider.of<DoctorPatientsViewModel>(context, listen: false).loadPatientsIfNotLoaded();
+        }
       },
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/models/first_aid_topic_model.dart';
+import 'package:medlink/models/health_article_model.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 
 class HealthHubViewModel extends ChangeNotifier {
@@ -11,6 +12,30 @@ class HealthHubViewModel extends ChangeNotifier {
 
   List<FirstAidTopic> get firstAidTopics => _firstAidTopics;
   bool get isLoadingFirstAid => _isLoadingFirstAid;
+
+  List<HealthArticle> _healthArticles = [];
+  bool _isLoadingArticles = false;
+
+  List<HealthArticle> get healthArticles => _healthArticles;
+  bool get isLoadingArticles => _isLoadingArticles;
+
+  void fetchHealthArticles() async {
+    _isLoadingArticles = true;
+    notifyListeners();
+
+    try {
+      final response = await _apiServices.getHealthArticles();
+      if (response != null && response['data'] != null) {
+        final List<dynamic> dataList = response['data'];
+        _healthArticles = dataList.map((json) => HealthArticle.fromJson(json)).toList();
+      }
+    } catch (e) {
+      debugPrint("Error fetching health articles: $e");
+    } finally {
+      _isLoadingArticles = false;
+      notifyListeners();
+    }
+  }
 
   void fetchFirstAidTopics() async {
     _isLoadingFirstAid = true;

@@ -8,7 +8,7 @@ import 'package:medlink/views/Login/login_view.dart';
 import 'package:medlink/widgets/logout_confirmation_dialog.dart';
 import 'package:medlink/widgets/custom_button.dart'; // Added Import
 import 'package:provider/provider.dart';
-import 'package:medlink/views/Login/user_view_model.dart';
+import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/models/doctor_model.dart';
 
 class DoctorSettingsProfileView extends StatelessWidget {

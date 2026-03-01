@@ -7,7 +7,7 @@ import 'package:medlink/widgets/custom_button.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
-import 'package:medlink/views/Login/user_view_model.dart';
+import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
 
 class AppointmentDetailsView extends StatelessWidget {

@@ -41,7 +41,13 @@ class HomeViewModel extends ChangeNotifier {
       final response = await _apiServices.getDoctorCategories();
       if (response != null && response['success'] == true) {
         final List<dynamic> data = response['data'];
-        _apiCategories = data.map((name) => _mapToCategoryItem(name.toString())).toList();
+        _apiCategories = data.map((json) {
+          if (json is Map<String, dynamic>) {
+            return _mapToCategoryItem(json['name']?.toString() ?? 'General', id: json['id'] as int?);
+          } else {
+             return _mapToCategoryItem(json.toString());
+          }
+        }).toList();
       }
     } catch (e) {
       debugPrint("Error fetching categories: $e");
@@ -50,36 +56,45 @@ class HomeViewModel extends ChangeNotifier {
     }
   }
 
-  CategoryItem _mapToCategoryItem(String name) {
+  CategoryItem _mapToCategoryItem(String name, {int? id}) {
     // Map existing icons/colors or defaults
     switch (name.toLowerCase()) {
       case 'cardiologist':
+      case 'cardiology':
         return CategoryItem(
+          id: id,
           image: 'assets/cardiologist.png',
-          name: 'Cardiologist',
+          name: name,
           color: const Color(0xFF5DB09C),
         );
       case 'dentist':
+      case 'dentistry':
         return CategoryItem(
+          id: id,
           image: 'assets/pediatrician.png', // Assuming pediatrician or using a default for now
-          name: 'Dentist',
+          name: name,
           color: const Color(0xFFE0E8AA),
         );
       case 'neurologist':
+      case 'neurology':
         return CategoryItem(
+          id: id,
           image: 'assets/Neurology.png',
-          name: 'Neurologist',
+          name: name,
           color: const Color(0xFFD89CE8),
         );
       case 'dermatologist':
+      case 'dermatology':
         return CategoryItem(
+          id: id,
           image: 'assets/derma.png',
-          name: 'Dermatologist',
+          name: name,
           color: const Color(0xFF9DF1C1),
         );
       case 'general':
       default:
         return CategoryItem(
+          id: id,
           image: 'assets/general.png',
           name: name,
           color: const Color(0xFFFFCC80),
@@ -107,33 +122,7 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   // Data Sources
-  List<CategoryItem> get categories => _apiCategories.isNotEmpty ? _apiCategories : [
-    CategoryItem(
-      image: 'assets/general.png',
-      name: 'General',
-      color: const Color(0xFFFFCC80),
-    ),
-    CategoryItem(
-      image: 'assets/cardiologist.png',
-      name: 'Cardiologist',
-      color: const Color(0xFF5DB09C),
-    ),
-    CategoryItem(
-      image: 'assets/pediatrician.png',
-      name: 'Pediatrician',
-      color: const Color(0xFFE0E8AA),
-    ),
-    CategoryItem(
-      image: 'assets/derma.png',
-      name: 'Dermatologist',
-      color: const Color(0xFF9DF1C1),
-    ),
-    CategoryItem(
-      image: 'assets/Neurology.png',
-      name: 'Neurologist',
-      color: const Color(0xFFD89CE8),
-    ),
-  ];
+  List<CategoryItem> get categories => _apiCategories;
 
   List<QuickActionItem> get quickActions => [
     QuickActionItem(

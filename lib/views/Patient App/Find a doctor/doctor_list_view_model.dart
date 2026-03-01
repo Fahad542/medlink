@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:medlink/models/doctor_model.dart';
+import 'package:medlink/data/network/api_services.dart';
 
 class DoctorListViewModel extends ChangeNotifier {
   // Logic for DoctorListView
@@ -7,9 +9,53 @@ class DoctorListViewModel extends ChangeNotifier {
   String _searchQuery = '';
   String? _selectedSpecialty;
   String? _selectedLocation;
+  
+  List<DoctorModel> _localDoctors = [];
+  bool _isLoadingDoctors = false;
+
+  List<DoctorModel> get localDoctors => _localDoctors;
+  bool get isLoadingDoctors => _isLoadingDoctors;
 
   // Options for filters
   List<String> _specialtyOptions = [];
+
+  Future<void> loadDoctorsBySpecialty(int specialtyId) async {
+    _isLoadingDoctors = true;
+    notifyListeners();
+    try {
+      final response = await ApiServices().getAvailableDoctorsBySpecialty(specialtyId);
+      if (response != null && response['success'] == true) {
+         final List<dynamic> data = response['data'];
+         _localDoctors = data.map((json) => DoctorModel.fromJson(json)).toList();
+      } else {
+         _localDoctors = [];
+      }
+    } catch (e) {
+      print("Error fetching by specialty: $e");
+      _localDoctors = [];
+    }
+    _isLoadingDoctors = false;
+    notifyListeners();
+  }
+
+  Future<void> loadAllDoctors() async {
+    _isLoadingDoctors = true;
+    notifyListeners();
+    try {
+      final response = await ApiServices().getDoctors();
+      if (response != null && response['success'] == true) {
+         final List<dynamic> data = response['data'];
+         _localDoctors = data.map((json) => DoctorModel.fromJson(json)).toList();
+      } else {
+         _localDoctors = [];
+      }
+    } catch (e) {
+      print("Error fetching all doctors: $e");
+      _localDoctors = [];
+    }
+    _isLoadingDoctors = false;
+    notifyListeners();
+  }
 
   // Setters for dynamic loading
   void setSpecialtyOptions(List<String> options) {

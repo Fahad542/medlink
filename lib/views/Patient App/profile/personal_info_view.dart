@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:provider/provider.dart';
-import 'package:medlink/views/Login/user_view_model.dart';
+import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/Patient%20App/profile/patient_personal_info_viewmodel.dart';
 import '../../../widgets/custom_button.dart';
 
@@ -22,7 +22,13 @@ class PersonalInformationView extends StatelessWidget {
           return Scaffold(
             backgroundColor: const Color(0xFFF9FAFB),
             appBar: const CustomAppBar(title: "Personal Information"),
-            body: SingleChildScrollView(
+            body: viewModel.isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.primary,
+                    ),
+                  )
+                : SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.all(24),
               child: Column(

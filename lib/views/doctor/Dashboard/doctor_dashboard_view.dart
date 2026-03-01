@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/views/doctor/Doctor%20earnings/doctor_earnings_view.dart';
+import 'package:medlink/views/doctor/doctor_appointments_view_model.dart';
 import 'package:medlink/views/doctor/doctor_chat_list_view.dart'; // Added
 import 'package:medlink/views/doctor/doctor_appointment_view.dart';
 import 'package:medlink/models/appointment_model.dart';
 import 'package:medlink/views/doctor/appointment_details_edit_view.dart';
 
 import 'package:provider/provider.dart';
-import 'package:medlink/views/Login/user_view_model.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/doctor/Dashboard/doctor_dashboard_view_model.dart';
 // ... other imports ...
 
@@ -231,8 +233,21 @@ class DoctorDashboardView extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        Text(
-                          "\$${viewModel.earnings}",
+                        viewModel.isLoadingEarnings 
+                        ? Shimmer.fromColors(
+                            baseColor: Colors.white.withOpacity(0.5),
+                            highlightColor: Colors.white,
+                            child: Container(
+                              height: 34,
+                              width: 120,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.5),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          )
+                        : Text(
+                          "${viewModel.currency} ${viewModel.earnings}",
                           style: GoogleFonts.inter(
                             color: Colors.white,
                             fontSize: 28, // Large Hero Text
@@ -353,41 +368,95 @@ class DoctorDashboardView extends StatelessWidget {
 
                   const SizedBox(height: 32),
                   
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          "Upcoming Appointments",
-                          style: GoogleFonts.inter(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
+                  // Upcoming Appointments Section (Header + List)
+                  Consumer<DoctorAppointmentsViewModel>(
+                    builder: (context, apptVM, _) {
+                      if (apptVM.isLoading) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      "Upcoming Appointments",
+                                      style: GoogleFonts.inter(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    TextButton(
+                                      onPressed: null,
+                                      child: const Text("See All", style: TextStyle(color: Colors.grey)),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Shimmer.fromColors(
+                                  baseColor: Colors.grey.withOpacity(0.1),
+                                  highlightColor: Colors.grey.withOpacity(0.05),
+                                  child: Container(
+                                    height: 100, // Approximate height of one appointment card
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
-                        ),
-                         TextButton(
-                          onPressed: () {
-                             Navigator.push(
-                               context,
-                               MaterialPageRoute(builder: (context) => const DoctorAppointmentView(showBackButton: true)),
-                             );
-                          },
-                          child: const Text("See All"),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Appointment List
-                  ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: viewModel.upcomingAppointments.take(2).length, // Limit to 2
-                    itemBuilder: (context, index) {
-                      return _buildAppointmentCard(context, viewModel.upcomingAppointments[index]);
+                        );
+                      }
+                      
+                      final items = apptVM.upcomingAppointments;
+                      if (items.isEmpty) {
+                        return const SizedBox.shrink(); // Hide entire section if no appointments
+                      }
+                      
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  "Upcoming Appointments",
+                                  style: GoogleFonts.inter(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (context) => const DoctorAppointmentView(showBackButton: true)),
+                                    );
+                                  },
+                                  child: const Text("See All"),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: items.take(1).length, // Limit to 1
+                            itemBuilder: (context, index) {
+                              return _buildAppointmentCard(context, items[index]);
+                            },
+                          ),
+                        ],
+                      );
                     },
                   ),
                 ],

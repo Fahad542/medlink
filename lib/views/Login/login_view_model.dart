@@ -2,8 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/utils/utils.dart';
-import 'package:medlink/views/Login/user_view_model.dart';
+import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/models/user_model.dart';
+import 'package:medlink/models/user_login_model.dart';
 import 'package:medlink/models/doctor_model.dart';
 import 'package:medlink/models/ambulance_model.dart';
 import 'package:provider/provider.dart';
@@ -80,53 +81,34 @@ class LoginViewModel with ChangeNotifier {
       }
 
       if (response != null) {
-        // Merge top-level response fields with nested data object
-        final Map<String, dynamic> userData = {};
-        if (response is Map<String, dynamic>) {
-          userData.addAll(response);
-        }
-        
-        final rawData = response['data'] ?? response['user'];
-        if (rawData is Map<String, dynamic>) {
-          userData.addAll(rawData);
-        }
-        
-        if (userData.isEmpty) {
+        final loginModel = UserLoginModel.fromJson(response);
+
+        if (loginModel.success == true && loginModel.data != null) {
+          final userVM = Provider.of<UserViewModel>(context, listen: false);
+          await userVM.saveUserLoginSession(loginModel);
+
+          // Get the role from the API response, or fallback to selected role
+          String roleToSave = loginModel.data?.user?.role?.toLowerCase() ?? _selectedRole;
+          // if (roleToSave == 'ambulance') roleToSave = 'driver'; // standardize
+
+          // Navigation logic based on role
+          if (context.mounted) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) {
+                if (roleToSave == 'doctor') {
+                  return const DoctorMainScreen();
+                } else if (roleToSave == 'patient') {
+                 // return const AmbulanceMainView();
+                  return const MainScreen();
+                }
+                return const MainScreen();
+              }),
+              (route) => false,
+            );
+          }
+        } else {
           Utils.toastMessage(context, "Login failed: No user data", isError: true);
-          return;
-        }
-
-        // Standardize Role
-        String roleToSave = _selectedRole;
-        if (roleToSave == 'ambulance') roleToSave = 'driver';
-
-        dynamic currentUser;
-        if (roleToSave == 'patient') {
-          currentUser = UserModel.fromJson(userData);
-        } else if (roleToSave == 'doctor') {
-          currentUser = DoctorModel.fromJson(userData);
-        } else if (roleToSave == 'driver') {
-          currentUser = AmbulanceModel.fromJson(userData);
-        }
-
-        // Persist Session
-        final userVM = Provider.of<UserViewModel>(context, listen: false);
-        await userVM.saveUser(currentUser, roleToSave);
-
-        // Navigation logic based on role
-        if (context.mounted) {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (_) {
-              if (roleToSave == 'doctor') {
-                return const DoctorMainScreen();
-              } else if (roleToSave == 'driver') {
-                return const AmbulanceMainView();
-              }
-              return const MainScreen();
-            }),
-            (route) => false,
-          );
         }
       }
     } catch (e) {

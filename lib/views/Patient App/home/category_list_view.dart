@@ -51,7 +51,7 @@ class CategoryListView extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => DoctorListView(initialCategory: cat.name),
+                          builder: (_) => DoctorListView(initialCategory: cat.name, categoryId: cat.id),
                         ),
                       );
                     },
