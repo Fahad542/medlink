@@ -43,18 +43,23 @@ class _SplashViewState extends State<SplashView> with SingleTickerProviderStateM
       await userVM.loadUser();
 
       if (mounted) {
-        if (userVM.role != null) {
-          // Logged In
-          if (userVM.role == 'patient') {
+        // Standardize role to lowercase for comparison
+        final String? userRole = userVM.role?.toLowerCase();
+        
+        if (userRole != null) {
+          // Logged In - Navigate to respective Home Screen
+          if (userRole == 'patient') {
             Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const MainScreen()));
-          } else if (userVM.role == 'doctor') {
+          } else if (userRole == 'doctor') {
             Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DoctorMainScreen()));
-          } else if (userVM.role == 'driver') {
+          } else if (userRole == 'driver') {
             Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AmbulanceMainView()));
           } else {
+             // Unknown role but logged in, fallback to onboarding or login
              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const OnboardingView()));
           }
         } else {
+          // Not logged in - Show onboarding for first-time or unauthenticated users
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (_) => const OnboardingView()),

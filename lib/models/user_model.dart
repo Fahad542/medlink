@@ -59,12 +59,25 @@ class UserModel {
 
     dynamic getField(String key) => json[key] ?? profile[key];
 
+    final profileImageRaw = getField('profileImage') ?? getField('profilePhotoUrl') ?? getField('profile_image') ?? getField('profile_image_url');
+    String? profileImageUrl;
+    if (profileImageRaw != null && profileImageRaw.toString().isNotEmpty) {
+      final String rawPath = profileImageRaw.toString();
+      if (rawPath.startsWith('http')) {
+        profileImageUrl = rawPath;
+      } else {
+        // Ensure relative paths from backend are converted to full URLs
+        final String cleanPath = rawPath.startsWith('/') ? rawPath.substring(1) : rawPath;
+        profileImageUrl = 'https://medlink-be-production.up.railway.app/$cleanPath';
+      }
+    }
+
     return UserModel(
       id: getField('id')?.toString() ?? getField('_id')?.toString() ?? getField('user_id')?.toString() ?? '',
       name: getField('name') ?? getField('fullName') ?? getField('full_name') ?? '',
       email: getField('email') ?? '',
       phoneNumber: getField('phoneNumber') ?? getField('phone_number') ?? getField('phone') ?? getField('mobile') ?? getField('contact') ?? '',
-      profileImage: getField('profileImage') ?? getField('profilePhotoUrl') ?? getField('profile_image') ?? getField('profile_image_url'),
+      profileImage: profileImageUrl,
       gender: getField('gender') ?? getField('sex'),
       bloodGroup: getField('bloodGroup') ?? getField('blood_group') ?? getField('blood_type') ?? getField('bloodGroup'),
       age: getField('age') is int ? getField('age') : int.tryParse(getField('age')?.toString() ?? ''),

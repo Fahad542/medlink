@@ -70,7 +70,8 @@ class _RegisterViewState extends State<RegisterView> {
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: Colors.grey[100]!),
                         ),
-                        child: const Icon(Icons.arrow_back_ios_new, size: 18, color: Colors.black87),
+                        child: const Icon(Icons.arrow_back_ios_new,
+                            size: 18, color: Colors.black87),
                       ),
                     ),
                   ),
@@ -90,7 +91,8 @@ class _RegisterViewState extends State<RegisterView> {
                 // Progress Bar
                 if (authViewModel.currentStep < authViewModel.totalSteps - 1)
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 24),
                     child: Stack(
                       children: [
                         Container(
@@ -104,7 +106,10 @@ class _RegisterViewState extends State<RegisterView> {
                         AnimatedContainer(
                           duration: const Duration(milliseconds: 400),
                           height: 6,
-                          width: MediaQuery.of(context).size.width * ((authViewModel.currentStep + 1) / (authViewModel.totalSteps - 1)) - 48,
+                          width: MediaQuery.of(context).size.width *
+                                  ((authViewModel.currentStep + 1) /
+                                      (authViewModel.totalSteps - 1)) -
+                              48,
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
                               colors: [AppColors.primary, Color(0xFF26D0CE)],
@@ -149,8 +154,7 @@ class _RegisterViewState extends State<RegisterView> {
     }
   }
 
-  List<Widget> _getStepsForRole(RegisterViewModel authViewModel)
-  {
+  List<Widget> _getStepsForRole(RegisterViewModel authViewModel) {
     final commonStep1 = Step1Credentials(
       nameController: authViewModel.nameController,
       phoneController: authViewModel.phoneController,
@@ -177,15 +181,16 @@ class _RegisterViewState extends State<RegisterView> {
               backgroundColor: Colors.transparent,
               builder: (context) {
                 return Consumer<RegisterViewModel>(
-                  builder: (context, model, _) {
-                    return EmailVerificationSheet(
-                      emailController: model.emailController,
-                      isLoading: model.emailLoading,
-                      onRequestOtp: (email) => model.requestEmailOtp(email, context),
-                      onVerifyOtp: (email, otp) => model.submitEmailOtp(email, otp, context),
-                    );
-                  }
-                );
+                    builder: (context, model, _) {
+                  return EmailVerificationSheet(
+                    emailController: model.emailController,
+                    isLoading: model.emailLoading,
+                    onRequestOtp: (email) =>
+                        model.requestEmailOtp(email, context),
+                    onVerifyOtp: (email, otp) =>
+                        model.submitEmailOtp(email, otp, context),
+                  );
+                });
               },
             );
 
@@ -207,16 +212,19 @@ class _RegisterViewState extends State<RegisterView> {
           Step6Avatar(
             onNext: () async {
               if (authViewModel.profileImagePath != null) {
-                 File file = File(authViewModel.profileImagePath!);
-                 bool success = await authViewModel.registerStep3({}, context, file);
-                 if (success) authViewModel.nextStep();
+                File file = File(authViewModel.profileImagePath!);
+                bool success =
+                    await authViewModel.registerStep3({}, context, file);
+                if (success) authViewModel.nextStep();
               } else {
-                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please select an image")));
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Please select an image")));
               }
             },
             onSkip: () async {
-               bool success = await authViewModel.registerStep3({}, context, null);
-               if (success) authViewModel.nextStep();
+              bool success =
+                  await authViewModel.registerStep3({}, context, null);
+              if (success) authViewModel.nextStep();
             },
             onImageSelected: (path) => authViewModel.setProfileImage(path),
             isLoading: authViewModel.loading,
@@ -240,12 +248,13 @@ class _RegisterViewState extends State<RegisterView> {
           DoctorStep4Professional(
             isLoading: authViewModel.loading,
             onNext: () async {
-              // Usually we might call registerStep4 for doctor here but following previous wizard behavior, 
+              // Usually we might call registerStep4 for doctor here but following previous wizard behavior,
               // it proceeds to the next step.
               if (authViewModel.licensePath != null) {
                 authViewModel.nextStep();
               } else {
-                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("License file required")));
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("License file required")));
               }
             },
             specializationController: authViewModel.specializationController,
@@ -261,20 +270,28 @@ class _RegisterViewState extends State<RegisterView> {
               authViewModel.nextStep();
             },
             consultationFeeController: authViewModel.consultationFeeController,
-            onAvailabilitySelected: (days) => authViewModel.setAvailability(days),
+            onAvailabilitySelected: (days) =>
+                authViewModel.setAvailability(days),
             onTimeSelected: (start, end) => authViewModel.setTimes(start, end),
           ),
           Step6Avatar(
-             isLoading: authViewModel.loading,
-             onNext: () async {
-                if (authViewModel.profileImagePath != null) {
-                   authViewModel.nextStep();
-                } else {
-                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profile image required")));
-                }
-             },
-             onSkip: () => authViewModel.nextStep(),
-             onImageSelected: (path) => authViewModel.setProfileImage(path),
+            isLoading: authViewModel.loading,
+            onNext: () async {
+              if (authViewModel.profileImagePath == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Profile image required")));
+                return;
+              }
+              if (authViewModel.licensePath == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("License document required")));
+                return;
+              }
+              final success = await authViewModel.doctorRegisterStep3(context);
+              if (success && context.mounted) authViewModel.nextStep();
+            },
+            onSkip: () => authViewModel.nextStep(),
+            onImageSelected: (path) => authViewModel.setProfileImage(path),
           ),
           DoctorStep7Setup(
             onFinished: () {
@@ -298,34 +315,37 @@ class _RegisterViewState extends State<RegisterView> {
               if (authViewModel.driverLicensePath != null) {
                 authViewModel.nextStep();
               } else {
-                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Driver License file required")));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text("Driver License file required")));
               }
             },
             carNumberController: authViewModel.carNumberController,
-            carNameController: authViewModel.carNameController, 
-            onLicenseSelected: (path) => authViewModel.setDriverLicensePath(path),
+            carNameController: authViewModel.carNameController,
+            onLicenseSelected: (path) =>
+                authViewModel.setDriverLicensePath(path),
           ),
           DriverStep5Avatar(
             isLoading: authViewModel.loading,
             onNext: () async {
-               if (authViewModel.profileImagePath != null) {
-                  authViewModel.nextStep();
-               } else {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profile image required")));
-               }
+              if (authViewModel.profileImagePath != null) {
+                authViewModel.nextStep();
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Profile image required")));
+              }
             },
             onSkip: () => authViewModel.nextStep(),
             onImageSelected: (path) => authViewModel.setProfileImage(path),
           ),
           DriverStep6Setup(
-             onFinished: () {
-               authViewModel.finishDriverSetup(context);
-               Navigator.pushAndRemoveUntil(
-                 context,
-                 MaterialPageRoute(builder: (_) => const AmbulanceMainView()),
-                 (route) => false,
-               );
-             },
+            onFinished: () {
+              authViewModel.finishDriverSetup(context);
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const AmbulanceMainView()),
+                (route) => false,
+              );
+            },
           ),
         ];
     }

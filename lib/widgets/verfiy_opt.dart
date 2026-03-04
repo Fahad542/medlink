@@ -25,8 +25,11 @@ class Step3Otp extends StatefulWidget {
 }
 
 class _Step3OtpState extends State<Step3Otp> {
-  final List<TextEditingController> _controllers = List.generate(4, (_) => TextEditingController());
-  final List<FocusNode> _focusNodes = List.generate(4, (_) => FocusNode());
+  static const int _otpLength = 6;
+  final List<TextEditingController> _controllers =
+      List.generate(_otpLength, (_) => TextEditingController());
+  final List<FocusNode> _focusNodes =
+      List.generate(_otpLength, (_) => FocusNode());
   String? _errorText;
 
   @override
@@ -38,13 +41,13 @@ class _Step3OtpState extends State<Step3Otp> {
 
   void _onDigitEntered(int index, String value) {
     if (value.isNotEmpty) {
-      if (index < 3) {
+      if (index < _otpLength - 1) {
         _focusNodes[index + 1].requestFocus();
       } else {
         _focusNodes[index].unfocus();
         // Auto-submit if last digit
         String otp = _controllers.map((c) => c.text).join();
-        if (otp.length == 4) {
+        if (otp.length == _otpLength) {
           widget.onNext(otp);
         }
       }
@@ -82,10 +85,13 @@ class _Step3OtpState extends State<Step3Otp> {
                 height: 1.5,
               ),
               children: [
-                const TextSpan(text: "We sent a 4-digit code to "),
+                TextSpan(text: "We sent a $_otpLength-digit code to "),
                 TextSpan(
-                  text: widget.phoneNumber.isEmpty ? "+1 234 567 890" : widget.phoneNumber,
-                  style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
+                  text: widget.phoneNumber.isEmpty
+                      ? "+1 234 567 890"
+                      : widget.phoneNumber,
+                  style: const TextStyle(
+                      color: Colors.black87, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -93,15 +99,16 @@ class _Step3OtpState extends State<Step3Otp> {
           const SizedBox(height: 32), // Reduced from 48
 
           Row(
-            mainAxisAlignment: MainAxisAlignment.center, // Centered for better focus
+            mainAxisAlignment:
+                MainAxisAlignment.center, // Centered for better focus
             children: [
-              for (int i = 0; i < 4; i++) ...[
+              for (int i = 0; i < _otpLength; i++) ...[
                 _buildOtpDigitField(i),
-                if (i != 3) const SizedBox(width: 16), // Spacing between digits
+                if (i != _otpLength - 1)
+                  const SizedBox(width: 12), // Spacing between digits
               ],
             ],
           ),
-
 
           if (_errorText != null)
             Padding(
@@ -110,7 +117,8 @@ class _Step3OtpState extends State<Step3Otp> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline_rounded, size: 14, color: Colors.red),
+                    const Icon(Icons.error_outline_rounded,
+                        size: 14, color: Colors.red),
                     const SizedBox(width: 4),
                     Text(
                       _errorText!,
@@ -132,12 +140,12 @@ class _Step3OtpState extends State<Step3Otp> {
             isLoading: widget.isLoading,
             onPressed: () {
               String otp = _controllers.map((c) => c.text).join();
-              if (otp.length == 4) {
+              if (otp.length == _otpLength) {
                 setState(() => _errorText = null);
                 widget.onNext(otp);
               } else {
                 setState(() {
-                  _errorText = "Please enter full 4-digit code";
+                  _errorText = "Please enter full $_otpLength-digit code";
                 });
               }
             },
@@ -162,12 +170,13 @@ class _Step3OtpState extends State<Step3Otp> {
   }
 
   Widget _buildOtpDigitField(int index) {
-    bool isActive = _focusNodes[index].hasFocus || _controllers[index].text.isNotEmpty;
+    bool isActive =
+        _focusNodes[index].hasFocus || _controllers[index].text.isNotEmpty;
     bool isFocused = _focusNodes[index].hasFocus;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
-      width: 56,
+      width: 45,
       height: 64, // Reduced height for more compact look
       decoration: BoxDecoration(
         color: Colors.white,

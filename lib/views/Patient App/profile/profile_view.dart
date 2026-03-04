@@ -22,7 +22,6 @@ class ProfileView extends StatefulWidget {
 }
 
 class _ProfileViewState extends State<ProfileView> {
-
   @override
   void initState() {
     super.initState();
@@ -39,10 +38,10 @@ class _ProfileViewState extends State<ProfileView> {
         final apiServices = ApiServices();
         final response = await apiServices.getPatientProfile();
         if (response != null && response['success'] == true) {
-           final updatedUser = UserModel.fromJson(response['data']);
-           userVM.updatePatient(updatedUser);
+          final updatedUser = UserModel.fromJson(response['data']);
+          userVM.updatePatient(updatedUser);
         }
-      } catch(e) {
+      } catch (e) {
         print("Error auto-fetching profile: $e");
       }
     }
@@ -70,10 +69,12 @@ class _ProfileViewState extends State<ProfileView> {
                   children: [
                     // Vital Stats Row
                     Container(
-                      padding: const EdgeInsets.symmetric(vertical: 16), // Reduced padding
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 16), // Reduced padding
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(20), // Slightly smaller radius
+                        borderRadius: BorderRadius.circular(
+                            20), // Slightly smaller radius
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.08),
@@ -85,23 +86,33 @@ class _ProfileViewState extends State<ProfileView> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          _StatItem(label: "Age", value: "${user?.age ?? '-'}", unit: "yrs"),
+                          _StatItem(
+                              label: "Age",
+                              value: "${user?.age ?? '-'}",
+                              unit: "yrs"),
                           _VerticalDivider(),
-                          _StatItem(label: "Blood", value: "${user?.bloodGroup ?? '-'}", unit: "Type"),
+                          _StatItem(
+                              label: "Blood",
+                              value: "${user?.bloodGroup ?? '-'}",
+                              unit: "Type"),
                           _VerticalDivider(),
-                          _StatItem(label: "Weight", value: "${user?.weight ?? '-'}", unit: "kg"),
+                          _StatItem(
+                              label: "Weight",
+                              value: "${user?.weight ?? '-'}",
+                              unit: "kg"),
                         ],
                       ),
                     ),
-                    
+
                     const SizedBox(height: 24), // Reduced spacing
 
                     // Grouped Settings
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                         Padding(
-                          padding: EdgeInsets.only(left: 12, bottom: 8), // Reduced bottom
+                        Padding(
+                          padding: EdgeInsets.only(
+                              left: 12, bottom: 8), // Reduced bottom
                           child: Text(
                             "ACCOUNT SETTINGS",
                             style: GoogleFonts.inter(
@@ -115,7 +126,8 @@ class _ProfileViewState extends State<ProfileView> {
                         Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(20), // Smaller radius
+                            borderRadius:
+                                BorderRadius.circular(20), // Smaller radius
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withOpacity(0.02),
@@ -132,26 +144,37 @@ class _ProfileViewState extends State<ProfileView> {
                                 color: AppColors.primary,
                                 title: "Personal Info",
                                 subtitle: "Details & Password",
-                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const PersonalInformationView())),
+                                onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (context) =>
+                                            const PersonalInformationView())),
                               ),
                               _buildDivider(),
-
                               _buildPremiumTile(
                                 context,
                                 icon: Icons.contact_phone_outlined,
                                 color: AppColors.primary,
                                 title: "Emergency Contacts",
                                 subtitle: "SOS & Family",
-                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const EmergencyContactsView())),
+                                onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (context) =>
+                                            const EmergencyContactsView())),
                               ),
-                               _buildDivider(),
+                              _buildDivider(),
                               _buildPremiumTile(
                                 context,
                                 icon: Icons.credit_card_outlined,
                                 color: AppColors.primary,
                                 title: "Payment Methods",
                                 subtitle: "Cards & History",
-                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const PaymentMethodsView())),
+                                onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (context) =>
+                                            const PaymentMethodsView())),
                               ),
                               _buildDivider(),
                               _buildPremiumTile(
@@ -171,50 +194,53 @@ class _ProfileViewState extends State<ProfileView> {
                     const SizedBox(height: 30), // Reduced spacing
 
                     // Logout Action
-                      Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                           borderRadius: BorderRadius.circular(16),
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: TextButton(
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) => LogoutConfirmationDialog(
+                              onLogout: () {
+                                userVM.logout();
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => const LoginView()),
+                                  (route) => false,
+                                );
+                              },
+                            ),
+                          );
+                        },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          backgroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                          // Border removed
                         ),
-                        child: TextButton(
-                          onPressed: () {
-                             showDialog(
-                               context: context,
-                               builder: (context) => LogoutConfirmationDialog(
-                                 onLogout: () {
-                                   userVM.logout();
-                                   Navigator.pushAndRemoveUntil(
-                                       context,
-                                       MaterialPageRoute(builder: (context) => const LoginView()),
-                                       (route) => false,
-                                   );
-                                 },
-                               ),
-                             );
-                          },
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 14), 
-                            backgroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                            // Border removed
-                          ),
-                          child:  Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.logout_rounded, color: Colors.red, size: 20), 
-                              SizedBox(width: 8),
-                              Text(
-                                "Log Out",
-                                style: GoogleFonts.inter(
-                                  color: Colors.red,
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 15, 
-                                ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.logout_rounded,
+                                color: Colors.red, size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              "Log Out",
+                              style: GoogleFonts.inter(
+                                color: Colors.red,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 15,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
+                    ),
                     const SizedBox(height: 100),
                   ],
                 ),
@@ -228,7 +254,7 @@ class _ProfileViewState extends State<ProfileView> {
 
   Widget _buildHeader(dynamic user) {
     return Container(
-      height: 260, // Reduced height
+      height: 340, // Reduced height
       width: double.infinity,
       decoration: const BoxDecoration(
         color: AppColors.primary,
@@ -266,7 +292,7 @@ class _ProfileViewState extends State<ProfileView> {
                 backgroundColor: Colors.white.withOpacity(0.05),
               ),
             ),
-            
+
             // Profile Content
             Align(
               alignment: Alignment.center,
@@ -280,7 +306,8 @@ class _ProfileViewState extends State<ProfileView> {
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white.withOpacity(0.6), width: 1.5),
+                        border: Border.all(
+                            color: Colors.white.withOpacity(0.6), width: 1.5),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.1),
@@ -292,15 +319,17 @@ class _ProfileViewState extends State<ProfileView> {
                       child: CircleAvatar(
                         radius: 45, // Reduced radius
                         backgroundColor: Colors.white,
-                        backgroundImage: (user?.profileImage != null && user!.profileImage!.isNotEmpty)
+                        backgroundImage: (user?.profileImage != null &&
+                                user!.profileImage!.isNotEmpty)
                             ? (user!.profileImage!.startsWith('http')
                                 ? NetworkImage(user.profileImage!)
-                                : FileImage(File(user.profileImage!)) as ImageProvider)
+                                : FileImage(File(user.profileImage!))
+                                    as ImageProvider)
                             : const NetworkImage(
                                 "https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=400&auto=format&fit=crop&q=60",
                               ),
                         // Remove the child Icon since we always have a dummy image now
-                        child: null, 
+                        child: null,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -315,14 +344,18 @@ class _ProfileViewState extends State<ProfileView> {
                     ),
                     const SizedBox(height: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4), // Reduced padding
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 4), // Reduced padding
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white.withOpacity(0.1)),
+                        border:
+                            Border.all(color: Colors.white.withOpacity(0.1)),
                       ),
                       child: Text(
-                        (user?.email != null && user!.email!.isNotEmpty) ? user!.email! : (user?.phoneNumber ?? "No Email/Phone"),
+                        (user?.email != null && user!.email!.isNotEmpty)
+                            ? user!.email!
+                            : (user?.phoneNumber ?? "No Email/Phone"),
                         style: GoogleFonts.inter(
                           fontSize: 13, // Reduced font size
                           color: Colors.white,
@@ -341,7 +374,8 @@ class _ProfileViewState extends State<ProfileView> {
     );
   }
 
-  Widget _buildPremiumTile(BuildContext context, {
+  Widget _buildPremiumTile(
+    BuildContext context, {
     required IconData icon,
     required Color color,
     required String title,
@@ -354,7 +388,8 @@ class _ProfileViewState extends State<ProfileView> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(20),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), // Reduced padding
+          padding: const EdgeInsets.symmetric(
+              horizontal: 16, vertical: 12), // Reduced padding
           child: Row(
             children: [
               Container(
@@ -390,7 +425,8 @@ class _ProfileViewState extends State<ProfileView> {
                   ],
                 ),
               ),
-              Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey[300]), // Reduced arrow
+              Icon(Icons.arrow_forward_ios_rounded,
+                  size: 14, color: Colors.grey[300]), // Reduced arrow
             ],
           ),
         ),
@@ -414,7 +450,8 @@ class _StatItem extends StatelessWidget {
   final String value;
   final String unit;
 
-  const _StatItem({required this.label, required this.value, required this.unit});
+  const _StatItem(
+      {required this.label, required this.value, required this.unit});
 
   @override
   Widget build(BuildContext context) {

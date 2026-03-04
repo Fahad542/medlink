@@ -2,12 +2,133 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/data/network/network_api_services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// SharedPreferences keys for temporary register tokens (Step 2 verify-otp response).
+const String _kPatientRegisterToken = 'patient_register_token';
+const String _kDoctorRegisterToken = 'doctor_register_token';
 
 class ApiServices {
   final _apiServices = NetworkApiService();
 
   // --- Auth & Patient Methods ---
-  
+
+  /// Patient registration Step 1: send OTP to phone. Body: {"phone": "+..."}
+  Future<dynamic> patientSendOtp(String phone) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        AppUrl.patient_register_step1,
+        jsonEncode({'phone': phone}),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Patient registration Step 2: verify OTP. Saves register_token to SharedPreferences.
+  /// Body: {"phone": "+...", "otp": "..."}
+  Future<dynamic> patientVerifyOtp(String phone, String otp) async {
+    try {
+      final response = await _apiServices.getPostApiResponse(
+        AppUrl.patient_register_step2,
+        jsonEncode({'phone': phone, 'otp': otp}),
+      );
+      final data = response is Map ? response['data'] : null;
+      final token = data is Map ? data['register_token']?.toString() : null;
+      if (token != null && token.isNotEmpty) {
+        final sp = await SharedPreferences.getInstance();
+        await sp.setString(_kPatientRegisterToken, token);
+      }
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Patient registration Step 3: register with form-data. Uses Bearer register_token from prefs.
+  /// On success, does not clear register_token here; caller should save session then clear token.
+  Future<dynamic> patientRegister(Map<String, String> formData, File? file) async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final registerToken = sp.getString(_kPatientRegisterToken);
+      if (registerToken == null || registerToken.isEmpty) {
+        throw Exception('Register token expired. Please restart registration.');
+      }
+      final response = await _apiServices.getPostMultipartWithOptionalBearer(
+        AppUrl.patient_register_step3,
+        formData,
+        file,
+        bearerToken: registerToken,
+        fileKey: 'profilePic',
+      );
+      await sp.remove(_kPatientRegisterToken);
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // --- Doctor registration (3 steps: send-otp, verify-otp, register) ---
+
+  /// Doctor registration Step 1: send OTP. Body: {"phone": "+..."}
+  Future<dynamic> doctorSendOtp(String phone) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        AppUrl.doctor_register_step1,
+        jsonEncode({'phone': phone}),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Doctor registration Step 2: verify OTP. Saves register_token to SharedPreferences.
+  Future<dynamic> doctorVerifyOtp(String phone, String otp) async {
+    try {
+      final response = await _apiServices.getPostApiResponse(
+        AppUrl.doctor_register_step2,
+        jsonEncode({'phone': phone, 'otp': otp}),
+      );
+      final data = response is Map ? response['data'] : null;
+      final token = data is Map ? data['register_token']?.toString() : null;
+      if (token != null && token.isNotEmpty) {
+        final sp = await SharedPreferences.getInstance();
+        await sp.setString(_kDoctorRegisterToken, token);
+      }
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Doctor registration Step 3: register with form-data + profilePic + medicalLicenseDocument. Uses Bearer register_token.
+  Future<dynamic> doctorRegister(
+    Map<String, String> formData,
+    File? profilePicFile,
+    File? medicalLicenseFile,
+  ) async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final registerToken = sp.getString(_kDoctorRegisterToken);
+      if (registerToken == null || registerToken.isEmpty) {
+        throw Exception('Register token expired. Please restart registration.');
+      }
+      final response = await _apiServices.getPostMultipartWithBearerTwoFiles(
+        AppUrl.doctor_register_step3,
+        formData,
+        profilePicFile,
+        fileKey1: 'profilePic',
+        file2: medicalLicenseFile,
+        fileKey2: 'medicalLicenseDocument',
+        bearerToken: registerToken,
+      );
+      await sp.remove(_kDoctorRegisterToken);
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<dynamic> loginApi(dynamic data) async {
     try {
       return await _apiServices.getPostApiResponse(AppUrl.loginEndPint, jsonEncode(data));
