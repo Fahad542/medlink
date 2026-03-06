@@ -2,12 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:medlink/models/user_model.dart';
 import 'package:medlink/models/appointment_model.dart';
 import 'package:medlink/data/network/api_services.dart';
+import 'package:medlink/core/constants/app_url.dart';
 
 class DoctorPatientsViewModel extends ChangeNotifier {
   String _searchQuery = "";
   int _selectedFilterIndex = 0;
   final List<String> _filters = ["All", "Current"];
-  
+
   List<Map<String, dynamic>> _allPatients = [];
   List<Map<String, dynamic>> _filteredPatients = [];
 
@@ -53,7 +54,7 @@ class DoctorPatientsViewModel extends ChangeNotifier {
         final List<dynamic> data = response['data'];
         _allPatients = data.map((json) {
           final profile = json['patientProfile'] ?? {};
-          
+
           DateTime? dob;
           int age = 0;
           if (profile['dob'] != null) {
@@ -63,10 +64,8 @@ class DoctorPatientsViewModel extends ChangeNotifier {
             } catch (_) {}
           }
 
-          String? avatarUrl = json['profilePhotoUrl'];
-          if (avatarUrl != null && avatarUrl.isNotEmpty && !avatarUrl.startsWith('http')) {
-             avatarUrl = 'https://medlink-be-production.up.railway.app$avatarUrl';
-          }
+          String? avatarUrl =
+              AppUrl.getFullUrl(json['profilePhotoUrl']?.toString());
 
           return {
             'user': UserModel(
@@ -74,12 +73,13 @@ class DoctorPatientsViewModel extends ChangeNotifier {
               name: json['fullName'] ?? 'Unknown',
               age: age > 0 ? age : null,
               gender: profile['gender']?.toString() ?? 'Unknown',
-              profileImage: avatarUrl, 
-              email: json['email']?.toString() ?? '', 
-              phoneNumber: json['phone']?.toString() ?? '', 
+              profileImage: avatarUrl,
+              email: json['email']?.toString() ?? '',
+              phoneNumber: json['phone']?.toString() ?? '',
+              lastAppointmentId: json['lastAppointmentId']?.toString(),
             ),
             'sessions': 1, // Defaulting as API doesn't provide this currently
-            'nextSession': null, 
+            'nextSession': null,
             'isCurrent': true, // Defaulting
           };
         }).toList();
@@ -95,11 +95,14 @@ class DoctorPatientsViewModel extends ChangeNotifier {
   void _applyFilters() {
     _filteredPatients = _allPatients.where((data) {
       final user = data['user'] as UserModel;
-      final nameMatches = user.name?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false;
-      
+      final nameMatches =
+          user.name?.toLowerCase().contains(_searchQuery.toLowerCase()) ??
+              false;
+
       bool filterMatches = true;
-      if (_selectedFilterIndex == 1) { // Current
-         filterMatches = data['isCurrent'] == true;
+      if (_selectedFilterIndex == 1) {
+        // Current
+        filterMatches = data['isCurrent'] == true;
       }
 
       return nameMatches && filterMatches;

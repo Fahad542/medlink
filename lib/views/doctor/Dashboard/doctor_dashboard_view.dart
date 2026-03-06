@@ -21,448 +21,521 @@ class DoctorDashboardView extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => DoctorDashboardViewModel(),
-          child: Consumer<DoctorDashboardViewModel>(
+      child: Consumer<DoctorDashboardViewModel>(
         builder: (context, viewModel, child) {
           final userVM = Provider.of<UserViewModel>(context);
           final doctor = userVM.doctor;
 
           return Scaffold(
             backgroundColor: const Color(0xFFF8F9FB),
-            body: SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 100),
-              child: Stack(
-                children: [
-                   // ... Header Background ...
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(30),
-                bottomRight: Radius.circular(30),
-              ),
-              child: Container(
-                height: 280, 
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.primary, AppColors.accent],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
+            body: RefreshIndicator(
+              onRefresh: () => viewModel.fetchData(),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.only(bottom: 100),
                 child: Stack(
                   children: [
-                    // Decorative Circles
-                    Positioned(
-                      top: -50,
-                      right: -50,
-                      child: Container(
-                        width: 200,
-                        height: 200,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
-                          shape: BoxShape.circle,
-                        ),
+                    // ... Header Background ...
+                    ClipRRect(
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(30),
+                        bottomRight: Radius.circular(30),
                       ),
-                    ),
-                    Positioned(
-                      bottom: 50,
-                      left: -50,
                       child: Container(
-                        width: 150,
-                        height: 150,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.05),
-                          shape: BoxShape.circle,
+                        height: 280,
+                        width: double.infinity,
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [AppColors.primary, AppColors.accent],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // 2. Content
-            SafeArea(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Custom App Bar Content (Greeting + Icons)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
+                        child: Stack(
                           children: [
-                            Container(
-                                width: 42,
-                                height: 42,
+                            // Decorative Circles
+                            Positioned(
+                              top: -50,
+                              right: -50,
+                              child: Container(
+                                width: 200,
+                                height: 200,
                                 decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.1),
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
-                                  image: DecorationImage(
-                                    image: NetworkImage(
-                                      (doctor?.imageUrl != null && doctor!.imageUrl.isNotEmpty)
-                                          ? doctor.imageUrl
-                                          : "https://i.pravatar.cc/150?u=doctor_alex",
-                                    ),
-                                    fit: BoxFit.cover,
-                                  ),
                                 ),
                               ),
-                              const SizedBox(width: 12),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    "Welcome back,",
-                                    style: GoogleFonts.inter(
-                                      color: Colors.white.withOpacity(0.8), 
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  Text(
-                                    doctor?.name ?? "Dr. Alex Smith",
-                                    style: GoogleFonts.inter(
-                                      color: Colors.white, 
-                                      fontSize: 20, 
-                                      fontWeight: FontWeight.bold
-                                    ),
-                                  ),
-
-                              ],
+                            ),
+                            Positioned(
+                              bottom: 50,
+                              left: -50,
+                              child: Container(
+                                width: 150,
+                                height: 150,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.05),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                        Row(
-                          children: [
-                            GestureDetector(
+                      ),
+                    ),
+
+                    // 2. Content
+                    SafeArea(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Custom App Bar Content (Greeting + Icons)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 10),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 42,
+                                      height: 42,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                            color:
+                                                Colors.white.withOpacity(0.5),
+                                            width: 2),
+                                        image: DecorationImage(
+                                          image: NetworkImage(
+                                            (doctor?.imageUrl != null &&
+                                                    doctor!.imageUrl.isNotEmpty)
+                                                ? doctor.imageUrl
+                                                : "https://i.pravatar.cc/150?u=doctor_alex",
+                                          ),
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "Welcome back,",
+                                          style: GoogleFonts.inter(
+                                            color:
+                                                Colors.white.withOpacity(0.8),
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        Text(
+                                          doctor?.name ?? "Dr. Alex Smith",
+                                          style: GoogleFonts.inter(
+                                              color: Colors.white,
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    GestureDetector(
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                              builder: (_) =>
+                                                  const DoctorChatListView()),
+                                        );
+                                      },
+                                      child: Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  Colors.white.withOpacity(0.2),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                                Icons.notifications_outlined,
+                                                color: Colors.white,
+                                                size: 20),
+                                          ),
+                                          Positioned(
+                                            top: 4,
+                                            right: 4,
+                                            child: Container(
+                                              padding: const EdgeInsets.all(4),
+                                              decoration: const BoxDecoration(
+                                                color: Colors.red,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: Text(
+                                                "3",
+                                                style: GoogleFonts.inter(
+                                                  color: Colors.white,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Total Earnings Section (Embedded in Header)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: GestureDetector(
                               onTap: () {
                                 Navigator.push(
-                                  context, 
-                                  MaterialPageRoute(builder: (_) => const DoctorChatListView()),
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => const DoctorEarningsView(
+                                          showBackButton: true)),
                                 );
                               },
-                              child: Stack(
-                                clipBehavior: Clip.none,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  Colors.white.withOpacity(0.2),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                            child: const Icon(
+                                                Icons
+                                                    .account_balance_wallet_outlined,
+                                                color: Colors.white,
+                                                size: 18),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            "Total Earnings",
+                                            style: GoogleFonts.inter(
+                                                color: Colors.white70,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w500),
+                                          ),
+                                        ],
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.2),
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Text("This Month",
+                                                style: GoogleFonts.inter(
+                                                    color: Colors.white,
+                                                    fontSize: 11,
+                                                    fontWeight:
+                                                        FontWeight.bold)),
+                                            const SizedBox(width: 4),
+                                            const Icon(
+                                                Icons.keyboard_arrow_down,
+                                                color: Colors.white,
+                                                size: 14)
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  viewModel.isLoadingEarnings
+                                      ? Shimmer.fromColors(
+                                          baseColor:
+                                              Colors.white.withOpacity(0.5),
+                                          highlightColor: Colors.white,
+                                          child: Container(
+                                            height: 34,
+                                            width: 120,
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  Colors.white.withOpacity(0.5),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                          ),
+                                        )
+                                      : Text(
+                                          "${viewModel.currency} ${viewModel.earnings}",
+                                          style: GoogleFonts.inter(
+                                            color: Colors.white,
+                                            fontSize: 28, // Large Hero Text
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(
+                              height:
+                                  20), // Reduced spacing slightly to ensure overlap
+
+                          // 2. Stats Grid (Overlapping)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: _buildStatCard(
+                                    "Patients",
+                                    "${viewModel.patientsCount}",
+                                    Icons.people_alt_outlined,
+                                    Colors.blue,
+                                    () {},
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: _buildStatCard(
+                                    "Appointments",
+                                    "${viewModel.appointmentsCount}",
+                                    Icons.calendar_today_outlined,
+                                    Colors.orange,
+                                    () {},
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          // 3. Availability Toggle
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black
+                                        .withOpacity(0.03), // Softer shadow
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.2),
+                                      color: viewModel.isOnline
+                                          ? Colors.green.withOpacity(0.1)
+                                          : Colors.red.withOpacity(0.1),
                                       shape: BoxShape.circle,
                                     ),
-                                    child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 20),
+                                    child: Icon(
+                                      Icons.power_settings_new_rounded,
+                                      color: viewModel.isOnline
+                                          ? Colors.green
+                                          : Colors.red,
+                                      size: 20,
+                                    ),
                                   ),
-                                  Positioned(
-                                    top: 4,
-                                    right: 4, 
-                                    child: Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: const BoxDecoration(
-                                        color: Colors.red,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Text(
-                                        "3",
+                                  const SizedBox(width: 16),
+                                  Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        viewModel.isOnline
+                                            ? "Available for Booking"
+                                            : "Currently Unavailable",
                                         style: GoogleFonts.inter(
-                                          color: Colors.white,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                            color: AppColors.textPrimary),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        viewModel.isOnline
+                                            ? "You are visible to patients"
+                                            : "You are hidden from search",
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          color: Colors.grey[500],
                                         ),
                                       ),
+                                    ],
+                                  ),
+                                  const Spacer(),
+                                  Transform.scale(
+                                    scale: 0.8,
+                                    child: Switch(
+                                      value: viewModel.isOnline,
+                                      activeColor: Colors.white,
+                                      activeTrackColor: Colors.green,
+                                      inactiveThumbColor: Colors.white,
+                                      inactiveTrackColor: Colors.grey[300],
+                                      trackOutlineColor:
+                                          WidgetStateProperty.all(
+                                              Colors.transparent),
+                                      onChanged: (val) =>
+                                          viewModel.toggleOnlineStatus(val),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
+                          ),
+
+                          if (viewModel.isOnline) ...[
+                            // "Today's Slots" section removed as per request
                           ],
-                        )
-                      ],
-                    ),
-                  ),
 
-                  const SizedBox(height: 20),
+                          const SizedBox(height: 32),
 
-                  // Total Earnings Section (Embedded in Header)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const DoctorEarningsView(showBackButton: true)),
-                      );
-                    },
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(8), 
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: const Icon(Icons.account_balance_wallet_outlined, color: Colors.white, size: 18), 
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  "Total Earnings",
-                                  style: GoogleFonts.inter(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500),
-                                ),
-                              ],
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(20),
-                                ),
-                              child: Row(
-                                children: [
-                                  Text("This Month", style: GoogleFonts.inter(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-                                  const SizedBox(width: 4),
-                                  const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 14)
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        viewModel.isLoadingEarnings 
-                        ? Shimmer.fromColors(
-                            baseColor: Colors.white.withOpacity(0.5),
-                            highlightColor: Colors.white,
-                            child: Container(
-                              height: 34,
-                              width: 120,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.5),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                          )
-                        : Text(
-                          "${viewModel.currency} ${viewModel.earnings}",
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontSize: 28, // Large Hero Text
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  ),
-
-                  const SizedBox(height: 20), // Reduced spacing slightly to ensure overlap
-
-                  // 2. Stats Grid (Overlapping)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _buildStatCard(
-                            "Patients",
-                            "${viewModel.patientsCount}",
-                            Icons.people_alt_outlined,
-                            Colors.blue,
-                            () {},
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildStatCard(
-                            "Appointments",
-                            "${viewModel.appointmentsCount}",
-                            Icons.calendar_today_outlined,
-                            Colors.orange,
-                            () {},
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 24),
-
-                  // 3. Availability Toggle
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.03), // Softer shadow
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: viewModel.isOnline ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.power_settings_new_rounded,
-                              color: viewModel.isOnline ? Colors.green : Colors.red,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                viewModel.isOnline ? "Available for Booking" : "Currently Unavailable",
-                                style: GoogleFonts.inter(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: AppColors.textPrimary
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                viewModel.isOnline ? "You are visible to patients" : "You are hidden from search",
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: Colors.grey[500],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const Spacer(),
-                          Transform.scale(
-                            scale: 0.8,
-                            child: Switch(
-                              value: viewModel.isOnline,
-                              activeColor: Colors.white,
-                              activeTrackColor: Colors.green,
-                              inactiveThumbColor: Colors.white,
-                              inactiveTrackColor: Colors.grey[300],
-                              trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
-                              onChanged: (val) => viewModel.toggleOnlineStatus(val),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  if (viewModel.isOnline) ...[
-                    // "Today's Slots" section removed as per request
-                  ],
-
-                  const SizedBox(height: 32),
-                  
-                  // Upcoming Appointments Section (Header + List)
-                  Consumer<DoctorAppointmentsViewModel>(
-                    builder: (context, apptVM, _) {
-                      if (apptVM.isLoading) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      "Upcoming Appointments",
-                                      style: GoogleFonts.inter(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppColors.textPrimary,
+                          // Upcoming Appointments Section (Header + List)
+                          Builder(
+                            builder: (context) {
+                              if (viewModel.isLoadingAppointments) {
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 20),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            "Upcoming Appointments",
+                                            style: GoogleFonts.inter(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.textPrimary,
+                                            ),
+                                          ),
+                                          TextButton(
+                                            onPressed: null,
+                                            child: const Text("See All",
+                                                style: TextStyle(
+                                                    color: Colors.grey)),
+                                          ),
+                                        ],
                                       ),
-                                    ),
-                                    TextButton(
-                                      onPressed: null,
-                                      child: const Text("See All", style: TextStyle(color: Colors.grey)),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Shimmer.fromColors(
-                                  baseColor: Colors.grey.withOpacity(0.1),
-                                  highlightColor: Colors.grey.withOpacity(0.05),
-                                  child: Container(
-                                    height: 100, // Approximate height of one appointment card
-                                    width: double.infinity,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(16),
+                                      const SizedBox(height: 8),
+                                      Shimmer.fromColors(
+                                        baseColor: Colors.grey.withOpacity(0.1),
+                                        highlightColor:
+                                            Colors.grey.withOpacity(0.05),
+                                        child: Container(
+                                          height:
+                                              100, // Approximate height of one appointment card
+                                          width: double.infinity,
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius:
+                                                BorderRadius.circular(16),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+
+                              final items = viewModel.upcomingAppointments;
+                              if (items.isEmpty) {
+                                return const SizedBox
+                                    .shrink(); // Hide entire section if no appointments
+                              }
+
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 20),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          "Upcoming Appointments",
+                                          style: GoogleFonts.inter(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                        ),
+                                        TextButton(
+                                          onPressed: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      const DoctorAppointmentView(
+                                                          showBackButton:
+                                                              true)),
+                                            );
+                                          },
+                                          child: const Text("See All"),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                ),
-                            ],
-                          ),
-                        );
-                      }
-                      
-                      final items = apptVM.upcomingAppointments;
-                      if (items.isEmpty) {
-                        return const SizedBox.shrink(); // Hide entire section if no appointments
-                      }
-                      
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  "Upcoming Appointments",
-                                  style: GoogleFonts.inter(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.textPrimary,
+                                  const SizedBox(height: 8),
+                                  ListView.builder(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 20),
+                                    shrinkWrap: true,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    itemCount:
+                                        items.take(1).length, // Limit to 1
+                                    itemBuilder: (context, index) {
+                                      return _buildAppointmentCard(
+                                          context, items[index]);
+                                    },
                                   ),
-                                ),
-                                TextButton(
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(builder: (context) => const DoctorAppointmentView(showBackButton: true)),
-                                    );
-                                  },
-                                  child: const Text("See All"),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: items.take(1).length, // Limit to 1
-                            itemBuilder: (context, index) {
-                              return _buildAppointmentCard(context, items[index]);
+                                ],
+                              );
                             },
                           ),
                         ],
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-                ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           );
@@ -471,7 +544,8 @@ class DoctorDashboardView extends StatelessWidget {
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildStatCard(String title, String value, IconData icon, Color color,
+      VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -497,14 +571,18 @@ class DoctorDashboardView extends StatelessWidget {
                 Icon(icon, color: color, size: 20),
                 // Tiny trend indicator could go here
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: Colors.green.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     "+2.5%",
-                    style: GoogleFonts.inter(fontSize: 10, color: Colors.green, fontWeight: FontWeight.bold),
+                    style: GoogleFonts.inter(
+                        fontSize: 10,
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -532,13 +610,15 @@ class DoctorDashboardView extends StatelessWidget {
     );
   }
 
-  Widget _buildAppointmentCard(BuildContext context, AppointmentModel appointment) {
+  Widget _buildAppointmentCard(
+      BuildContext context, AppointmentModel appointment) {
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => AppointmentDetailsEditView(appointment: appointment),
+            builder: (context) =>
+                AppointmentDetailsEditView(appointment: appointment),
           ),
         );
       },
@@ -546,5 +626,3 @@ class DoctorDashboardView extends StatelessWidget {
     );
   }
 }
-
-

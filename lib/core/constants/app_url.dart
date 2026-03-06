@@ -1,55 +1,87 @@
 class AppUrl {
-  ///auth
-  static const String baseUrl = 'https://medlink-be-production.up.railway.app/';
-  static const String register = baseUrl + 'auth/register/';
-  static const String loginEndPint = baseUrl + 'auth/login';
-  static const String check_email = register + 'email/step1';
-  static const String verify_email = register + 'email/step2';
-  static const String registerstep1 = register + 'step1';
-  static const String registerstep2 = register + 'step2';
-  static const String registerstep3 = register + 'step3';
-  static const String registerstep5 = register + 'step3';
-  static const String login_google = register + 'step6';
-  static const String login_apple = register + 'step7';
-  static const String get_doctors = baseUrl + 'patient/doctors';
-  static const String get_doctors_categories =
-      baseUrl + 'patient/doctors/categories';
-  static const String get_doctors_by_specialty =
-      baseUrl + 'patient/doctors/available';
+  /// Base URL
+  // static const String baseUrl = 'https://medlink-be-production.up.railway.app';
 
-  //// patient App
-  static const String get_patient_profile = baseUrl + 'patient/profile';
-  static const String get_appointments = baseUrl + 'appointments/patient';
-  static const String book_appointments = baseUrl + 'patient/appointments';
-  static const String get_upcoming_appointments =
-      baseUrl + 'patient/appointments/upcoming';
-  static const String get_cancelled_appointments =
-      baseUrl + 'patient/appointments/cancelled';
-  static const String get_past_appointments =
-      baseUrl + 'patient/appointments/past';
-  static const String cancel_appointment =
-      baseUrl + 'patient/appointments'; // Will append /:id/cancel dynamically
-  static const String get_health_articles = baseUrl + 'patient/health-articles';
-  static const String get_first_aid_topics =
+  static const String baseUrl = 'http://192.168.100.59:3000';
+
+  /// Auth Endpoints
+  static const String register = '${baseUrl}/auth/register';
+  static const String loginEndPoint = '${baseUrl}/auth/login';
+  static const String checkEmail = '$register/email/step1';
+  static const String verifyEmail = '$register/email/step2';
+
+  /// Legacy Register Steps (Used in api_services.dart)
+  static const String registerStep1 = '$register/step1';
+  static const String registerStep2 = '$register/step2';
+  static const String registerStep3 = '$register/step3';
+  static const String registerStep5 = '$register/step3';
+
+  /// Patient Register (New 3-step OTP flow)
+  static const String patientRegisterStep1 = '${baseUrl}/auth/patient/send-otp';
+  static const String patientRegisterStep2 =
+      '${baseUrl}/auth/patient/verify-otp';
+  static const String patientRegisterStep3 = '${baseUrl}/auth/patient/register';
+
+  /// Doctor Register (New 3-step OTP flow)
+  static const String doctorRegisterStep1 = '${baseUrl}/auth/doctor/send-otp';
+  static const String doctorRegisterStep2 = '${baseUrl}/auth/doctor/verify-otp';
+  static const String doctorRegisterStep3 = '${baseUrl}/auth/doctor/register';
+
+  /// Patient App Endpoints
+  static const String getPatientProfile = '${baseUrl}/patient/profile';
+  static const String updatePatientProfile = '${baseUrl}/patient/profile';
+  static const String getDoctors = '${baseUrl}/patient/doctors/available';
+  static const String getDoctorsCategories =
+      '${baseUrl}/patient/doctors/categories';
+  static const String getDoctorsBySpecialty =
+      '${baseUrl}/patient/doctors/available';
+  static const String bookAppointments = '${baseUrl}/patient/appointments';
+  static const String getUpcomingAppointments =
+      '${baseUrl}/patient/appointments/upcoming';
+  static const String getCancelledAppointments =
+      '${baseUrl}/patient/appointments/cancelled';
+  static const String getPastAppointments =
+      '${baseUrl}/patient/appointments/past';
+  static const String getHealthArticles = '${baseUrl}/patient/health-articles';
+
+  /// Doctor App Endpoints
+  static const String getDoctorProfile = '${baseUrl}/doctor/profile-details';
+  static const String updateDoctorProfile = '${baseUrl}/doctor/profile-details';
+  static const String getDoctorPatients = '${baseUrl}/doctor/patients';
+  static const String getDoctorEarningsByMonth =
+      '${baseUrl}/doctor/earnings/by-month';
+  static const String getDoctorBalance = '${baseUrl}/doctor/balance';
+  static const String getDoctorUpcomingAppointments =
+      '${baseUrl}/doctor/appointments/upcoming';
+  static const String getDoctorPastAppointments =
+      '${baseUrl}/doctor/appointments/past';
+  static const String getDoctorCancelledAppointments =
+      '${baseUrl}/doctor/appointments/cancelled';
+  static const String doctorAppointmentActions =
+      '${baseUrl}/doctor/appointments'; // Will append /:id/approve or /:id/cancel dynamically
+
+  /// Common/Appointments Endpoints
+  static const String getAppointments = '${baseUrl}/appointments/patient';
+  static const String patientCancelAppointment =
+      '${baseUrl}/patient/appointments'; // Will append /:id/cancel dynamically
+
+  /// Chat Endpoints
+  static const String getChatMessages =
+      '${baseUrl}/chat/appointments'; // /{id}/messages
+  static const String sendChatMessage =
+      '${baseUrl}/chat/appointments'; // /{id}/messages
+
+  /// External Endpoints
+  static const String getFirstAidTopics =
       'https://peristomatic-hecht-kynlee.ngrok-free.dev/api/content/get-first-aid-topics';
 
-  //// Doctor App
-  static const String get_doctor_patients = baseUrl + 'doctor/patients';
-  static const String get_doctor_earnings_by_month =
-      baseUrl + 'doctor/earnings/by-month';
-  static const String get_doctor_balance = baseUrl + 'doctor/balance';
-  static const String get_doctor_upcoming_appointments =
-      baseUrl + 'doctor/appointments/upcoming';
+  /// Helper to get full URL for media/images
+  static String getFullUrl(String? path) {
+    if (path == null || path.isEmpty) return '';
+    if (path.startsWith('http')) return path;
 
-  ///doctor register new (3 steps: send-otp, verify-otp, register)
-  static const String doctor_register_step1 = baseUrl + 'auth/doctor/send-otp';
-  static const String doctor_register_step2 =
-      baseUrl + 'auth/doctor/verify-otp';
-  static const String doctor_register_step3 = baseUrl + 'auth/doctor/register';
-
-  /// patient register new (3 steps: send-otp, verify-otp, register)
-  static const String patient_register_step1 = baseUrl + 'auth/patient/send-otp';
-  static const String patient_register_step2 =
-      baseUrl + 'auth/patient/verify-otp';
-  static const String patient_register_step3 = baseUrl + 'auth/patient/register';
+    // Ensure path starts with a single slash
+    final cleanPath = path.startsWith('/') ? path : '/$path';
+    return '$baseUrl$cleanPath';
+  }
 }

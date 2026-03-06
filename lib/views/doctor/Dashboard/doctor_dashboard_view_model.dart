@@ -10,37 +10,21 @@ class DoctorDashboardViewModel extends ChangeNotifier {
   String _earnings = "0";
   String _currency = "PKR";
   bool _isLoadingEarnings = false;
+  bool _isLoadingAppointments = false;
   
-  final int _patientsCount = 124;
-  final int _appointmentsCount = 8;
-  
-  final List<AppointmentModel> _upcomingAppointments = List.generate(2, (index) {
-     bool isVideo = index % 2 == 0;
-     return AppointmentModel(
-        id: "mock_$index",
-        doctorId: "doc_1",
-        userId: "user_1",
-        dateTime: DateTime.now().add(Duration(days: index)),
-        status: AppointmentStatus.upcoming,
-        type: isVideo ? AppointmentType.online : AppointmentType.inPerson,
-        user: UserModel(
-            id: "user_1",
-            name: index == 0 ? "John Smith" : "Sarah Connor",
-            email: "john@example.com",
-            phoneNumber: "555-0123",
-            profileImage: null 
-        )
-    );
-  });
+  int _patientsCount = 0;
+  int _appointmentsCount = 0;
+  List<AppointmentModel> _upcomingAppointments = [];
 
   DoctorDashboardViewModel() {
-    fetchEarnings();
+    fetchData();
   }
 
   bool get isOnline => _isOnline;
   String get earnings => _earnings;
   String get currency => _currency;
   bool get isLoadingEarnings => _isLoadingEarnings;
+  bool get isLoadingAppointments => _isLoadingAppointments;
   
   int get patientsCount => _patientsCount;
   int get appointmentsCount => _appointmentsCount;
@@ -49,6 +33,14 @@ class DoctorDashboardViewModel extends ChangeNotifier {
   void toggleOnlineStatus(bool value) {
     _isOnline = value;
     notifyListeners();
+  }
+
+  Future<void> fetchData() async {
+    await Future.wait([
+      fetchEarnings(),
+      fetchUpcomingAppointments(),
+      fetchPatientsCount(),
+    ]);
   }
 
   Future<void> fetchEarnings() async {
@@ -70,6 +62,40 @@ class DoctorDashboardViewModel extends ChangeNotifier {
       debugPrint("Error fetching earnings: $e");
     } finally {
       _isLoadingEarnings = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchUpcomingAppointments() async {
+    _isLoadingAppointments = true;
+    notifyListeners();
+
+    try {
+      final response = await _apiServices.getDoctorUpcomingAppointments();
+      if (response != null && response['success'] == true) {
+        final List<dynamic> data = response['data'];
+        _upcomingAppointments =
+            data.map((json) => AppointmentModel.fromJson(json)).toList();
+        _appointmentsCount = _upcomingAppointments.length;
+      }
+    } catch (e) {
+      debugPrint("Error fetching upcoming appointments: $e");
+    } finally {
+      _isLoadingAppointments = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchPatientsCount() async {
+    try {
+      final response = await _apiServices.getDoctorPatients();
+      if (response != null && response['success'] == true) {
+        final List<dynamic> data = response['data'];
+        _patientsCount = data.length;
+      }
+    } catch (e) {
+      debugPrint("Error fetching patients count: $e");
+    } finally {
       notifyListeners();
     }
   }

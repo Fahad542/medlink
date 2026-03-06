@@ -1,3 +1,5 @@
+import 'package:medlink/core/constants/app_url.dart';
+
 class DoctorModel {
   final String id;
   final String name;
@@ -32,31 +34,28 @@ class DoctorModel {
     this.endTime = "05:00 PM",
   });
   factory DoctorModel.fromJson(Map<String, dynamic> json) {
-    String baseUrl = "https://medlink-be-production.up.railway.app";
-    
     String getImageUrl(String? path) {
       if (path == null || path.isEmpty) return 'https://i.pravatar.cc/300';
-      if (path.startsWith('http')) return path;
-      return '$baseUrl$path';
+      return AppUrl.getFullUrl(path);
     }
 
-    final profile = json['doctorProfile'] is Map<String, dynamic> 
-        ? json['doctorProfile'] 
-        : (json['doctor'] is Map<String, dynamic> 
-            ? json['doctor'] 
-            : (json['profile'] is Map<String, dynamic> 
-                ? json['profile'] 
-                : (json['user'] is Map<String, dynamic>
-                    ? json['user']
-                    : {})));
+    final profile = json['doctorProfile'] is Map<String, dynamic>
+        ? json['doctorProfile']
+        : (json['doctor'] is Map<String, dynamic>
+            ? json['doctor']
+            : (json['profile'] is Map<String, dynamic>
+                ? json['profile']
+                : (json['user'] is Map<String, dynamic> ? json['user'] : {})));
 
     dynamic getField(String key) => json[key] ?? profile[key];
 
     String parsedSpecialty = 'General';
-    if (json['doctorSpecialties'] is List && (json['doctorSpecialties'] as List).isNotEmpty) {
+    if (json['doctorSpecialties'] is List &&
+        (json['doctorSpecialties'] as List).isNotEmpty) {
       var firstSpec = json['doctorSpecialties'][0];
-      if (firstSpec['specialty'] is Map && firstSpec['specialty']['name'] != null) {
-         parsedSpecialty = firstSpec['specialty']['name'];
+      if (firstSpec['specialty'] is Map &&
+          firstSpec['specialty']['name'] != null) {
+        parsedSpecialty = firstSpec['specialty']['name'];
       }
     } else {
       parsedSpecialty = getField('specialty') ?? 'General';
@@ -64,17 +63,40 @@ class DoctorModel {
 
     return DoctorModel(
       id: getField('_id')?.toString() ?? getField('id')?.toString() ?? '',
-      name: getField('full_name') ?? getField('fullName') ?? getField('name') ?? 'Unknown Doctor',
+      name: getField('full_name') ??
+          getField('fullName') ??
+          getField('name') ??
+          'Unknown Doctor',
       specialty: parsedSpecialty,
-      hospital: getField('hospital_name') ?? getField('hospital') ?? getField('clinicName') ?? 'Unknown Hospital',
+      hospital: getField('hospital_name') ??
+          getField('hospital') ??
+          getField('clinicName') ??
+          'Unknown Hospital',
       rating: double.tryParse(getField('rating')?.toString() ?? '0') ?? 0.0,
-      imageUrl: getImageUrl(getField('profile_image_url') ?? getField('profilePhotoUrl') ?? getField('imageUrl')),
-      isAvailable: getField('isAvailable') ?? getField('isActive') ?? true, // Default to true if missing
-      consultationFee: double.tryParse(getField('consultation_fee')?.toString() ?? getField('consultationFee')?.toString() ?? '0') ?? 0.0,
-      about: getField('about') ?? getField('bio') ?? 'Experienced specialist dedicated to providing comprehensive care.',
-      experience: (getField('experience_years') ?? getField('experience') ?? getField('yearsExperience') ?? 0).toString(),
+      imageUrl: getImageUrl(getField('profile_image_url') ??
+          getField('profilePhotoUrl') ??
+          getField('imageUrl')),
+      isAvailable: getField('isAvailable') ??
+          getField('isActive') ??
+          true, // Default to true if missing
+      consultationFee: double.tryParse(
+              getField('consultation_fee')?.toString() ??
+                  getField('consultationFee')?.toString() ??
+                  '0') ??
+          0.0,
+      about: getField('about') ??
+          getField('bio') ??
+          'Experienced specialist dedicated to providing comprehensive care.',
+      experience: (getField('experience_years') ??
+              getField('experience') ??
+              getField('yearsExperience') ??
+              0)
+          .toString(),
       location: getField('location') ?? 'Unknown Location',
-      availabilityDays: (getField('availabilityDays') as List<dynamic>?)?.map((e) => e.toString()).toList() ?? ["Mon", "Tue", "Wed", "Thu", "Fri"],
+      availabilityDays: (getField('availabilityDays') as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          ["Mon", "Tue", "Wed", "Thu", "Fri"],
       startTime: getField('startTime') ?? "09:00 AM",
       endTime: getField('endTime') ?? "05:00 PM",
     );

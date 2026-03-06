@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:medlink/views/Patient App/appointment/appointment_viewmodel.dart';
 import 'package:medlink/utils/utils.dart';
 
+import 'package:medlink/views/services/session_view_model.dart';
 class AppointmentInfoCard extends StatelessWidget {
   final AppointmentModel appointment;
   final bool showConfirmationActions;
@@ -87,8 +88,19 @@ class AppointmentInfoCard extends StatelessWidget {
               subtitle: "Start a chat related to this visit",
               color: AppColors.primary,
               onTap: () {
+                final userVM =
+                    Provider.of<UserViewModel>(context, listen: false);
+                final currentUserId = userVM.loginSession?.data?.user?.id ?? 0;
                 Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => ChatView(recipientName: appointment.doctor?.name ?? "Doctor")));
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => ChatView(
+                              recipientName:
+                                  appointment.doctor?.name ?? "Doctor",
+                              appointmentId: appointment.id,
+                              currentUserId: currentUserId,
+                            )));
               },
             ),
             _buildOptionItem(
@@ -101,7 +113,8 @@ class AppointmentInfoCard extends StatelessWidget {
               color: AppColors.primary,
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const WaitingRoomView()));
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const WaitingRoomView()));
               },
             ),
             _buildOptionItem(
@@ -139,88 +152,97 @@ class AppointmentInfoCard extends StatelessWidget {
       context: context,
       builder: (context) {
         bool isCancelling = false;
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return Dialog(
-              backgroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: 8),
-                    const Text(
-                      "Cancel Appointment?",
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      "Are you sure you want to cancel this appointment? This action cannot be undone.",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: isCancelling ? null : () => Navigator.pop(context),
-                            style: OutlinedButton.styleFrom(
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              foregroundColor: Colors.grey.shade700,
-                            ),
-                            child: const Text("Back"),
+        return StatefulBuilder(builder: (context, setState) {
+          return Dialog(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 8),
+                  const Text(
+                    "Cancel Appointment?",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Are you sure you want to cancel this appointment? This action cannot be undone.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: isCancelling
+                              ? null
+                              : () => Navigator.pop(context),
+                          style: OutlinedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            foregroundColor: Colors.grey.shade700,
                           ),
+                          child: const Text("Back"),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: isCancelling
-                                ? null
-                                : () async {
-                                    setState(() => isCancelling = true);
-                                    
-                                    final vm = Provider.of<AppointmentViewModel>(context, listen: false);
-                                    bool success = await vm.cancelAppointment(appointment.id.toString(), "Patient requested cancellation");
-                                    
-                                    if (context.mounted) {
-                                      setState(() => isCancelling = false);
-                                      Navigator.pop(context); // Close dialog
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: isCancelling
+                              ? null
+                              : () async {
+                                  setState(() => isCancelling = true);
 
-                                      Utils.toastMessage(
-                                        context, 
-                                        success ? "Appointment cancelled successfully" : "Failed to cancel appointment", 
-                                        isError: !success
-                                      );
-                                    }
-                                  },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              elevation: 0,
-                            ),
-                            child: isCancelling
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-                                  )
-                                : const Text("Yes, Cancel"),
+                                  final vm = Provider.of<AppointmentViewModel>(
+                                      context,
+                                      listen: false);
+                                  bool success = await vm.cancelAppointment(
+                                      appointment.id.toString(),
+                                      "Patient requested cancellation");
+
+                                  if (context.mounted) {
+                                    setState(() => isCancelling = false);
+                                    Navigator.pop(context); // Close dialog
+
+                                    Utils.toastMessage(
+                                        context,
+                                        success
+                                            ? "Appointment cancelled successfully"
+                                            : "Failed to cancel appointment",
+                                        isError: !success);
+                                  }
+                                },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            elevation: 0,
                           ),
+                          child: isCancelling
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                      color: Colors.white, strokeWidth: 2.5),
+                                )
+                              : const Text("Yes, Cancel"),
                         ),
-                      ],
-                    )
-                  ],
-                ),
+                      ),
+                    ],
+                  )
+                ],
               ),
-            );
-          }
-        );
+            ),
+          );
+        });
       },
     );
   }
@@ -258,22 +280,25 @@ class AppointmentInfoCard extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
+                    const Icon(Icons.calendar_today,
+                        size: 18, color: Colors.grey),
                     const SizedBox(width: 8),
-                    Text("Select Date", style: TextStyle(color: Colors.grey.shade700)),
+                    Text("Select Date",
+                        style: TextStyle(color: Colors.grey.shade700)),
                     const Spacer(),
                     const Icon(Icons.arrow_drop_down, color: Colors.grey),
                   ],
                 ),
               ),
-               const SizedBox(height: 24),
+              const SizedBox(height: 24),
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         foregroundColor: Colors.grey.shade700,
                       ),
@@ -284,13 +309,16 @@ class AppointmentInfoCard extends StatelessWidget {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                         Navigator.pop(context);
-                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Reschedule Request Sent")));
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text("Reschedule Request Sent")));
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         elevation: 0,
                       ),
@@ -322,7 +350,8 @@ class AppointmentInfoCard extends StatelessWidget {
                   color: Colors.green.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.check_circle_outline_rounded, color: Colors.green, size: 32),
+                child: const Icon(Icons.check_circle_outline_rounded,
+                    color: Colors.green, size: 32),
               ),
               const SizedBox(height: 16),
               const Text(
@@ -342,7 +371,8 @@ class AppointmentInfoCard extends StatelessWidget {
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         foregroundColor: Colors.grey.shade700,
                       ),
@@ -353,13 +383,17 @@ class AppointmentInfoCard extends StatelessWidget {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                         Navigator.pop(context);
-                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Session Confirmed Successfully")));
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content:
+                                    Text("Session Confirmed Successfully")));
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         elevation: 0,
                       ),
@@ -402,31 +436,36 @@ class AppointmentInfoCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            
+
             // Header
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                   Column(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                     children: [
-                       const Text(
+                    children: [
+                      const Text(
                         "Digital Prescription",
-                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-                       ),
-                       Text(
-                         "Issued on ${DateFormat('MMM d, yyyy').format(DateTime.now())}",
-                         style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-                       )
-                     ],
-                   ),
+                        style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1E293B)),
+                      ),
+                      Text(
+                        "Issued on ${DateFormat('MMM d, yyyy').format(DateTime.now())}",
+                        style: TextStyle(
+                            color: Colors.grey.shade500, fontSize: 13),
+                      )
+                    ],
+                  ),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
                     icon: Container(
                       padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(color: Colors.grey.shade100, shape: BoxShape.circle),
+                      decoration: BoxDecoration(
+                          color: Colors.grey.shade100, shape: BoxShape.circle),
                       child: const Icon(Icons.close, size: 20),
                     ),
                     color: Colors.black54,
@@ -436,7 +475,7 @@ class AppointmentInfoCard extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             const Divider(height: 1),
-            
+
             // Content
             Expanded(
               child: SingleChildScrollView(
@@ -450,7 +489,8 @@ class AppointmentInfoCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: AppColors.primary.withOpacity(0.05),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+                        border: Border.all(
+                            color: AppColors.primary.withOpacity(0.1)),
                       ),
                       child: Row(
                         children: [
@@ -459,12 +499,17 @@ class AppointmentInfoCard extends StatelessWidget {
                               shape: BoxShape.circle,
                               border: Border.all(color: Colors.white, width: 2),
                               boxShadow: [
-                                BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2)),
+                                BoxShadow(
+                                    color: Colors.grey.withOpacity(0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2)),
                               ],
                             ),
                             child: CircleAvatar(
                               radius: 28,
-                              backgroundImage: NetworkImage(appointment.doctor?.imageUrl ?? 'https://via.placeholder.com/150'),
+                              backgroundImage: NetworkImage(
+                                  appointment.doctor?.imageUrl ??
+                                      'https://via.placeholder.com/150'),
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -473,17 +518,22 @@ class AppointmentInfoCard extends StatelessWidget {
                             children: [
                               Text(
                                 "Dr. ${appointment.doctor?.name ?? 'Doctor'}",
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold, fontSize: 16),
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 appointment.doctor?.specialty ?? "Specialist",
-                                style: TextStyle(color: AppColors.primary.withOpacity(0.8), fontWeight: FontWeight.w500, fontSize: 13),
+                                style: TextStyle(
+                                    color: AppColors.primary.withOpacity(0.8),
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 13),
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 "License ID: 893421",
-                                style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                                style: TextStyle(
+                                    color: Colors.grey.shade500, fontSize: 12),
                               ),
                             ],
                           ),
@@ -491,36 +541,50 @@ class AppointmentInfoCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 32),
-                    
+
                     // Medicines Section
                     // Medicines Section
-                     Text(
+                    Text(
                       "Prescribed Medicines",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey.shade800),
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey.shade800),
                     ),
-                     const SizedBox(height: 16),
-                    _buildMedicineItem("Amoxicillin 500mg", "1 Tablet", "Twice daily (After Food)", "5 Days"),
-                    _buildMedicineItem("Paracetamol 650mg", "1 Tablet", "SOS (For Fever > 100°F)", "3 Days"),
-                    _buildMedicineItem("Cetirizine 10mg", "1 Tablet", "Once daily (Night)", "5 Days"),
-                    
+                    const SizedBox(height: 16),
+                    _buildMedicineItem("Amoxicillin 500mg", "1 Tablet",
+                        "Twice daily (After Food)", "5 Days"),
+                    _buildMedicineItem("Paracetamol 650mg", "1 Tablet",
+                        "SOS (For Fever > 100°F)", "3 Days"),
+                    _buildMedicineItem("Cetirizine 10mg", "1 Tablet",
+                        "Once daily (Night)", "5 Days"),
+
                     const SizedBox(height: 32),
 
                     // Tests Section
                     // Tests Section
-                     Text(
+                    Text(
                       "Recommended Tests",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey.shade800),
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey.shade800),
                     ),
                     const SizedBox(height: 16),
-                    _buildTestItem("Complete Blood Count (CBC)", "Check for infection levels"),
-                    _buildTestItem("Typhoid Test (Widal)", "Screening for fever cause"),
+                    _buildTestItem("Complete Blood Count (CBC)",
+                        "Check for infection levels"),
+                    _buildTestItem(
+                        "Typhoid Test (Widal)", "Screening for fever cause"),
 
                     const SizedBox(height: 32),
 
                     // Notes Section
                     const Text(
                       "Doctor's Notes",
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey),
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey),
                     ),
                     const SizedBox(height: 12),
                     Container(
@@ -536,16 +600,20 @@ class AppointmentInfoCard extends StatelessWidget {
                         children: [
                           const Text(
                             "• Drink at least 3 liters of water daily.",
-                            style: TextStyle(color: Colors.black87, height: 1.5),
+                            style:
+                                TextStyle(color: Colors.black87, height: 1.5),
                           ),
                           const Text(
                             "• Avoid spicy and oily food.",
-                            style: TextStyle(color: Colors.black87, height: 1.5),
+                            style:
+                                TextStyle(color: Colors.black87, height: 1.5),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             "Follow up in 5 days if symptoms persist.",
-                            style: TextStyle(color: AppColors.primary.withOpacity(0.8), fontWeight: FontWeight.w500),
+                            style: TextStyle(
+                                color: AppColors.primary.withOpacity(0.8),
+                                fontWeight: FontWeight.w500),
                           ),
                         ],
                       ),
@@ -555,26 +623,31 @@ class AppointmentInfoCard extends StatelessWidget {
                 ),
               ),
             ),
-            
+
             // Fixed Bottom Button
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: Colors.white,
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5)),
+                  BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, -5)),
                 ],
               ),
               child: ElevatedButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Downloading Prescription...")));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text("Downloading Prescription...")));
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 18),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
                   elevation: 0,
                   shadowColor: Colors.transparent,
                 ),
@@ -583,7 +656,9 @@ class AppointmentInfoCard extends StatelessWidget {
                   children: [
                     Icon(Icons.download_rounded, size: 22),
                     SizedBox(width: 8),
-                    Text("Download Prescription", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text("Download Prescription",
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
@@ -594,7 +669,8 @@ class AppointmentInfoCard extends StatelessWidget {
     );
   }
 
-  Widget _buildMedicineItem(String name, String qty, String instructions, String duration) {
+  Widget _buildMedicineItem(
+      String name, String qty, String instructions, String duration) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -603,7 +679,10 @@ class AppointmentInfoCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
-           BoxShadow(color: Colors.grey.withOpacity(0.03), blurRadius: 5, offset: const Offset(0, 2)),
+          BoxShadow(
+              color: Colors.grey.withOpacity(0.03),
+              blurRadius: 5,
+              offset: const Offset(0, 2)),
         ],
       ),
       child: Row(
@@ -615,7 +694,8 @@ class AppointmentInfoCard extends StatelessWidget {
               color: AppColors.primary.withOpacity(0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.medication_outlined, color: AppColors.primary, size: 24),
+            child: const Icon(Icons.medication_outlined,
+                color: AppColors.primary, size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -625,25 +705,43 @@ class AppointmentInfoCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E293B))),
+                    Text(name,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: Color(0xFF1E293B))),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Text(qty, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade700)),
+                      child: Text(qty,
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey.shade700)),
                     ),
                   ],
                 ),
                 const SizedBox(height: 6),
-                Text(instructions, style: TextStyle(color: Colors.grey.shade600, fontSize: 13, height: 1.3)),
+                Text(instructions,
+                    style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 13,
+                        height: 1.3)),
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(Icons.access_time_rounded, size: 12, color: AppColors.primary.withOpacity(0.7)),
+                    Icon(Icons.access_time_rounded,
+                        size: 12, color: AppColors.primary.withOpacity(0.7)),
                     const SizedBox(width: 4),
-                    Text("Duration: $duration", style: TextStyle(color: AppColors.primary.withOpacity(0.8), fontSize: 12, fontWeight: FontWeight.w500)),
+                    Text("Duration: $duration",
+                        style: TextStyle(
+                            color: AppColors.primary.withOpacity(0.8),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500)),
                   ],
                 ),
               ],
@@ -663,7 +761,10 @@ class AppointmentInfoCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
-           BoxShadow(color: Colors.grey.withOpacity(0.03), blurRadius: 5, offset: const Offset(0, 2)),
+          BoxShadow(
+              color: Colors.grey.withOpacity(0.03),
+              blurRadius: 5,
+              offset: const Offset(0, 2)),
         ],
       ),
       child: Row(
@@ -674,16 +775,23 @@ class AppointmentInfoCard extends StatelessWidget {
               color: AppColors.primary.withOpacity(0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.science_outlined, color: AppColors.primary, size: 24),
+            child: const Icon(Icons.science_outlined,
+                color: AppColors.primary, size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E293B))),
+                Text(name,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: Color(0xFF1E293B))),
                 const SizedBox(height: 4),
-                Text(reason, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+                Text(reason,
+                    style:
+                        TextStyle(color: Colors.grey.shade600, fontSize: 13)),
               ],
             ),
           ),
@@ -691,6 +799,7 @@ class AppointmentInfoCard extends StatelessWidget {
       ),
     );
   }
+
   Widget _buildOptionItem(
     BuildContext context, {
     required IconData icon,
@@ -709,7 +818,9 @@ class AppointmentInfoCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          border: showBorder ? Border(bottom: BorderSide(color: Colors.grey.shade100)) : null,
+          border: showBorder
+              ? Border(bottom: BorderSide(color: Colors.grey.shade100))
+              : null,
         ),
         child: Row(
           children: [
@@ -720,7 +831,8 @@ class AppointmentInfoCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: assetPath != null
-                  ? Image.asset(assetPath, color: color, width: iconSize, height: iconSize)
+                  ? Image.asset(assetPath,
+                      color: color, width: iconSize, height: iconSize)
                   : Icon(icon, color: color, size: iconSize),
             ),
             const SizedBox(width: 16),
@@ -747,7 +859,8 @@ class AppointmentInfoCard extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey.shade300),
+            Icon(Icons.arrow_forward_ios_rounded,
+                size: 16, color: Colors.grey.shade300),
           ],
         ),
       ),
@@ -760,7 +873,7 @@ class AppointmentInfoCard extends StatelessWidget {
     Color statusColor = AppColors.primary;
     String statusText = "Upcoming";
 
-    if(appointment.status == AppointmentStatus.completed) {
+    if (appointment.status == AppointmentStatus.completed) {
       statusBg = Colors.green.withOpacity(0.1);
       statusColor = Colors.green;
       statusText = "Completed";
@@ -775,137 +888,155 @@ class AppointmentInfoCard extends StatelessWidget {
     }
 
     return Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey.withOpacity(0.1)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.08),
-              blurRadius: 15,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.withOpacity(0.1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.08),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              // Doctor Image
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.grey.withOpacity(0.1)),
+                ),
+                child: ClipOval(
+                  child: Image.network(
+                    appointment.doctor?.imageUrl ??
+                        'https://via.placeholder.com/150',
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.grey[200],
+                        child: const Icon(Icons.person, color: Colors.grey),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Info Column
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      appointment.doctor?.name ?? "Doctor",
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: Color(0xFF1E293B)),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      appointment.doctor?.specialty ?? "Specialist",
+                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(Icons.access_time_rounded,
+                            size: 14,
+                            color: AppColors.primary.withOpacity(0.7)),
+                        const SizedBox(width: 4),
+                        Text(
+                          DateFormat('MMM d, h:mm a')
+                              .format(appointment.dateTime),
+                          style: TextStyle(
+                              color: AppColors.primary.withOpacity(0.8),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // Action Button (3-dots for Upcoming, Status for others)
+              if (appointment.status == AppointmentStatus.upcoming)
+                InkWell(
+                  onTap: () => _showAppointmentOptions(context),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    child:
+                        const Icon(Icons.more_vert_rounded, color: Colors.grey),
+                  ),
+                )
+              else
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                      color: statusBg, borderRadius: BorderRadius.circular(8)),
+                  child: Text(
+                    statusText,
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: statusColor),
+                  ),
+                ),
+            ],
+          ),
+
+          // Bottom Actions ONLY if enabled and upcoming
+          if (showConfirmationActions &&
+              appointment.status == AppointmentStatus.unconfirmed) ...[
+            const SizedBox(height: 12),
             Row(
               children: [
-                // Doctor Image
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.grey.withOpacity(0.1)),
-                  ),
-                  child: ClipOval(
-                    child: Image.network(
-                      appointment.doctor?.imageUrl ?? 'https://via.placeholder.com/150',
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: Colors.grey[200],
-                          child: const Icon(Icons.person, color: Colors.grey),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // Info Column
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        appointment.doctor?.name ?? "Doctor",
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E293B)),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        appointment.doctor?.specialty ?? "Specialist",
-                        style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Icon(Icons.access_time_rounded, size: 14, color: AppColors.primary.withOpacity(0.7)),
-                          const SizedBox(width: 4),
-                          Text(
-                            DateFormat('MMM d, h:mm a').format(appointment.dateTime),
-                            style: TextStyle(color: AppColors.primary.withOpacity(0.8), fontSize: 13, fontWeight: FontWeight.w500),
-                          ),
-                        ],
-                      ),
-                    ],
+                  child: OutlinedButton(
+                    onPressed: () => _showPrescriptionSheet(context),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 0),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      side: BorderSide(color: Colors.grey.shade300),
+                      foregroundColor: Colors.grey.shade700,
+                      minimumSize: const Size(0, 32),
+                    ),
+                    child: const Text("See Prescription",
+                        style: TextStyle(fontSize: 12)),
                   ),
                 ),
-                // Action Button (3-dots for Upcoming, Status for others)
-                if (appointment.status == AppointmentStatus.upcoming)
-                   InkWell(
-                    onTap: () => _showAppointmentOptions(context),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      child: const Icon(Icons.more_vert_rounded, color: Colors.grey),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => _showConfirmSessionDialog(context),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 0),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      side: const BorderSide(color: AppColors.primary),
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppColors.primary,
+                      minimumSize: const Size(0, 32),
                     ),
-                   )
-                else
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: statusBg,
-                      borderRadius: BorderRadius.circular(8)
-                    ),
-                    child: Text(
-                      statusText,
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor),
-                    ),
+                    child: const Text("Confirm Session",
+                        style: TextStyle(fontSize: 12)),
                   ),
+                ),
               ],
             ),
-            
-            // Bottom Actions ONLY if enabled and upcoming
-            if (showConfirmationActions && appointment.status == AppointmentStatus.unconfirmed) ...[
-               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => _showPrescriptionSheet(context),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 0),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        side: BorderSide(color: Colors.grey.shade300),
-                        foregroundColor: Colors.grey.shade700,
-                        minimumSize: const Size(0, 32),
-                      ),
-                      child: const Text("See Prescription", style: TextStyle(fontSize: 12)),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => _showConfirmSessionDialog(context),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 0),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        side: const BorderSide(color: AppColors.primary),
-                        backgroundColor: Colors.white,
-                        foregroundColor: AppColors.primary,
-                        minimumSize: const Size(0, 32),
-                      ),
-                      child: const Text("Confirm Session", style: TextStyle(fontSize: 12)),
-                    ),
-                  ),
-                ],
-              ),
-            ]
-          ],
-        ),
-      );
+          ]
+        ],
+      ),
+    );
   }
-}  
+}

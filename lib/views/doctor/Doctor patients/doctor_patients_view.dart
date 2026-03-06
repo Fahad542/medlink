@@ -13,6 +13,8 @@ import 'package:medlink/views/doctor/Doctor%20patients/doctor_patients_view_mode
 import '../Doctor Patient Dashboard/patient_dashboard_view.dart';
 // ... other imports ...
 
+import 'package:medlink/views/services/session_view_model.dart';
+
 class DoctorPatientsView extends StatefulWidget {
   const DoctorPatientsView({super.key});
 
@@ -28,51 +30,53 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
     return Consumer<DoctorPatientsViewModel>(
       builder: (context, viewModel, child) {
         return Scaffold(
-            backgroundColor: const Color(0xFFF8F9FB),
-            appBar: const CustomAppBar(
-              title: "My Patients",
-              automaticallyImplyLeading: false,
-            ),
-            body: Column(
-              children: [
-                // Search and Filters
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Column(
-                    children: [
-                      _buildSearchBar(viewModel),
-                      const SizedBox(height: 12),
-                      _buildFilterChips(viewModel),
-                    ],
-                  ),
+          backgroundColor: const Color(0xFFF8F9FB),
+          appBar: const CustomAppBar(
+            title: "My Patients",
+            automaticallyImplyLeading: false,
+          ),
+          body: Column(
+            children: [
+              // Search and Filters
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Column(
+                  children: [
+                    _buildSearchBar(viewModel),
+                    const SizedBox(height: 12),
+                    _buildFilterChips(viewModel),
+                  ],
                 ),
+              ),
 
-                // Patient List
-                Expanded(
-                  child: viewModel.isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : viewModel.patients.isEmpty
-                          ? Center(
-                              child: Text(
-                                "No patients found.",
-                                style: GoogleFonts.inter(color: Colors.grey[500]),
-                              ),
-                            )
-                          : ListView.builder(
-                              physics: const BouncingScrollPhysics(),
-                              padding: const EdgeInsets.only(left: 16, right: 16, top: 0, bottom: 100),
-                              itemCount: viewModel.patients.length,
-                              itemBuilder: (context, index) {
-                                final patient = viewModel.patients[index];
-                                return _buildPatientCard(patient);
-                              },
+              // Patient List
+              Expanded(
+                child: viewModel.isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : viewModel.patients.isEmpty
+                        ? Center(
+                            child: Text(
+                              "No patients found.",
+                              style: GoogleFonts.inter(color: Colors.grey[500]),
                             ),
-                ),
-              ],
-            ),
-          );
-        },
-      );
+                          )
+                        : ListView.builder(
+                            physics: const BouncingScrollPhysics(),
+                            padding: const EdgeInsets.only(
+                                left: 16, right: 16, top: 0, bottom: 100),
+                            itemCount: viewModel.patients.length,
+                            itemBuilder: (context, index) {
+                              final patient = viewModel.patients[index];
+                              return _buildPatientCard(patient);
+                            },
+                          ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildSearchBar(DoctorPatientsViewModel viewModel) {
@@ -88,10 +92,12 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
           fillColor: Colors.white,
           hintText: "Search patients...",
           hintStyle: GoogleFonts.inter(color: Colors.grey[400], fontSize: 14),
-          prefixIcon: Icon(Icons.search_rounded, color: Colors.grey[400], size: 20),
+          prefixIcon:
+              Icon(Icons.search_rounded, color: Colors.grey[400], size: 20),
           suffixIcon: _searchController.text.isNotEmpty
               ? IconButton(
-                  icon: Icon(Icons.clear_rounded, color: Colors.grey[400], size: 18),
+                  icon: Icon(Icons.clear_rounded,
+                      color: Colors.grey[400], size: 18),
                   onPressed: () {
                     _searchController.clear();
                     viewModel.setSearchQuery('');
@@ -110,7 +116,8 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
             borderRadius: BorderRadius.circular(14),
             borderSide: BorderSide.none,
           ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
       ),
     );
@@ -154,7 +161,9 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
                       Padding(
                         padding: const EdgeInsets.only(right: 6),
                         child: Icon(
-                          index == 0 ? Icons.people_rounded : Icons.person_rounded,
+                          index == 0
+                              ? Icons.people_rounded
+                              : Icons.person_rounded,
                           color: Colors.white,
                           size: 15,
                         ),
@@ -205,9 +214,10 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => PatientDashboardView(
-                patient: patient,
-              )),
+              MaterialPageRoute(
+                  builder: (_) => PatientDashboardView(
+                        patient: patient,
+                      )),
             );
           },
           borderRadius: BorderRadius.circular(16),
@@ -225,15 +235,24 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: AppColors.primary.withOpacity(0.08),
-                        image: patient.profileImage != null 
-                            ? DecorationImage(image: NetworkImage(patient.profileImage!), fit: BoxFit.cover)
+                        image: (patient.profileImage != null &&
+                                patient.profileImage!.isNotEmpty)
+                            ? DecorationImage(
+                                image: NetworkImage(patient.profileImage!),
+                                fit: BoxFit.cover)
                             : null,
                       ),
-                       child: patient.profileImage == null
+                      child: (patient.profileImage == null ||
+                              patient.profileImage!.isEmpty)
                           ? Center(
                               child: Text(
-                                patient.name.substring(0, 2).toUpperCase(),
-                                style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 16),
+                                patient.name.isNotEmpty
+                                    ? patient.name.substring(0, 2).toUpperCase()
+                                    : "??",
+                                style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                    fontSize: 16),
                               ),
                             )
                           : null,
@@ -256,7 +275,8 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
                               ),
                               const SizedBox(width: 8),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: Colors.grey[100],
                                   borderRadius: BorderRadius.circular(6),
@@ -277,21 +297,26 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
                             children: [
                               Text(
                                 "$sessions Sessions",
-                                style: GoogleFonts.inter(fontSize: 12, color: AppColors.primary),
+                                style: GoogleFonts.inter(
+                                    fontSize: 12, color: AppColors.primary),
                               ),
                               if (isCurrent && nextSession != null) ...[
                                 Container(
-                                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                                  margin:
+                                      const EdgeInsets.symmetric(horizontal: 8),
                                   width: 1,
                                   height: 12,
                                   color: Colors.grey[300],
                                 ),
-                                Icon(Icons.calendar_today_rounded, size: 10, color: Colors.grey[500]),
+                                Icon(Icons.calendar_today_rounded,
+                                    size: 10, color: Colors.grey[500]),
                                 const SizedBox(width: 4),
                                 Expanded(
                                   child: Text(
                                     nextSession,
-                                    style: GoogleFonts.inter(fontSize: 11, color: AppColors.textPrimary),
+                                    style: GoogleFonts.inter(
+                                        fontSize: 11,
+                                        color: AppColors.textPrimary),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
@@ -359,10 +384,19 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
                 const SizedBox(height: 16),
                 InkWell(
                   onTap: () {
+                    final userVM =
+                        Provider.of<UserViewModel>(context, listen: false);
+                    final currentUserId =
+                        userVM.loginSession?.data?.user?.id ?? 0;
                     Navigator.pop(context);
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => ChatView(recipientName: patient.name ?? "Patient")),
+                      MaterialPageRoute(
+                          builder: (_) => ChatView(
+                                recipientName: patient.name ?? "Patient",
+                                appointmentId: patient.lastAppointmentId ?? "0",
+                                currentUserId: currentUserId,
+                              )),
                     );
                   },
                   borderRadius: BorderRadius.circular(16),
@@ -371,7 +405,8 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
                     decoration: BoxDecoration(
                       color: AppColors.primary.withOpacity(0.05),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+                      border:
+                          Border.all(color: AppColors.primary.withOpacity(0.1)),
                     ),
                     child: Row(
                       children: [
@@ -381,7 +416,8 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
                             color: Colors.white,
                             shape: BoxShape.circle,
                           ),
-                          child: Image.asset("assets/Icons/chat.png", width: 16, height: 16, color: AppColors.primary),
+                          child: Image.asset("assets/Icons/chat.png",
+                              width: 16, height: 16, color: AppColors.primary),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -407,7 +443,8 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
                             ],
                           ),
                         ),
-                        Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey[400]),
+                        Icon(Icons.arrow_forward_ios_rounded,
+                            size: 16, color: Colors.grey[400]),
                       ],
                     ),
                   ),
@@ -418,7 +455,9 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
                     Navigator.pop(context);
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => WaitingRoomView(callTargetName: patient.name)),
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              WaitingRoomView(callTargetName: patient.name)),
                     );
                   },
                   borderRadius: BorderRadius.circular(16),
@@ -427,7 +466,8 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
                     decoration: BoxDecoration(
                       color: AppColors.primary.withOpacity(0.05),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+                      border:
+                          Border.all(color: AppColors.primary.withOpacity(0.1)),
                     ),
                     child: Row(
                       children: [
@@ -437,7 +477,8 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
                             color: Colors.white,
                             shape: BoxShape.circle,
                           ),
-                          child: Image.asset("assets/Icons/video.png", width: 22, height: 22, color: AppColors.primary),
+                          child: Image.asset("assets/Icons/video.png",
+                              width: 22, height: 22, color: AppColors.primary),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
@@ -463,7 +504,8 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
                             ],
                           ),
                         ),
-                        Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey[400]),
+                        Icon(Icons.arrow_forward_ios_rounded,
+                            size: 16, color: Colors.grey[400]),
                       ],
                     ),
                   ),
@@ -477,7 +519,3 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
     );
   }
 }
-
-
-
-

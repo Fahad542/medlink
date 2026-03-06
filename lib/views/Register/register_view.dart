@@ -247,16 +247,7 @@ class _RegisterViewState extends State<RegisterView> {
           commonStep2,
           DoctorStep4Professional(
             isLoading: authViewModel.loading,
-            onNext: () async {
-              // Usually we might call registerStep4 for doctor here but following previous wizard behavior,
-              // it proceeds to the next step.
-              if (authViewModel.licensePath != null) {
-                authViewModel.nextStep();
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("License file required")));
-              }
-            },
+            onNext: () => authViewModel.submitDoctorStep4(context),
             specializationController: authViewModel.specializationController,
             experienceController: authViewModel.experienceController,
             clinicNameController: authViewModel.clinicNameController,
@@ -266,9 +257,7 @@ class _RegisterViewState extends State<RegisterView> {
           ),
           DoctorStep5PracticeDetails(
             isLoading: authViewModel.loading,
-            onNext: () async {
-              authViewModel.nextStep();
-            },
+            onNext: () => authViewModel.submitDoctorStep5(context),
             consultationFeeController: authViewModel.consultationFeeController,
             onAvailabilitySelected: (days) =>
                 authViewModel.setAvailability(days),

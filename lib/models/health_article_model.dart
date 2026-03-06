@@ -21,11 +21,8 @@ class HealthArticle {
 
   factory HealthArticle.fromJson(Map<String, dynamic> json) {
     String imagePath = json['coverImageUrl'] ?? '';
-    // Ensure full URL for images if backend gives relative path
-    if (imagePath.startsWith('/')) {
-      imagePath = AppUrl.baseUrl + imagePath.substring(1);
-    } else if (!imagePath.startsWith('http')) {
-      imagePath = AppUrl.baseUrl + imagePath;
+    if (imagePath.isNotEmpty) {
+      imagePath = AppUrl.getFullUrl(imagePath);
     }
 
     return HealthArticle(

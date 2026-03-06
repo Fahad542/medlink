@@ -11,11 +11,12 @@ import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/views/Patient App/consultation/chat_view.dart';
 import 'package:medlink/views/Patient App/consultation/waiting_room_view.dart';
 
-
 import '../../models/user_model.dart';
 import 'package:medlink/views/doctor/past_appointments_view.dart';
-
-import 'Doctor Patient Dashboard/appointment_detail_view.dart';
+import 'package:medlink/views/doctor/Doctor%20Patient%20Dashboard/appointment_detail_view.dart';
+import 'package:medlink/views/services/session_view_model.dart';
+import 'package:medlink/views/doctor/Dashboard/doctor_dashboard_view_model.dart';
+import 'package:medlink/data/network/api_services.dart';
 
 class DoctorAppointmentView extends StatelessWidget {
   final bool showBackButton;
@@ -23,35 +24,33 @@ class DoctorAppointmentView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final appointmentVM = Provider.of<AppointmentViewModel>(context);
     final docApptVM = Provider.of<DoctorAppointmentsViewModel>(context);
 
-    // In a real app, we would filter by doctor ID. For now, we assume the VM has the data.
     final upcoming = docApptVM.upcomingAppointments;
-    final completed = appointmentVM.appointments.where((a) => a.status == AppointmentStatus.completed || a.status == AppointmentStatus.unconfirmed).toList();
-    final cancelled = appointmentVM.appointments.where((a) => a.status == AppointmentStatus.cancelled).toList();
+    final completed = docApptVM.pastAppointments;
+    final cancelled = docApptVM.cancelledAppointments;
 
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF8F9FB),
+        backgroundColor: Colors.grey.shade50,
         appBar: CustomAppBar(
           automaticallyImplyLeading: showBackButton,
           title: "My Appointments",
-           bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(50), // Reduced from 60
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(60),
             child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6), 
-              height: 36, 
+              margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              height: 40,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2), // Semi-transparent white container
-                borderRadius: BorderRadius.circular(20), 
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(25),
               ),
               child: TabBar(
                 dividerColor: Colors.transparent,
                 indicator: BoxDecoration(
-                  color: Colors.white, // White indicator
-                  borderRadius: BorderRadius.circular(20),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(25),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.1),
@@ -61,10 +60,10 @@ class DoctorAppointmentView extends StatelessWidget {
                   ],
                 ),
                 indicatorSize: TabBarIndicatorSize.tab,
-                labelColor: AppColors.primary, // Selected text is Primary color
-                unselectedLabelColor: Colors.white, // Unselected text is White
-
-                labelStyle: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 12), 
+                labelColor: AppColors.primary,
+                unselectedLabelColor: Colors.white.withOpacity(0.9),
+                labelStyle: GoogleFonts.inter(
+                    fontWeight: FontWeight.bold, fontSize: 13),
                 tabs: const [
                   Tab(text: "Upcoming"),
                   Tab(text: "Past"),
@@ -76,18 +75,32 @@ class DoctorAppointmentView extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
-            docApptVM.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _buildAppointmentList(upcoming, "No upcoming appointments"),
-            _buildAppointmentList(completed, "No past appointments"),
-            _buildAppointmentList(cancelled, "No canceled appointments"),
+            RefreshIndicator(
+              onRefresh: () => docApptVM.fetchUpcomingAppointments(),
+              child: docApptVM.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _buildAppointmentList(upcoming, "No upcoming visits"),
+            ),
+            RefreshIndicator(
+              onRefresh: () => docApptVM.fetchPastAppointments(),
+              child: docApptVM.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _buildAppointmentList(completed, "No past visits"),
+            ),
+            RefreshIndicator(
+              onRefresh: () => docApptVM.fetchCancelledAppointments(),
+              child: docApptVM.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _buildAppointmentList(cancelled, "No cancelled visits"),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildAppointmentList(List<AppointmentModel> appointments, String emptyMessage) {
+  Widget _buildAppointmentList(
+      List<AppointmentModel> appointments, String emptyMessage) {
     if (appointments.isEmpty) {
       return Center(
         child: Column(
@@ -99,20 +112,25 @@ class DoctorAppointmentView extends StatelessWidget {
                 color: AppColors.primary.withOpacity(0.05),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.calendar_today_rounded, size: 64, color: AppColors.primary.withOpacity(0.5)),
+              child: Icon(Icons.calendar_today_rounded,
+                  size: 64, color: AppColors.primary.withOpacity(0.5)),
             ),
-             const SizedBox(height: 16),
-             Text(emptyMessage, style: GoogleFonts.inter(fontSize: 16, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+            const SizedBox(height: 16),
+            Text(emptyMessage,
+                style: GoogleFonts.inter(
+                    fontSize: 16,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w600)),
           ],
         ),
       );
     }
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12), // Reduced vertical padding
+      padding: const EdgeInsets.symmetric(
+          horizontal: 16, vertical: 12), // Reduced vertical padding
       itemCount: appointments.length,
       itemBuilder: (context, index) {
-        return
-          DoctorAppointmentCard(appointment: appointments[index]);
+        return DoctorAppointmentCard(appointment: appointments[index]);
         //   GestureDetector(
         //   onTap: () {
         //      // Go to "See Details"
@@ -138,14 +156,15 @@ class DoctorAppointmentCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Color statusBg = AppColors.secondary.withOpacity(0.1);
-    Color statusColor = AppColors.secondary; 
+    Color statusColor = AppColors.secondary;
     String statusText = "Upcoming";
 
-
-    final bool isUpcoming = appointment.status == AppointmentStatus.upcoming;
+    final bool isUpcoming = appointment.status == AppointmentStatus.upcoming ||
+        appointment.status == AppointmentStatus.pending ||
+        appointment.status == AppointmentStatus.confirmed;
     final String patientName = appointment.user?.name ?? "Unknown Patient";
-    final String patientInitials = patientName.isNotEmpty 
-        ? patientName.trim().split(' ').map((l) => l[0]).take(2).join() 
+    final String patientInitials = patientName.isNotEmpty
+        ? patientName.trim().split(' ').map((l) => l[0]).take(2).join()
         : "??";
 
     if (appointment.status == AppointmentStatus.completed) {
@@ -156,14 +175,22 @@ class DoctorAppointmentCard extends StatelessWidget {
       statusBg = Colors.red.withOpacity(0.1);
       statusColor = Colors.red;
       statusText = "Cancelled";
+    } else if (appointment.status == AppointmentStatus.pending) {
+      statusBg = Colors.orange.withOpacity(0.1);
+      statusColor = Colors.orange;
+      statusText = "Pending";
+    } else if (appointment.status == AppointmentStatus.confirmed) {
+      statusBg = Colors.green.withOpacity(0.1);
+      statusColor = Colors.green;
+      statusText = "Confirmed";
     } else if (appointment.status == AppointmentStatus.unconfirmed) {
       statusBg = Colors.grey.withOpacity(0.1);
       statusColor = Colors.black;
       statusText = "Unconfirmed";
     } else {
-       // Upcoming
-       statusBg = AppColors.primary.withOpacity(0.1);
-       statusColor = AppColors.primary;
+      // Upcoming
+      statusBg = AppColors.primary.withOpacity(0.1);
+      statusColor = AppColors.primary;
     }
 
     return Container(
@@ -188,35 +215,35 @@ class DoctorAppointmentCard extends StatelessWidget {
             color: Colors.transparent,
             child: InkWell(
               onTap: () {
-                if(appointment.status == AppointmentStatus.upcoming || appointment.status == AppointmentStatus.cancelled) {
-                  Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        PastAppointmentsView(patient: UserModel(
-                              id: appointment.user?.id ?? "mock_id",
-                              name: appointment.user?.name ?? patientName,
-                              profileImage: appointment.user?.profileImage,
-                              email: appointment.user?.email ?? "patient@example.com",
-                              phoneNumber: appointment.user?.phoneNumber ?? "+1 234 567 8900",
-                              age: appointment.user?.age ?? 28,
-                              gender: appointment.user?.gender ?? "Female",
-                              bloodGroup: appointment.user?.bloodGroup ?? "O+",
-                            ),
-                        )
-
-                  ),
-                );
-                } else {
+                if (appointment.status == AppointmentStatus.upcoming ||
+                    appointment.status == AppointmentStatus.cancelled) {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (_) =>
-                            const AppointmentDetailView(title: "General Checkup", date: "12 Dec, 04:30 PM", reason: "Viral Infection"))
-                            );
-
-
-
+                        builder: (_) => PastAppointmentsView(
+                              patient: UserModel(
+                                id: appointment.user?.id ?? "mock_id",
+                                name: appointment.user?.name ?? patientName,
+                                profileImage: appointment.user?.profileImage,
+                                email: appointment.user?.email ??
+                                    "patient@example.com",
+                                phoneNumber: appointment.user?.phoneNumber ??
+                                    "+1 234 567 8900",
+                                age: appointment.user?.age ?? 28,
+                                gender: appointment.user?.gender ?? "Female",
+                                bloodGroup:
+                                    appointment.user?.bloodGroup ?? "O+",
+                              ),
+                            )),
+                  );
+                } else {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const AppointmentDetailView(
+                              title: "General Checkup",
+                              date: "12 Dec, 04:30 PM",
+                              reason: "Viral Infection")));
                 }
               },
               borderRadius: BorderRadius.circular(16),
@@ -235,13 +262,19 @@ class DoctorAppointmentCard extends StatelessWidget {
                       child: CircleAvatar(
                         radius: 25,
                         backgroundColor: Colors.grey[100],
-                        backgroundImage: appointment.user?.profileImage != null
-                            ? NetworkImage(appointment.user!.profileImage!)
-                            : const AssetImage("assets/images/user_placeholder.png") as ImageProvider, // Mock/Placeholder
-                        child: appointment.user?.profileImage == null
+                        backgroundImage:
+                            (appointment.user?.profileImage != null &&
+                                    appointment.user!.profileImage!.isNotEmpty)
+                                ? NetworkImage(appointment.user!.profileImage!)
+                                : null,
+                        child: (appointment.user?.profileImage == null ||
+                                appointment.user!.profileImage!.isEmpty)
                             ? Text(
                                 patientInitials,
-                                style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: AppColors.primary),
+                                style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                    fontSize: 16),
                               )
                             : null,
                       ),
@@ -254,21 +287,31 @@ class DoctorAppointmentCard extends StatelessWidget {
                         children: [
                           Text(
                             patientName,
-                            style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15, color: const Color(0xFF1E293B)),
+                            style: GoogleFonts.inter(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: const Color(0xFF1E293B)),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             "General Checkup", // Placeholder for reason
-                            style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 13),
+                            style: GoogleFonts.inter(
+                                color: Colors.grey[600], fontSize: 13),
                           ),
                           const SizedBox(height: 6),
                           Row(
                             children: [
-                              Icon(Icons.access_time_rounded, size: 14, color: AppColors.primary.withOpacity(0.7)),
+                              Icon(Icons.access_time_rounded,
+                                  size: 14,
+                                  color: AppColors.primary.withOpacity(0.7)),
                               const SizedBox(width: 4),
                               Text(
-                                DateFormat('MMM d, h:mm a').format(appointment.dateTime), 
-                                style: GoogleFonts.inter(color: AppColors.primary.withOpacity(0.8), fontSize: 13, fontWeight: FontWeight.w500),
+                                DateFormat('MMM d, h:mm a')
+                                    .format(appointment.dateTime),
+                                style: GoogleFonts.inter(
+                                    color: AppColors.primary.withOpacity(0.8),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500),
                               ),
                             ],
                           ),
@@ -278,18 +321,22 @@ class DoctorAppointmentCard extends StatelessWidget {
                     if (isUpcoming)
                       IconButton(
                         icon: const Icon(Icons.more_vert, color: Colors.grey),
-                        onPressed: () => _showAppointmentActions(context, appointment, patientName),
+                        onPressed: () => _showAppointmentActions(
+                            context, appointment, patientName),
                       )
                     else
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: statusBg,
-                          borderRadius: BorderRadius.circular(8)
-                        ),
+                            color: statusBg,
+                            borderRadius: BorderRadius.circular(8)),
                         child: Text(
                           statusText,
-                          style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor),
+                          style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: statusColor),
                         ),
                       ),
                   ],
@@ -297,13 +344,13 @@ class DoctorAppointmentCard extends StatelessWidget {
               ),
             ),
           ),
-          
-          
+
           // Bottom Actions for Upcoming (Cancel & Reschedule)
 
           if (appointment.status == AppointmentStatus.unconfirmed) ...[
             const SizedBox(height: 12),
-            Container(width: double.infinity, height: 1, color: Colors.grey[100]),
+            Container(
+                width: double.infinity, height: 1, color: Colors.grey[100]),
             const SizedBox(height: 12),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -312,17 +359,23 @@ class DoctorAppointmentCard extends StatelessWidget {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text("Confirmation request sent to ${appointment.user?.name ?? 'patient'}"))
-                        );
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(
+                                "Confirmation request sent to ${appointment.user?.name ?? 'patient'}")));
                       },
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: AppColors.primary.withOpacity(0.5)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        side: BorderSide(
+                            color: AppColors.primary.withOpacity(0.5)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         backgroundColor: AppColors.primary.withOpacity(0.05),
                       ),
-                      child: Text("Request Confirmation", style: GoogleFonts.inter(color: AppColors.primary, fontSize: 13, fontWeight: FontWeight.bold)),
+                      child: Text("Request Confirmation",
+                          style: GoogleFonts.inter(
+                              color: AppColors.primary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],
@@ -334,8 +387,11 @@ class DoctorAppointmentCard extends StatelessWidget {
     );
   }
 
+  void _showAppointmentActions(
+      BuildContext context, AppointmentModel appointment, String patientName) {
+    final userVM = Provider.of<UserViewModel>(context, listen: false);
+    final currentUserId = userVM.loginSession?.data?.user?.id ?? 0;
 
-  void _showAppointmentActions(BuildContext context, AppointmentModel appointment, String patientName) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -404,7 +460,14 @@ class DoctorAppointmentCard extends StatelessWidget {
               color: AppColors.primary,
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => ChatView(recipientName: patientName)));
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => ChatView(
+                              recipientName: patientName,
+                              appointmentId: appointment.id,
+                              currentUserId: currentUserId,
+                            )));
               },
             ),
             _buildBSActionItem(
@@ -417,7 +480,11 @@ class DoctorAppointmentCard extends StatelessWidget {
               color: AppColors.primary,
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => WaitingRoomView(callTargetName: patientName, isDoctor: true)));
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => WaitingRoomView(
+                            callTargetName: patientName, isDoctor: true)));
               },
             ),
             _buildBSActionItem(
@@ -438,9 +505,41 @@ class DoctorAppointmentCard extends StatelessWidget {
               subtitle: "Cancel this scheduled visit",
               color: Colors.red,
               showBorder: false,
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(context);
-                // Cancel logic
+
+                bool success = false;
+                try {
+                  // Check for DoctorAppointmentsViewModel (used in tabs)
+                  try {
+                    final vm = Provider.of<DoctorAppointmentsViewModel>(context,
+                        listen: false);
+                    success = await vm.cancelAppointment(
+                        appointment.id, "Doctor unavailable");
+                  } catch (e) {
+                    // If not found, check for DoctorDashboardViewModel (used in home)
+                    final dashVM = Provider.of<DoctorDashboardViewModel>(
+                        context,
+                        listen: false);
+                    final api = ApiServices();
+                    final response = await api.doctorCancelAppointment(
+                        appointment.id, "Doctor unavailable");
+                    if (response != null && response['success'] == true) {
+                      success = true;
+                      dashVM.fetchData(); // Refresh dashboard instantly
+                    }
+                  }
+                } catch (e) {
+                  debugPrint("Error during cancellation: $e");
+                }
+
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text("Appointment Cancelled Successfully!")));
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text("Failed to Cancel Appointment")));
+                }
               },
             ),
             const SizedBox(height: 12),
@@ -468,7 +567,9 @@ class DoctorAppointmentCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          border: showBorder ? Border(bottom: BorderSide(color: Colors.grey.shade100)) : null,
+          border: showBorder
+              ? Border(bottom: BorderSide(color: Colors.grey.shade100))
+              : null,
         ),
         child: Row(
           children: [
@@ -479,7 +580,8 @@ class DoctorAppointmentCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: assetPath != null
-                  ? Image.asset(assetPath, color: color, width: iconSize, height: iconSize)
+                  ? Image.asset(assetPath,
+                      color: color, width: iconSize, height: iconSize)
                   : Icon(iconData, color: color, size: iconSize),
             ),
             const SizedBox(width: 16),
@@ -506,11 +608,11 @@ class DoctorAppointmentCard extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey.shade300),
+            Icon(Icons.arrow_forward_ios_rounded,
+                size: 16, color: Colors.grey.shade300),
           ],
         ),
       ),
     );
   }
 }
-

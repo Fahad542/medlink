@@ -7,10 +7,11 @@ import 'package:medlink/views/Patient App/consultation/waiting_room_view.dart';
 import 'package:medlink/views/doctor/Doctor%20Patient%20Dashboard/appointment_detail_view.dart';
 import 'package:medlink/views/doctor/past_appointments_view.dart';
 
+import 'package:medlink/views/services/session_view_model.dart';
+import 'package:provider/provider.dart';
 
-
-
-
+import 'package:medlink/views/services/session_view_model.dart';
+import 'package:provider/provider.dart';
 
 class PatientDashboardView extends StatelessWidget {
   final UserModel patient;
@@ -34,7 +35,8 @@ class PatientDashboardView extends StatelessWidget {
                   end: Alignment.bottomRight,
                   colors: [Color(0xFF00897B), AppColors.primary],
                 ),
-                borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
+                borderRadius:
+                    BorderRadius.vertical(bottom: Radius.circular(30)),
               ),
             ),
             // Decorative Patterns (Circles)
@@ -72,7 +74,7 @@ class PatientDashboardView extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
                       children: [
-                          // Custom Navigation Bar
+                        // Custom Navigation Bar
                         Stack(
                           alignment: Alignment.topCenter,
                           children: [
@@ -100,24 +102,35 @@ class PatientDashboardView extends StatelessWidget {
                                     child: CircleAvatar(
                                       radius: 35,
                                       backgroundColor: Colors.white,
-                                      backgroundImage: patient.profileImage != null
+                                      backgroundImage: (patient.profileImage !=
+                                                  null &&
+                                              patient.profileImage!.isNotEmpty)
                                           ? NetworkImage(patient.profileImage!)
-                                          : const AssetImage("assets/images/user_placeholder.png") as ImageProvider,
-                                      child: patient.profileImage == null
+                                          : null,
+                                      child: (patient.profileImage == null ||
+                                              patient.profileImage!.isEmpty)
                                           ? Text(
-                                              patient.name.substring(0, 2).toUpperCase() ?? "PT",
-                                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                              patient.name.isNotEmpty
+                                                  ? patient.name
+                                                      .substring(0, 2)
+                                                      .toUpperCase()
+                                                  : "PT",
+                                              style: const TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: AppColors.primary),
                                             )
                                           : null,
                                     ),
                                   ),
-                                  
+
                                   const SizedBox(width: 12),
-                                  
+
                                   // Name with Gender/Age
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Row(
@@ -128,15 +141,18 @@ class PatientDashboardView extends StatelessWidget {
                                                 children: [
                                                   Flexible(
                                                     child: Text(
-                                                      patient.name ?? "Unknown Name",
+                                                      patient.name ??
+                                                          "Unknown Name",
                                                       style: const TextStyle(
                                                         color: Colors.white,
                                                         fontSize: 20,
-                                                        fontWeight: FontWeight.w700,
+                                                        fontWeight:
+                                                            FontWeight.w700,
                                                         letterSpacing: -0.5,
                                                       ),
                                                       maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
                                                     ),
                                                   ),
                                                   const SizedBox(width: 6),
@@ -146,67 +162,113 @@ class PatientDashboardView extends StatelessWidget {
                                             ),
                                             const SizedBox(width: 8),
                                             _buildHeaderAction(
-                                                "assets/Icons/chat.png",
-                                                () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatView(recipientName: patient.name))),
+                                                "assets/Icons/chat.png", () {
+                                              final userVM =
+                                                  Provider.of<UserViewModel>(
+                                                      context,
+                                                      listen: false);
+                                              final currentUserId = userVM
+                                                      .loginSession
+                                                      ?.data
+                                                      ?.user
+                                                      ?.id ??
+                                                  0;
+                                              Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                      builder: (_) => ChatView(
+                                                            recipientName:
+                                                                patient.name,
+                                                            appointmentId: patient
+                                                                    .lastAppointmentId ??
+                                                                "0",
+                                                            currentUserId:
+                                                                currentUserId,
+                                                          )));
+                                            },
                                                 iconSize: 16,
-                                                bgColor: Colors.white.withOpacity(0.15)
-                                            ),
+                                                bgColor: Colors.white
+                                                    .withOpacity(0.15)),
                                             const SizedBox(width: 8),
                                             _buildHeaderAction(
                                                 "assets/Icons/video.png",
-                                                () => Navigator.push(context, MaterialPageRoute(builder: (_) => WaitingRoomView(callTargetName: patient.name))),
+                                                () => Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                        builder: (_) =>
+                                                            WaitingRoomView(
+                                                                callTargetName:
+                                                                    patient
+                                                                        .name))),
                                                 iconSize: 18,
-                                                bgColor: Colors.white.withOpacity(0.15)
-                                            ),
+                                                bgColor: Colors.white
+                                                    .withOpacity(0.15)),
                                           ],
                                         ),
-                                      const SizedBox(height: 4),
-                                      Row(
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white.withOpacity(0.2),
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                            child: Text(
-                                              "${patient.gender ?? 'Male'}, ${patient.age ?? 0}",
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                          if (patient.nextAppointment != null) ...[
-                                            const SizedBox(width: 8),
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: [
                                             Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 3),
                                               decoration: BoxDecoration(
-                                                color: Colors.white.withOpacity(0.2),
-                                                borderRadius: BorderRadius.circular(12),
+                                                color: Colors.white
+                                                    .withOpacity(0.2),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
                                               ),
-                                              child: Row(
-                                                children: [
-                                                  const Icon(Icons.event_available_rounded, size: 12, color: Colors.white),
-                                                  const SizedBox(width: 4),
-                                                  Text(
-                                                    "Next Session: ${patient.nextAppointment}",
-                                                    style: const TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 10,
-                                                      fontWeight: FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                ],
+                                              child: Text(
+                                                "${patient.gender ?? 'Male'}, ${patient.age ?? 0}",
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
                                               ),
                                             ),
+                                            if (patient.nextAppointment !=
+                                                null) ...[
+                                              const SizedBox(width: 8),
+                                              Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 3),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white
+                                                      .withOpacity(0.2),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    const Icon(
+                                                        Icons
+                                                            .event_available_rounded,
+                                                        size: 12,
+                                                        color: Colors.white),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      "Next Session: ${patient.nextAppointment}",
+                                                      style: const TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 10,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
                                           ],
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  )],
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                ],
                               ),
                             ),
 
@@ -222,7 +284,8 @@ class PatientDashboardView extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: IconButton(
-                                  icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 16),
+                                  icon: const Icon(Icons.arrow_back_ios_new,
+                                      color: Colors.white, size: 16),
                                   onPressed: () => Navigator.pop(context),
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(),
@@ -246,19 +309,15 @@ class PatientDashboardView extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            
-
                           ],
                         ),
                       ],
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 16),
 
-
-                
                 // 3. Latest Vitals (Merged into Single Container)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
@@ -277,16 +336,24 @@ class PatientDashboardView extends StatelessWidget {
                     ),
                     child: Row(
                       children: [
-                        Expanded(child: _buildCompactVitalItem("BP", "120/80", "mmHg", Icons.favorite_outline, Colors.pink)),
-                        Container(width: 1, height: 40, color: Colors.grey.shade200),
-                        Expanded(child: _buildCompactVitalItem("Heart", "72", "bpm", Icons.monitor_heart_outlined, Colors.blue)),
-                        Container(width: 1, height: 40, color: Colors.grey.shade200),
-                        Expanded(child: _buildCompactVitalItem("Weight", "75", "kg", Icons.monitor_weight_outlined, Colors.orange)),
+                        Expanded(
+                            child: _buildCompactVitalItem("BP", "120/80",
+                                "mmHg", Icons.favorite_outline, Colors.pink)),
+                        Container(
+                            width: 1, height: 40, color: Colors.grey.shade200),
+                        Expanded(
+                            child: _buildCompactVitalItem("Heart", "72", "bpm",
+                                Icons.monitor_heart_outlined, Colors.blue)),
+                        Container(
+                            width: 1, height: 40, color: Colors.grey.shade200),
+                        Expanded(
+                            child: _buildCompactVitalItem("Weight", "75", "kg",
+                                Icons.monitor_weight_outlined, Colors.orange)),
                       ],
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 28),
 
                 // 4. Quick Actions (Demoted)
@@ -294,7 +361,11 @@ class PatientDashboardView extends StatelessWidget {
                   padding: EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     children: [
-                      Text("Quick Actions", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                      Text("Quick Actions",
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary)),
                     ],
                   ),
                 ),
@@ -325,34 +396,61 @@ class PatientDashboardView extends StatelessWidget {
                 ),
 
                 const SizedBox(height: 30),
-                
-                // 5. Recent Activity Timeline
-                 Padding(
-                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                   child: Column(
-                     crossAxisAlignment: CrossAxisAlignment.start,
-                     children: [
-                       Row(
-                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                         children: [
-                           const Text("Past Appointments", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-                           TextButton(
-                             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PastAppointmentsView(patient: patient))),
-                             child: const Text("View All", style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
-                           )
-                         ],
-                       ),
-                const SizedBox(height: 10),
-               _buildVisitCard("General Checkup", "Mild Fever & Cough", "Today, 10:00 AM", true, AppColors.primary, iconAsset: "assets/Icons/appointment.png", 
-                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AppointmentDetailView(title: "General Checkup", date: "Today, 10:00 AM", reason: "Mild Fever & Cough")))),
-               const SizedBox(height: 12),
-              _buildVisitCard("Blood Test", "Typhoid", "Yesterday, 02:00 PM", false, AppColors.primary, iconAsset: "assets/Icons/appointment.png",
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AppointmentDetailView(title: "Blood Test", date: "Yesterday, 02:00 PM", reason: "Typhoid")))),
-                     ],
-                   ),
-                 ),
 
-                  const SizedBox(height: 50),
+                // 5. Recent Activity Timeline
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text("Past Appointments",
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary)),
+                          TextButton(
+                            onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => PastAppointmentsView(
+                                        patient: patient))),
+                            child: const Text("View All",
+                                style: TextStyle(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.bold)),
+                          )
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      _buildVisitCard("General Checkup", "Mild Fever & Cough",
+                          "Today, 10:00 AM", true, AppColors.primary,
+                          iconAsset: "assets/Icons/appointment.png",
+                          onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const AppointmentDetailView(
+                                      title: "General Checkup",
+                                      date: "Today, 10:00 AM",
+                                      reason: "Mild Fever & Cough")))),
+                      const SizedBox(height: 12),
+                      _buildVisitCard("Blood Test", "Typhoid",
+                          "Yesterday, 02:00 PM", false, AppColors.primary,
+                          iconAsset: "assets/Icons/appointment.png",
+                          onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const AppointmentDetailView(
+                                      title: "Blood Test",
+                                      date: "Yesterday, 02:00 PM",
+                                      reason: "Typhoid")))),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 50),
               ],
             ),
           ],
@@ -361,7 +459,8 @@ class PatientDashboardView extends StatelessWidget {
     );
   }
 
-  Widget _buildVitalCard(String title, String value, String unit, IconData icon, Color color) {
+  Widget _buildVitalCard(
+      String title, String value, String unit, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
@@ -430,7 +529,8 @@ class PatientDashboardView extends StatelessWidget {
     );
   }
 
-  Widget _buildCompactVitalItem(String title, String value, String unit, IconData icon, Color color) {
+  Widget _buildCompactVitalItem(
+      String title, String value, String unit, IconData icon, Color color) {
     return Column(
       children: [
         Text(
@@ -468,7 +568,9 @@ class PatientDashboardView extends StatelessWidget {
     );
   }
 
-  Widget _buildVisitCard(String title, String subtitle, String time, bool highlight, Color color, {String? iconAsset, VoidCallback? onTap}) {
+  Widget _buildVisitCard(
+      String title, String subtitle, String time, bool highlight, Color color,
+      {String? iconAsset, VoidCallback? onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -477,7 +579,10 @@ class PatientDashboardView extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
+            BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 4)),
           ],
         ),
         child: Row(
@@ -489,13 +594,14 @@ class PatientDashboardView extends StatelessWidget {
                 color: color.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: iconAsset != null 
-                ? Image.asset(iconAsset, width: 20, height: 20, color: color)
-                : Icon(
-                    highlight ? Icons.check_circle_rounded : Icons.history_edu_rounded,
-                    color: color, 
-                    size: 20
-                  ),
+              child: iconAsset != null
+                  ? Image.asset(iconAsset, width: 20, height: 20, color: color)
+                  : Icon(
+                      highlight
+                          ? Icons.check_circle_rounded
+                          : Icons.history_edu_rounded,
+                      color: color,
+                      size: 20),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -508,12 +614,19 @@ class PatientDashboardView extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          title, 
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.textPrimary),
+                          title,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: AppColors.textPrimary),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      Text(time, style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.w600)),
+                      Text(time,
+                          style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.grey[500],
+                              fontWeight: FontWeight.w600)),
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -522,16 +635,22 @@ class PatientDashboardView extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          subtitle, 
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          subtitle,
+                          style:
+                              TextStyle(fontSize: 12, color: Colors.grey[600]),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const Row(
                         children: [
-                          Text("See Details", style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 11)),
+                          Text("See Details",
+                              style: TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 11)),
                           SizedBox(width: 2),
-                          Icon(Icons.arrow_forward_ios_rounded, size: 9, color: AppColors.primary),
+                          Icon(Icons.arrow_forward_ios_rounded,
+                              size: 9, color: AppColors.primary),
                         ],
                       ),
                     ],
@@ -545,7 +664,8 @@ class PatientDashboardView extends StatelessWidget {
     );
   }
 
-  Widget _buildHeaderAction(String assetPath, VoidCallback onTap, {double iconSize = 16.0, Color? bgColor}) {
+  Widget _buildHeaderAction(String assetPath, VoidCallback onTap,
+      {double iconSize = 16.0, Color? bgColor}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(30),
@@ -556,13 +676,14 @@ class PatientDashboardView extends StatelessWidget {
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
         ),
-        child: Image.asset(assetPath, width: iconSize, height: iconSize, color: Colors.white),
+        child: Image.asset(assetPath,
+            width: iconSize, height: iconSize, color: Colors.white),
       ),
     );
   }
 
-
-  Widget _buildInfoCard(String title, String subtitle, IconData icon, Color color) {
+  Widget _buildInfoCard(
+      String title, String subtitle, IconData icon, Color color) {
     return Container(
       height: 120, // Slightly shorter than actions
       padding: const EdgeInsets.all(20),
@@ -570,7 +691,10 @@ class PatientDashboardView extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
-           BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 15, offset: const Offset(0, 5)),
+          BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 15,
+              offset: const Offset(0, 5)),
         ],
       ),
       child: Column(
@@ -581,8 +705,13 @@ class PatientDashboardView extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.textPrimary)),
-              Text(subtitle, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+              Text(title,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: AppColors.textPrimary)),
+              Text(subtitle,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500])),
             ],
           ),
         ],
@@ -590,7 +719,8 @@ class PatientDashboardView extends StatelessWidget {
     );
   }
 
-  Widget _buildLabReportCard(String title, String status, String date, bool isCompleted) {
+  Widget _buildLabReportCard(
+      String title, String status, String date, bool isCompleted) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -649,7 +779,8 @@ class PatientDashboardView extends StatelessWidget {
                     // Handle View Result
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: AppColors.primary,
                       borderRadius: BorderRadius.circular(8),
@@ -657,7 +788,7 @@ class PatientDashboardView extends StatelessWidget {
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                         Text(
+                        Text(
                           "Result",
                           style: TextStyle(
                             color: Colors.white,
@@ -666,13 +797,15 @@ class PatientDashboardView extends StatelessWidget {
                           ),
                         ),
                         SizedBox(width: 4),
-                        Icon(Icons.visibility_outlined, size: 12, color: Colors.white),
+                        Icon(Icons.visibility_outlined,
+                            size: 12, color: Colors.white),
                       ],
                     ),
                   ),
                 )
               : Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
                     color: Colors.orange.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),

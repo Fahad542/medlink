@@ -417,6 +417,42 @@ class RegisterViewModel extends ChangeNotifier {
     super.dispose();
   }
 
+  // --- Doctor Methods ---
+  Future<void> submitDoctorStep4(BuildContext context) async {
+    if (specializationController.text.isEmpty) {
+      Utils.toastMessage(context, "Please enter specialization", isError: true);
+      return;
+    }
+    if (experienceController.text.isEmpty) {
+      Utils.toastMessage(context, "Please enter experience", isError: true);
+      return;
+    }
+    if (clinicNameController.text.isEmpty) {
+      Utils.toastMessage(context, "Please enter clinic name", isError: true);
+      return;
+    }
+    if (licensePath == null) {
+      Utils.toastMessage(context, "Please upload medical license",
+          isError: true);
+      return;
+    }
+    nextStep();
+  }
+
+  Future<void> submitDoctorStep5(BuildContext context) async {
+    if (consultationFeeController.text.isEmpty) {
+      Utils.toastMessage(context, "Please enter consultation fee",
+          isError: true);
+      return;
+    }
+    if (availabilityDays.isEmpty) {
+      Utils.toastMessage(context, "Please select at least one available day",
+          isError: true);
+      return;
+    }
+    nextStep();
+  }
+
   // --- API Methods ---
 
   Future<bool> registerV1Step(dynamic data, BuildContext context,
@@ -687,13 +723,13 @@ class RegisterViewModel extends ChangeNotifier {
       final endStr =
           '${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}';
       const dayToNum = {
+        'Sun': 0,
         'Mon': 1,
         'Tue': 2,
         'Wed': 3,
         'Thu': 4,
         'Fri': 5,
         'Sat': 6,
-        'Sun': 7,
       };
       final availabilityList = availabilityDays
           .map((d) => {

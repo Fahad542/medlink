@@ -1,7 +1,16 @@
+import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/models/doctor_model.dart';
 import 'package:medlink/models/user_model.dart';
 
-enum AppointmentStatus { upcoming, completed, cancelled, unconfirmed }
+enum AppointmentStatus {
+  pending,
+  confirmed,
+  upcoming,
+  completed,
+  cancelled,
+  unconfirmed
+}
+
 enum AppointmentType { online, inPerson }
 
 class AppointmentModel {
@@ -11,6 +20,7 @@ class AppointmentModel {
   final DateTime dateTime;
   final AppointmentStatus status;
   final AppointmentType type;
+  final String? reason;
   final DoctorModel? doctor; // For UI convenience
   final UserModel? user;
 
@@ -21,6 +31,7 @@ class AppointmentModel {
     required this.dateTime,
     required this.status,
     required this.type,
+    this.reason,
     this.doctor,
     this.user,
   });
@@ -31,17 +42,18 @@ class AppointmentModel {
     DoctorModel? doctorModel;
 
     if (doctorObj is Map<String, dynamic>) {
-      doctorId = doctorObj['id']?.toString() ?? doctorObj['_id']?.toString() ?? doctorId;
-      
+      doctorId = doctorObj['id']?.toString() ??
+          doctorObj['_id']?.toString() ??
+          doctorId;
+
       String clinicName = '';
       if (doctorObj['doctorProfile'] is Map) {
-         clinicName = doctorObj['doctorProfile']['clinicName'] ?? '';
+        clinicName = doctorObj['doctorProfile']['clinicName'] ?? '';
       }
 
-      String photoUrl = doctorObj['profilePhotoUrl'] ?? doctorObj['profile_image_url'] ?? '';
-      if (photoUrl.isNotEmpty && !photoUrl.startsWith('http')) {
-        photoUrl = 'https://medlink-be-production.up.railway.app$photoUrl';
-      }
+      String photoUrl = AppUrl.getFullUrl(
+          doctorObj['profilePhotoUrl']?.toString() ??
+              doctorObj['profile_image_url']?.toString());
 
       // Create a partial doctor model if we have data
       doctorModel = DoctorModel(
@@ -61,9 +73,11 @@ class AppointmentModel {
 
     DateTime parsedDate = DateTime.now();
     if (json['scheduledStart'] != null) {
-      parsedDate = DateTime.tryParse(json['scheduledStart'])?.toLocal() ?? DateTime.now();
+      parsedDate = DateTime.tryParse(json['scheduledStart'])?.toLocal() ??
+          DateTime.now();
     } else if (json['date'] != null && json['time'] != null) {
-      parsedDate = DateTime.tryParse("${json['date']}T${json['time']}") ?? DateTime.now();
+      parsedDate = DateTime.tryParse("${json['date']}T${json['time']}") ??
+          DateTime.now();
     }
 
     UserModel? patientModel;
@@ -74,28 +88,35 @@ class AppointmentModel {
     return AppointmentModel(
       id: json['id']?.toString() ?? json['_id']?.toString() ?? '',
       doctorId: doctorId,
-      userId: json['patientId']?.toString() ?? json['patient_id']?.toString() ?? '',
+      userId:
+          json['patientId']?.toString() ?? json['patient_id']?.toString() ?? '',
       dateTime: parsedDate,
       status: _parseStatus(json['status']),
-      type: json['consultKind'] == 'VIDEO' ? AppointmentType.online : AppointmentType.inPerson, 
-      doctor: doctorModel, 
+      type: json['consultKind'] == 'VIDEO'
+          ? AppointmentType.online
+          : AppointmentType.inPerson,
+      reason: json['reason'],
+      doctor: doctorModel,
       user: patientModel,
     );
   }
 
   static AppointmentStatus _parseStatus(String? status) {
     switch (status?.toLowerCase()) {
-      case 'booked': 
-      case 'upcoming': 
       case 'pending':
+        return AppointmentStatus.pending;
       case 'confirmed':
+        return AppointmentStatus.confirmed;
+      case 'booked':
+      case 'upcoming':
         return AppointmentStatus.upcoming;
-      case 'completed': 
+      case 'completed':
       case 'past':
         return AppointmentStatus.completed;
-      case 'cancelled': 
+      case 'cancelled':
         return AppointmentStatus.cancelled;
-      default: return AppointmentStatus.unconfirmed;
+      default:
+        return AppointmentStatus.unconfirmed;
     }
   }
 }

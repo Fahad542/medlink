@@ -37,36 +37,52 @@ class PersonalInformationView extends StatelessWidget {
                     child: Stack(
                       alignment: Alignment.bottomRight,
                       children: [
-                        Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 4),
-                            image: DecorationImage(
-                              image: (viewModel.profileImage != null && viewModel.profileImage!.isNotEmpty)
-                                  ? (viewModel.profileImage!.startsWith('http')
-                                      ? NetworkImage(viewModel.profileImage!)
-                                      : FileImage(File(viewModel.profileImage!)) as ImageProvider)
-                                  : const NetworkImage("https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=400&auto=format&fit=crop&q=60"),
-                              fit: BoxFit.cover,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 20,
-                                offset: const Offset(0, 10),
+                        GestureDetector(
+                          onTap: () => viewModel.pickImage(),
+                          child: Container(
+                            width: 100,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 4),
+                              image: DecorationImage(
+                                image: viewModel.imageFile != null
+                                    ? FileImage(viewModel.imageFile!)
+                                        as ImageProvider
+                                    : (viewModel.profileImage != null &&
+                                            viewModel.profileImage!.isNotEmpty)
+                                        ? (viewModel.profileImage!
+                                                .startsWith('http')
+                                            ? NetworkImage(
+                                                viewModel.profileImage!)
+                                            : FileImage(File(
+                                                    viewModel.profileImage!))
+                                                as ImageProvider)
+                                        : const NetworkImage(
+                                            "https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=400&auto=format&fit=crop&q=60"),
+                                fit: BoxFit.cover,
                               ),
-                            ],
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
+                        GestureDetector(
+                          onTap: () => viewModel.pickImage(),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.camera_alt,
+                                color: Colors.white, size: 18),
                           ),
-                          child: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
                         ),
                       ],
                     ),

@@ -74,10 +74,11 @@ class NetworkApiService extends BaseApiServices {
     dynamic responseJson;
     try {
       final headers = await _getHeaders();
+      final body = data is Map ? jsonEncode(data) : data;
       final response = await http
           .post(
             Uri.parse(url),
-            body: data,
+            body: body,
             headers: headers,
           )
           .timeout(const Duration(seconds: 10));
@@ -96,10 +97,11 @@ class NetworkApiService extends BaseApiServices {
     dynamic responseJson;
     try {
       final headers = await _getHeaders();
+      final body = data is Map ? jsonEncode(data) : data;
       final response = await http
           .patch(
             Uri.parse(url),
-            body: data,
+            body: body,
             headers: headers,
           )
           .timeout(const Duration(seconds: 10));
@@ -221,19 +223,34 @@ class NetworkApiService extends BaseApiServices {
   @override
   Future getPostMultipartApiResponse(String url, dynamic data, File? file,
       {String fileKey = 'image'}) async {
+    return _sendMultipartRequest('POST', url, data, file, fileKey: fileKey);
+  }
+
+  @override
+  Future getPatchMultipartApiResponse(String url, dynamic data, File? file,
+      {String fileKey = 'image'}) async {
+    return _sendMultipartRequest('PATCH', url, data, file, fileKey: fileKey);
+  }
+
+  Future<dynamic> _sendMultipartRequest(
+      String method, String url, dynamic data, File? file,
+      {String fileKey = 'image'}) async {
     print(url);
     dynamic responseJson;
     try {
-      var request = http.MultipartRequest('POST', Uri.parse(url));
+      var request = http.MultipartRequest(method, Uri.parse(url));
 
       // Add headers
       final headers = await _getHeaders();
       request.headers.addAll(headers);
       request.headers['accept'] = '*/*';
 
-      print("Req URL: $url");
-      print("Req Data Type: ${data.runtimeType}");
-      print("Req Data Value: $data");
+      if (kDebugMode) {
+        print("Req Method: $method");
+        print("Req URL: $url");
+        print("Req Data Type: ${data.runtimeType}");
+        print("Req Data Value: $data");
+      }
 
       if (data != null && data is Map) {
         data.forEach((key, value) {
@@ -241,27 +258,29 @@ class NetworkApiService extends BaseApiServices {
             request.fields[key.toString()] = value.toString();
           }
         });
-        print("Final Multipart Headers: ${request.headers}");
-        print("Final Multipart Fields Sent: ${request.fields}");
-      } else {
-        print("Req Data is NULL or NOT a Map");
+        if (kDebugMode) {
+          print("Final Multipart Headers: ${request.headers}");
+          print("Final Multipart Fields Sent: ${request.fields}");
+        }
       }
 
       // Add file if provided
-      if (file != null) {
-        var stream = http.ByteStream(file.openRead());
-        var length = await file.length();
-        var multipartFile = http.MultipartFile(
-          fileKey, // Key expected by server
-          stream,
-          length,
-          filename: file.path.split('/').last,
-        );
-        request.files.add(multipartFile);
+      if (file != null && file.existsSync() && file.lengthSync() > 0) {
+        final filename = file.path.split('/').last;
+        final contentType = _mediaTypeForFilename(filename);
+        request.files.add(await http.MultipartFile.fromPath(
+          fileKey,
+          file.path,
+          filename: filename,
+          contentType: contentType,
+        ));
+        if (kDebugMode) {
+          print("Multipart request file: $filename contentType: $contentType");
+        }
       }
 
       final streamedResponse =
-          await request.send().timeout(const Duration(seconds: 20));
+          await request.send().timeout(const Duration(seconds: 25));
       final response = await http.Response.fromStream(streamedResponse);
 
       responseJson = returnResponse(response);

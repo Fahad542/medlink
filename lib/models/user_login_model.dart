@@ -51,6 +51,7 @@ class User {
   String? profilePhotoUrl;
   String? createdAt;
   String? updatedAt;
+  Map<String, dynamic>? extraData; // To capture profile data
 
   User({
     this.id,
@@ -63,6 +64,7 @@ class User {
     this.profilePhotoUrl,
     this.createdAt,
     this.updatedAt,
+    this.extraData,
   });
 
   User.fromJson(Map<String, dynamic> json) {
@@ -76,10 +78,12 @@ class User {
     profilePhotoUrl = json['profilePhotoUrl'];
     createdAt = json['createdAt'];
     updatedAt = json['updatedAt'];
+    extraData = Map<String, dynamic>.from(json); // Capture everything
   }
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = <String, dynamic>{};
+    final Map<String, dynamic> data =
+        extraData != null ? Map<String, dynamic>.from(extraData!) : {};
     data['id'] = id;
     data['role'] = role;
     data['fullName'] = fullName;

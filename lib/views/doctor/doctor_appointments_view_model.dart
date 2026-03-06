@@ -7,33 +7,98 @@ class DoctorAppointmentsViewModel extends ChangeNotifier {
 
   bool _isLoading = false;
   List<AppointmentModel> _upcomingAppointments = [];
+  List<AppointmentModel> _pastAppointments = [];
+  List<AppointmentModel> _cancelledAppointments = [];
 
   DoctorAppointmentsViewModel() {
-    fetchUpcomingAppointments();
+    fetchAllAppointments();
   }
 
   bool get isLoading => _isLoading;
   List<AppointmentModel> get upcomingAppointments => _upcomingAppointments;
+  List<AppointmentModel> get pastAppointments => _pastAppointments;
+  List<AppointmentModel> get cancelledAppointments => _cancelledAppointments;
 
-  Future<void> fetchUpcomingAppointments() async {
+  Future<void> fetchAllAppointments() async {
     _isLoading = true;
     notifyListeners();
 
+    try {
+      await Future.wait([
+        fetchUpcomingAppointments(),
+        fetchPastAppointments(),
+        fetchCancelledAppointments(),
+      ]);
+    } catch (e) {
+      debugPrint("Error fetching all doctor appointments: $e");
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchUpcomingAppointments() async {
     try {
       final response = await _apiServices.getDoctorUpcomingAppointments();
       if (response != null && response['success'] == true) {
         final data = response['data'] as List?;
         if (data != null) {
-          _upcomingAppointments = data.map((item) => AppointmentModel.fromJson(item)).toList();
+          _upcomingAppointments =
+              data.map((item) => AppointmentModel.fromJson(item)).toList();
         } else {
-             _upcomingAppointments = [];
+          _upcomingAppointments = [];
         }
       }
     } catch (e) {
       debugPrint("Error fetching upcoming doctor appointments: $e");
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+    }
+  }
+
+  Future<void> fetchPastAppointments() async {
+    try {
+      final response = await _apiServices.getDoctorPastAppointments();
+      if (response != null && response['success'] == true) {
+        final data = response['data'] as List?;
+        if (data != null) {
+          _pastAppointments =
+              data.map((item) => AppointmentModel.fromJson(item)).toList();
+        } else {
+          _pastAppointments = [];
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching past doctor appointments: $e");
+    }
+  }
+
+  Future<void> fetchCancelledAppointments() async {
+    try {
+      final response = await _apiServices.getDoctorCancelledAppointments();
+      if (response != null && response['success'] == true) {
+        final data = response['data'] as List?;
+        if (data != null) {
+          _cancelledAppointments =
+              data.map((item) => AppointmentModel.fromJson(item)).toList();
+        } else {
+          _cancelledAppointments = [];
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching cancelled doctor appointments: $e");
+    }
+  }
+
+  Future<bool> cancelAppointment(String id, String reason) async {
+    try {
+      final response = await _apiServices.doctorCancelAppointment(id, reason);
+      if (response != null && response['success'] == true) {
+        await fetchAllAppointments();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint("Error cancelling appointment: $e");
+      return false;
     }
   }
 }

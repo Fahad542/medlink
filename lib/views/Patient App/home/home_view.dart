@@ -33,7 +33,8 @@ class _HomeViewState extends State<HomeView> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-       Provider.of<AppointmentViewModel>(context, listen: false).loadUpcomingAppointments();
+      Provider.of<AppointmentViewModel>(context, listen: false)
+          .loadUpcomingAppointments();
     });
   }
 
@@ -55,140 +56,165 @@ class _HomeViewState extends State<HomeView> {
 
           return Scaffold(
             backgroundColor: Colors.grey.shade50, // Light grey background
-            body: CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                // Pinned Silver AppBar
-                SliverAppBar(
-                  pinned: true,
-                  floating: false,
-                  backgroundColor: Colors.grey.shade50, // Match scaffold background
-                  elevation: 0,
-                  toolbarHeight: 80,
-                  automaticallyImplyLeading: false,
-                  titleSpacing: 20,
-                  title: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row( // Profile Header
-                        children: [
-                          Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                  BoxShadow(
-                                  color: Colors.black.withOpacity(0.05), // Softer shadow
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: CircleAvatar(
-                              radius: 26, 
-                              backgroundColor: Colors.white,
-                              backgroundImage: (userVM.patient?.profileImage != null && userVM.patient!.profileImage!.isNotEmpty)
-                                  ? (userVM.patient!.profileImage!.startsWith('http')
-                                      ? NetworkImage(userVM.patient!.profileImage!)
-                                      : FileImage(File(userVM.patient!.profileImage!)) as ImageProvider)
-                                  : const NetworkImage("https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=400&auto=format&fit=crop&q=60"),
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                "Good Morning,",
-                                style: GoogleFonts.inter( // Ensure Inter
-                                  color: Colors.grey[600],
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Row(
-                                children: [
-                                  Text(
-                                    userVM.patient?.name ?? "Guest",
-                                    style: GoogleFonts.inter( // Ensure Inter
-                                      color: const Color(0xFF1E293B), // Slate 800
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: -0.5,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Image.network(
-                                    "https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Hand%20gestures/Waving%20Hand.png",
-                                    width: 22, // Slightly refined size
-                                    height: 22,
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      // Badged Notification Icon
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const ChatListView()),
-                          );
-                        },
-                        child: Stack(
-                          clipBehavior: Clip.none,
+            body: RefreshIndicator(
+              onRefresh: () async {
+                await Future.wait([
+                  homeVM.fetchDoctorCategories(),
+                  appointmentVM.loadUpcomingAppointments(),
+                ]);
+              },
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  // Pinned Silver AppBar
+                  SliverAppBar(
+                    pinned: true,
+                    floating: false,
+                    backgroundColor:
+                        Colors.grey.shade50, // Match scaffold background
+                    elevation: 0,
+                    toolbarHeight: 80,
+                    automaticallyImplyLeading: false,
+                    titleSpacing: 20,
+                    title: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          // Profile Header
                           children: [
                             Container(
-                              padding: const EdgeInsets.all(10), // Increased padding
                               decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.1),
                                 shape: BoxShape.circle,
-                                border: Border.all(color: Colors.grey.withOpacity(0.1)),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.03),
-                                    blurRadius: 8,
+                                    color: Colors.black
+                                        .withOpacity(0.05), // Softer shadow
+                                    blurRadius: 10,
                                     offset: const Offset(0, 4),
                                   ),
                                 ],
                               ),
-                              child: Image.asset(
-                                'assets/msg.png',
-                                width: 24,
-                                height: 24,
-                                color: const Color(0xFF1E293B), // Darker icon
+                              child: CircleAvatar(
+                                radius: 26,
+                                backgroundColor: Colors.white,
+                                backgroundImage: (userVM
+                                                .patient?.profileImage !=
+                                            null &&
+                                        userVM
+                                            .patient!.profileImage!.isNotEmpty)
+                                    ? (userVM.patient!.profileImage!
+                                            .startsWith('http')
+                                        ? NetworkImage(
+                                            userVM.patient!.profileImage!)
+                                        : FileImage(File(
+                                                userVM.patient!.profileImage!))
+                                            as ImageProvider)
+                                    : const NetworkImage(
+                                        "https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=400&auto=format&fit=crop&q=60"),
                               ),
                             ),
-                            Positioned(
-                              top: 0,
-                              right: 0,
-                              child: Container(
-                                width: 16,
-                                height: 16,
-                                decoration: BoxDecoration(
-                                  color: AppColors.error,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 2),
+                            const SizedBox(width: 14),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  "Good Morning,",
+                                  style: GoogleFonts.inter(
+                                    // Ensure Inter
+                                    color: Colors.grey[600],
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    Text(
+                                      userVM.patient?.name ?? "Guest",
+                                      style: GoogleFonts.inter(
+                                        // Ensure Inter
+                                        color: const Color(
+                                            0xFF1E293B), // Slate 800
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: -0.5,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Image.network(
+                                      "https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Hand%20gestures/Waving%20Hand.png",
+                                      width: 22, // Slightly refined size
+                                      height: 22,
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ],
                         ),
-                      ),
-                    ],
+                        // Badged Notification Icon
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const ChatListView()),
+                            );
+                          },
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(
+                                    10), // Increased padding
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.1),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                      color: Colors.grey.withOpacity(0.1)),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.03),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Image.asset(
+                                  'assets/msg.png',
+                                  width: 24,
+                                  height: 24,
+                                  color: const Color(0xFF1E293B), // Darker icon
+                                ),
+                              ),
+                              Positioned(
+                                top: 0,
+                                right: 0,
+                                child: Container(
+                                  width: 16,
+                                  height: 16,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.error,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                        color: Colors.white, width: 2),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                
-                // Search Bar (Scrolls away)
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
-                    child: // Professional Search Bar
-                      Container(
+
+                  // Search Bar (Scrolls away)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+                      child: // Professional Search Bar
+                          Container(
                         height: 52, // Standard tap height
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         decoration: BoxDecoration(
@@ -204,19 +230,24 @@ class _HomeViewState extends State<HomeView> {
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.search_rounded, color: Colors.grey[600], size: 24), // Neutral icon
+                            Icon(Icons.search_rounded,
+                                color: Colors.grey[600],
+                                size: 24), // Neutral icon
                             const SizedBox(width: 12),
                             Expanded(
                               child: TextField(
                                 readOnly: true,
-                                style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w500),
+                                style: GoogleFonts.inter(
+                                    fontSize: 15, fontWeight: FontWeight.w500),
                                 onTap: () => Navigator.push(
                                   context,
-                                  MaterialPageRoute(builder: (_) => const DoctorListView()),
+                                  MaterialPageRoute(
+                                      builder: (_) => const DoctorListView()),
                                 ),
                                 decoration: InputDecoration(
                                   hintText: "Search doctor, specialty...",
-                                  hintStyle: GoogleFonts.inter(color: Colors.grey[400], fontSize: 14),
+                                  hintStyle: GoogleFonts.inter(
+                                      color: Colors.grey[400], fontSize: 14),
                                   filled: true,
                                   fillColor: Colors.white, // White Background
                                   border: InputBorder.none,
@@ -224,160 +255,171 @@ class _HomeViewState extends State<HomeView> {
                                   enabledBorder: InputBorder.none,
                                   errorBorder: InputBorder.none,
                                   disabledBorder: InputBorder.none,
-                                  contentPadding: EdgeInsets.zero, // Ensures vertical centering with Row
+                                  contentPadding: EdgeInsets
+                                      .zero, // Ensures vertical centering with Row
                                 ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                  ),
-                ),
-
-                // Main Body Content
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // 1. Banner Slider
-                        const SizedBox(height: 20),
-                        _buildBannerSlider(context),
-                        const SizedBox(height: 24),
-
-                        // 2. SOS Button (Upper Position as requested)
-                        if (!emergencyVM.isSosActive && homeVM.isSosVisible)
-                          Center(
-                            child: Container(
-                              margin: const EdgeInsets.only(top: 8, right: 8), // Space for button
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 26, vertical: 16), 
-                              decoration: BoxDecoration(
-                                color: Colors.white, // Changed to white
-                                borderRadius: BorderRadius.circular(20), 
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.03), // Light shadow for depth
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                children: [
-                                   Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          "Medical Emergency?",
-                                          style: GoogleFonts.inter(
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 16, // Restored font size
-                                            color: AppColors.accent
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          "Long Press button for ambulance",
-                                          style: GoogleFonts.inter(
-                                            color: Colors.grey,
-                                            fontSize: 12, // Restored font size
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  SizedBox(
-                                    height: 50, // Restored height
-                                    width: 80,  // Restored width
-                                    child:  SOSButton(
-                                        onPressed: () => _showSOSConfirmation(context, emergencyVM),
-                                    ),
-
-                                  ),
-                                ],
-                              ),
-                            ),
-                          )
-                          else
-                           const SizedBox.shrink(), // Active status moved to Main Screen overlay
-
-
-                        const SizedBox(height: 24),
-
-                        if (homeVM.categoriesLoading || homeVM.categories.isNotEmpty) ...[
-                          _buildSectionHeader(
-                            "Doctors Categories",
-                            actionLabel: "See all",
-                            onAction: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => CategoryListView(categories: homeVM.categories)),
-                            ),
-                          ),
-
-                          _buildDoctorCategories(context),
-
-                          const SizedBox(height: 24),
-                        ],
-
-                        // 4. Upcoming Appointment
-                        if (appointmentVM.isLoading) ...[
-                          _buildSectionHeader(
-                            "Upcoming Appointment",
-                            actionLabel: "See all",
-                            onAction: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const AppointmentListView()),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          const AppointmentCardShimmer(),
-                          const SizedBox(height: 15),
-                        ] else if (appointmentVM.appointments.any((a) => a.status == AppointmentStatus.upcoming)) ...[
-                          _buildSectionHeader(
-                            "Upcoming Appointment",
-                            actionLabel: "See all",
-                            onAction: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const AppointmentListView()),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          ...appointmentVM.appointments
-                              .where((a) => a.status == AppointmentStatus.upcoming)
-                              .take(1) // Limit to 1
-                              .map((appointment) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 12.0),
-                                    child: AppointmentInfoCard(
-                                      appointment: appointment,
-                                      showConfirmationActions: true,
-                                    ),
-                                  )),
-                          const SizedBox(height: 15),
-                        ],
-
-                        // 4. Services Grid
-                        _buildSectionHeader("Quick Services"),
-                        const SizedBox(height: 15),
-                        _buildQuickActionsGrid(context),
-                        
-                        const SizedBox(height: 24),
-
-
-
-                        const SizedBox(height: 100),
-                      ],
                     ),
                   ),
 
-                ),
-              ],
+                  // Main Body Content
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // 1. Banner Slider
+                          const SizedBox(height: 20),
+                          _buildBannerSlider(context),
+                          const SizedBox(height: 24),
+
+                          // 2. SOS Button (Upper Position as requested)
+                          if (!emergencyVM.isSosActive && homeVM.isSosVisible)
+                            Center(
+                              child: Container(
+                                margin: const EdgeInsets.only(
+                                    top: 8, right: 8), // Space for button
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 26, vertical: 16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white, // Changed to white
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(
+                                          0.03), // Light shadow for depth
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            "Medical Emergency?",
+                                            style: GoogleFonts.inter(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize:
+                                                    16, // Restored font size
+                                                color: AppColors.accent),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            "Long Press button for ambulance",
+                                            style: GoogleFonts.inter(
+                                              color: Colors.grey,
+                                              fontSize:
+                                                  12, // Restored font size
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      height: 50, // Restored height
+                                      width: 80, // Restored width
+                                      child: SOSButton(
+                                        onPressed: () => _showSOSConfirmation(
+                                            context, emergencyVM),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          else
+                            const SizedBox
+                                .shrink(), // Active status moved to Main Screen overlay
+
+                          const SizedBox(height: 24),
+
+                          if (homeVM.categoriesLoading ||
+                              homeVM.categories.isNotEmpty) ...[
+                            _buildSectionHeader(
+                              "Doctors Categories",
+                              actionLabel: "See all",
+                              onAction: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => CategoryListView(
+                                        categories: homeVM.categories)),
+                              ),
+                            ),
+                            _buildDoctorCategories(context),
+                            const SizedBox(height: 24),
+                          ],
+
+                          // 4. Upcoming Appointment
+                          if (appointmentVM.isLoading) ...[
+                            _buildSectionHeader(
+                              "Upcoming Appointment",
+                              actionLabel: "See all",
+                              onAction: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        const AppointmentListView()),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            const AppointmentCardShimmer(),
+                            const SizedBox(height: 15),
+                          ] else if (appointmentVM.appointments.any((a) =>
+                              a.status == AppointmentStatus.upcoming ||
+                              a.status == AppointmentStatus.pending ||
+                              a.status == AppointmentStatus.confirmed)) ...[
+                            _buildSectionHeader(
+                              "Upcoming Appointment",
+                              actionLabel: "See all",
+                              onAction: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        const AppointmentListView()),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            ...appointmentVM.appointments
+                                .where((a) =>
+                                    a.status == AppointmentStatus.upcoming ||
+                                    a.status == AppointmentStatus.pending ||
+                                    a.status == AppointmentStatus.confirmed)
+                                .take(1) // Limit to 1
+                                .map((appointment) => Padding(
+                                      padding:
+                                          const EdgeInsets.only(bottom: 12.0),
+                                      child: AppointmentInfoCard(
+                                        appointment: appointment,
+                                        showConfirmationActions: true,
+                                      ),
+                                    )),
+                            const SizedBox(height: 15),
+                          ],
+
+                          // 4. Services Grid
+                          _buildSectionHeader("Quick Services"),
+                          const SizedBox(height: 15),
+                          _buildQuickActionsGrid(context),
+
+                          const SizedBox(height: 24),
+
+                          const SizedBox(height: 100),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         },
@@ -385,7 +427,8 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  void _showSOSConfirmation(BuildContext context, EmergencyViewModel emergencyVM) {
+  void _showSOSConfirmation(
+      BuildContext context, EmergencyViewModel emergencyVM) {
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -410,11 +453,12 @@ class _HomeViewState extends State<HomeView> {
               const SizedBox(height: 24),
               Row(
                 children: [
-                   Expanded(
+                  Expanded(
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         foregroundColor: Colors.grey.shade700,
                       ),
@@ -425,13 +469,14 @@ class _HomeViewState extends State<HomeView> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                         Navigator.pop(context);
-                         emergencyVM.triggerSos();
+                        Navigator.pop(context);
+                        emergencyVM.triggerSos();
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         elevation: 0,
                       ),
@@ -472,11 +517,12 @@ class _HomeViewState extends State<HomeView> {
               const SizedBox(height: 24),
               Row(
                 children: [
-                   Expanded(
+                  Expanded(
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(context),
                       style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         foregroundColor: Colors.grey.shade700,
                       ),
@@ -487,13 +533,15 @@ class _HomeViewState extends State<HomeView> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                         Provider.of<HomeViewModel>(context, listen: false).hideSos();
-                         Navigator.pop(context);
+                        Provider.of<HomeViewModel>(context, listen: false)
+                            .hideSos();
+                        Navigator.pop(context);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         elevation: 0,
                       ),
@@ -509,7 +557,8 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Widget _buildSectionHeader(String title, {VoidCallback? onAction, String? actionLabel}) {
+  Widget _buildSectionHeader(String title,
+      {VoidCallback? onAction, String? actionLabel}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -542,7 +591,6 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-
   Widget _buildQuickActionsGrid(BuildContext context) {
     final actions = Provider.of<HomeViewModel>(context).quickActions;
 
@@ -553,7 +601,7 @@ class _HomeViewState extends State<HomeView> {
       itemCount: actions.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 0.85, 
+        childAspectRatio: 0.85,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
       ),
@@ -562,21 +610,28 @@ class _HomeViewState extends State<HomeView> {
 
         return InkWell(
           onTap: () {
-             if (action.title.contains("Doctors")) {
-                 Navigator.push(context, MaterialPageRoute(builder: (_) => const DoctorListView()));
-             } else if (action.title.contains("Prescription")) {
-                 Navigator.push(context, MaterialPageRoute(builder: (_) => const PrescriptionView()));
-             } else if (action.title.contains("Consult")) {
-                 Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatListView()));
-             } else if (action.title.contains("Health")) {
-                 Navigator.push(context, MaterialPageRoute(builder: (_) => const HealthHubView(showBackButton: true)));
-             }
+            if (action.title.contains("Doctors")) {
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const DoctorListView()));
+            } else if (action.title.contains("Prescription")) {
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const PrescriptionView()));
+            } else if (action.title.contains("Consult")) {
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const ChatListView()));
+            } else if (action.title.contains("Health")) {
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) =>
+                          const HealthHubView(showBackButton: true)));
+            }
           },
           borderRadius: BorderRadius.circular(24),
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: action.cardColor, 
+              color: action.cardColor,
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
@@ -593,19 +648,20 @@ class _HomeViewState extends State<HomeView> {
                   children: [
                     // Icon
                     Container(
-                      height: 48, width: 48,
+                      height: 48,
+                      width: 48,
                       decoration: const BoxDecoration(
-                        color: Colors.white, 
+                        color: Colors.white,
                         shape: BoxShape.circle,
                       ),
-                      padding: const EdgeInsets.all(8), 
+                      padding: const EdgeInsets.all(8),
                       child: Image.asset(
                         action.image,
-                        fit: BoxFit.contain, 
+                        fit: BoxFit.contain,
                       ),
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Title
                     Text(
                       action.title,
@@ -619,7 +675,7 @@ class _HomeViewState extends State<HomeView> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                     // Subtitle
+                    // Subtitle
                     Text(
                       action.subtitle,
                       style: GoogleFonts.inter(
@@ -632,22 +688,20 @@ class _HomeViewState extends State<HomeView> {
                     ),
                   ],
                 ),
-                
+
                 // Arrow Button (Bottom Right)
                 Positioned(
                   bottom: 0,
                   right: 0,
                   child: Container(
-                    height: 36, width: 36,
+                    height: 36,
+                    width: 36,
                     decoration: const BoxDecoration(
-                      color: Colors.white, 
+                      color: Colors.white,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
-                      Icons.arrow_outward_rounded, 
-                      size: 18, 
-                      color: Color(0xFF1E293B) 
-                    ),
+                    child: const Icon(Icons.arrow_outward_rounded,
+                        size: 18, color: Color(0xFF1E293B)),
                   ),
                 ),
               ],
@@ -657,20 +711,21 @@ class _HomeViewState extends State<HomeView> {
       },
     );
   }
+
   Widget _buildDoctorCategories(BuildContext context) {
     final homeVM = Provider.of<HomeViewModel>(context);
     final categories = homeVM.categories;
 
     if (homeVM.categoriesLoading) {
-       return const CategoryShimmer();
+      return const CategoryShimmer();
     }
 
     return SizedBox(
-      height: 140, 
+      height: 140,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4), 
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
         itemCount: categories.length,
         separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
@@ -680,13 +735,14 @@ class _HomeViewState extends State<HomeView> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => DoctorListView(initialCategory: cat.name, categoryId: cat.id),
+                  builder: (_) => DoctorListView(
+                      initialCategory: cat.name, categoryId: cat.id),
                 ),
               );
             },
             borderRadius: BorderRadius.circular(16),
             child: Container(
-              width: 100, 
+              width: 100,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -705,11 +761,11 @@ class _HomeViewState extends State<HomeView> {
                   Container(
                     width: 50,
                     height: 50,
-                    padding: cat.name == 'Neurologist' 
-                        ? const EdgeInsets.all(2) 
+                    padding: cat.name == 'Neurologist'
+                        ? const EdgeInsets.all(2)
                         : const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: cat.color, 
+                      color: cat.color,
                       shape: BoxShape.circle,
                     ),
                     child: Transform.scale(
@@ -747,13 +803,14 @@ class _HomeViewState extends State<HomeView> {
     final banners = homeVM.banners;
 
     // Listen to ViewModel changes to trigger animation
-    if (_pageController.hasClients && _pageController.page?.round() != homeVM.currentBannerIndex) {
-       // Animate only if the difference is valid to prevent jumpiness or loops
-       _pageController.animateToPage(
-          homeVM.currentBannerIndex,
-          duration: const Duration(milliseconds: 600),
-          curve: Curves.easeInOut,
-        );
+    if (_pageController.hasClients &&
+        _pageController.page?.round() != homeVM.currentBannerIndex) {
+      // Animate only if the difference is valid to prevent jumpiness or loops
+      _pageController.animateToPage(
+        homeVM.currentBannerIndex,
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeInOut,
+      );
     }
 
     return Column(
@@ -764,16 +821,16 @@ class _HomeViewState extends State<HomeView> {
             clipBehavior: Clip.none, // Allow pop-out effect
             controller: _pageController,
             onPageChanged: (index) {
-               // Update VM state on manual swipe
-               if (index != homeVM.currentBannerIndex) {
-                  homeVM.setBannerIndex(index);
-               }
+              // Update VM state on manual swipe
+              if (index != homeVM.currentBannerIndex) {
+                homeVM.setBannerIndex(index);
+              }
             },
             itemCount: banners.length,
             itemBuilder: (context, index) {
               final banner = banners[index];
               return _buildBannerCard(
-                context, 
+                context,
                 type: banner.type,
                 title: banner.title,
                 subtitle: banner.subtitle,
@@ -783,11 +840,19 @@ class _HomeViewState extends State<HomeView> {
                 image: banner.image,
                 onTap: () {
                   if (banner.type == 'doctor') {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const DoctorListView()));
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const DoctorListView()));
                   } else if (banner.type == 'emergency') {
-                    Provider.of<EmergencyViewModel>(context, listen: false).triggerSos();
+                    Provider.of<EmergencyViewModel>(context, listen: false)
+                        .triggerSos();
                   } else if (banner.type == 'health') {
-                     Navigator.push(context, MaterialPageRoute(builder: (_) => const HealthHubView(showBackButton: true)));
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                const HealthHubView(showBackButton: true)));
                   }
                 },
                 isCompact: banner.isCompact,
@@ -806,7 +871,9 @@ class _HomeViewState extends State<HomeView> {
               height: 6,
               width: homeVM.currentBannerIndex == index ? 24 : 6,
               decoration: BoxDecoration(
-                color: homeVM.currentBannerIndex == index ? AppColors.primary : Colors.grey[300],
+                color: homeVM.currentBannerIndex == index
+                    ? AppColors.primary
+                    : Colors.grey[300],
                 borderRadius: BorderRadius.circular(3),
               ),
             );
@@ -831,7 +898,8 @@ class _HomeViewState extends State<HomeView> {
   }) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.symmetric(horizontal: 5), // Spacing between slides
+      margin:
+          const EdgeInsets.symmetric(horizontal: 5), // Spacing between slides
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: colors,
@@ -849,123 +917,132 @@ class _HomeViewState extends State<HomeView> {
         ],
       ),
       child: Stack(
-        clipBehavior: Clip.none, // Always allow pop-out now as all are compact/styled
+        clipBehavior:
+            Clip.none, // Always allow pop-out now as all are compact/styled
         children: [
-            // Specialized Decorations
-             // Original circular decorations for all types
-             Positioned(
-              right: -20,
-              top: -20,
-              child: Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
-                  shape: BoxShape.circle,
-                ),
+          // Specialized Decorations
+          // Original circular decorations for all types
+          Positioned(
+            right: -20,
+            top: -20,
+            child: Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                shape: BoxShape.circle,
               ),
             ),
-             Positioned(
-              right: 60,
-              bottom: -30,
-              child: Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
-                  shape: BoxShape.circle,
-                ),
+          ),
+          Positioned(
+            right: 60,
+            bottom: -30,
+            child: Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                shape: BoxShape.circle,
               ),
             ),
-            
-            Padding(
-              padding: isCompact 
+          ),
+
+          Padding(
+            padding: isCompact
                 ? const EdgeInsets.fromLTRB(16, 8, 16, 8) // Compact padding
                 : const EdgeInsets.fromLTRB(20, 16, 16, 16), // Standard padding
-              child: Row(
-                children: [
-                   Expanded(
-                     flex: 3,
-                     child: Column(
-                       crossAxisAlignment: CrossAxisAlignment.start,
-                       mainAxisAlignment: MainAxisAlignment.center,
-                       children: [
-                         Text(
-                           title,
-                           style: GoogleFonts.inter(
-                             fontSize: 19,
-                             fontWeight: type == "emergency" ? FontWeight.w900 : FontWeight.bold,
-                             color: Colors.white,
-                             height: isCompact ? 1.5 : 1.2,
-                             letterSpacing: -0.5,
-                           ),
-                         ),
-                         SizedBox(height: isCompact ? 2 : 4),
-                         Text(
-                           subtitle,
-                           style: GoogleFonts.inter(
-                             fontSize: isCompact ? 10 : 11,
-                             color: Colors.white.withOpacity(0.9),
-                             height: 1.2,
-                           ),
-                         ),
-                         SizedBox(height: isCompact ? 4 : 12),
-                         ElevatedButton(
-                           onPressed: onTap,
-                           style: ElevatedButton.styleFrom(
-                             backgroundColor: Colors.white,
-                             foregroundColor: shadowColor,
-                             padding: isCompact 
-                                ? const EdgeInsets.symmetric(horizontal: 10, vertical: 2) // Compact
-                                : const EdgeInsets.symmetric(horizontal: 18, vertical: 8), // Refined Standard
-                             elevation: type == "emergency" ? 4 : 0,
-                             shadowColor: type == "emergency" ? Colors.black26 : null,
-                             minimumSize: isCompact ? const Size(0, 24) : const Size(0, 36),
-                             shape: RoundedRectangleBorder(
-                               borderRadius: BorderRadius.circular(isCompact ? 8 : (type == "health" ? 20 : 12)),
-                             ),
-                           ),
-                           child: Row(
-                             mainAxisSize: MainAxisSize.min,
-                             children: [
-                               Text(
-                                 buttonText,
-                                 style: GoogleFonts.inter(
-                                   fontWeight: FontWeight.bold, 
-                                   fontSize: isCompact ? 10 : 12,
-                                 ),
-                               ),
-                               const SizedBox(width: 4),
-                               Icon(
-                                 type == "emergency" ? Icons.emergency_rounded : Icons.arrow_forward_rounded, 
-                                 size: isCompact ? 10 : 14
-                               ),
-                             ],
-                           ),
-                         ),
-                       ],
-                     ),
-                   ),
-                   const Spacer(flex: 2),
-                ],
-              ),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        title,
+                        style: GoogleFonts.inter(
+                          fontSize: 19,
+                          fontWeight: type == "emergency"
+                              ? FontWeight.w900
+                              : FontWeight.bold,
+                          color: Colors.white,
+                          height: isCompact ? 1.5 : 1.2,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      SizedBox(height: isCompact ? 2 : 4),
+                      Text(
+                        subtitle,
+                        style: GoogleFonts.inter(
+                          fontSize: isCompact ? 10 : 11,
+                          color: Colors.white.withOpacity(0.9),
+                          height: 1.2,
+                        ),
+                      ),
+                      SizedBox(height: isCompact ? 4 : 12),
+                      ElevatedButton(
+                        onPressed: onTap,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: shadowColor,
+                          padding: isCompact
+                              ? const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 2) // Compact
+                              : const EdgeInsets.symmetric(
+                                  horizontal: 18,
+                                  vertical: 8), // Refined Standard
+                          elevation: type == "emergency" ? 4 : 0,
+                          shadowColor:
+                              type == "emergency" ? Colors.black26 : null,
+                          minimumSize:
+                              isCompact ? const Size(0, 24) : const Size(0, 36),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                                isCompact ? 8 : (type == "health" ? 20 : 12)),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              buttonText,
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.bold,
+                                fontSize: isCompact ? 10 : 12,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                                type == "emergency"
+                                    ? Icons.emergency_rounded
+                                    : Icons.arrow_forward_rounded,
+                                size: isCompact ? 10 : 14),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Spacer(flex: 2),
+              ],
             ),
-            
-            // Image
-            Positioned(
-              right: type == "emergency" ? -60 : (type == "health" ? -40 : 0),
-              bottom: 0, 
-              child: Image.asset(
-                image,
-                height: imageSize ?? (type == "emergency" ? 190 : (isCompact ? 190 : 130)), 
-                fit: BoxFit.contain,
-                errorBuilder: (c,e,s) => const SizedBox(), 
-              ),
+          ),
+
+          // Image
+          Positioned(
+            right: type == "emergency" ? -60 : (type == "health" ? -40 : 0),
+            bottom: 0,
+            child: Image.asset(
+              image,
+              height: imageSize ??
+                  (type == "emergency" ? 190 : (isCompact ? 190 : 130)),
+              fit: BoxFit.contain,
+              errorBuilder: (c, e, s) => const SizedBox(),
             ),
+          ),
         ],
       ),
     );
   }
-
 }
-

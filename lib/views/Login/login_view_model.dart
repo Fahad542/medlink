@@ -68,7 +68,7 @@ class LoginViewModel with ChangeNotifier {
 
     final data = {
       if (_isEmailLogin) 'email': emailController.text.trim(),
-      // if (!_isEmailLogin) 'phone_number': phoneController.text.trim(),
+      if (!_isEmailLogin) 'phone': phoneController.text.trim(),
       'password': passwordController.text,
     };
 
@@ -88,7 +88,8 @@ class LoginViewModel with ChangeNotifier {
           await userVM.saveUserLoginSession(loginModel);
 
           // Get the role from the API response, or fallback to selected role
-          String roleToSave = loginModel.data?.user?.role?.toLowerCase() ?? _selectedRole;
+          String roleToSave =
+              loginModel.data?.user?.role?.toLowerCase() ?? _selectedRole;
           // if (roleToSave == 'ambulance') roleToSave = 'driver'; // standardize
 
           // Navigation logic based on role
@@ -99,7 +100,7 @@ class LoginViewModel with ChangeNotifier {
                 if (roleToSave == 'doctor') {
                   return const DoctorMainScreen();
                 } else if (roleToSave == 'patient') {
-                 // return const AmbulanceMainView();
+                  // return const AmbulanceMainView();
                   return const MainScreen();
                 }
                 return const MainScreen();
@@ -108,7 +109,8 @@ class LoginViewModel with ChangeNotifier {
             );
           }
         } else {
-          Utils.toastMessage(context, "Login failed: No user data", isError: true);
+          Utils.toastMessage(context, "Login failed: No user data",
+              isError: true);
         }
       }
     } catch (e) {

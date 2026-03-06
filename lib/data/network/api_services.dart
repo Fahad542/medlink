@@ -17,7 +17,7 @@ class ApiServices {
   Future<dynamic> patientSendOtp(String phone) async {
     try {
       return await _apiServices.getPostApiResponse(
-        AppUrl.patient_register_step1,
+        AppUrl.patientRegisterStep1,
         jsonEncode({'phone': phone}),
       );
     } catch (e) {
@@ -30,7 +30,7 @@ class ApiServices {
   Future<dynamic> patientVerifyOtp(String phone, String otp) async {
     try {
       final response = await _apiServices.getPostApiResponse(
-        AppUrl.patient_register_step2,
+        AppUrl.patientRegisterStep2,
         jsonEncode({'phone': phone, 'otp': otp}),
       );
       final data = response is Map ? response['data'] : null;
@@ -47,7 +47,8 @@ class ApiServices {
 
   /// Patient registration Step 3: register with form-data. Uses Bearer register_token from prefs.
   /// On success, does not clear register_token here; caller should save session then clear token.
-  Future<dynamic> patientRegister(Map<String, String> formData, File? file) async {
+  Future<dynamic> patientRegister(
+      Map<String, String> formData, File? file) async {
     try {
       final sp = await SharedPreferences.getInstance();
       final registerToken = sp.getString(_kPatientRegisterToken);
@@ -55,7 +56,7 @@ class ApiServices {
         throw Exception('Register token expired. Please restart registration.');
       }
       final response = await _apiServices.getPostMultipartWithOptionalBearer(
-        AppUrl.patient_register_step3,
+        AppUrl.patientRegisterStep3,
         formData,
         file,
         bearerToken: registerToken,
@@ -74,7 +75,7 @@ class ApiServices {
   Future<dynamic> doctorSendOtp(String phone) async {
     try {
       return await _apiServices.getPostApiResponse(
-        AppUrl.doctor_register_step1,
+        AppUrl.doctorRegisterStep1,
         jsonEncode({'phone': phone}),
       );
     } catch (e) {
@@ -86,7 +87,7 @@ class ApiServices {
   Future<dynamic> doctorVerifyOtp(String phone, String otp) async {
     try {
       final response = await _apiServices.getPostApiResponse(
-        AppUrl.doctor_register_step2,
+        AppUrl.doctorRegisterStep2,
         jsonEncode({'phone': phone, 'otp': otp}),
       );
       final data = response is Map ? response['data'] : null;
@@ -114,7 +115,7 @@ class ApiServices {
         throw Exception('Register token expired. Please restart registration.');
       }
       final response = await _apiServices.getPostMultipartWithBearerTwoFiles(
-        AppUrl.doctor_register_step3,
+        AppUrl.doctorRegisterStep3,
         formData,
         profilePicFile,
         fileKey1: 'profilePic',
@@ -131,81 +132,114 @@ class ApiServices {
 
   Future<dynamic> loginApi(dynamic data) async {
     try {
-      return await _apiServices.getPostApiResponse(AppUrl.loginEndPint, jsonEncode(data));
-    } catch (e) { rethrow; }
+      return await _apiServices.getPostApiResponse(
+          AppUrl.loginEndPoint, jsonEncode(data));
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<dynamic> registerV1Step(dynamic data) async {
     try {
-      return await _apiServices.getPostApiResponse(AppUrl.registerstep1, jsonEncode(data));
-    } catch (e) { rethrow; }
+      return await _apiServices.getPostApiResponse(
+          AppUrl.registerStep1, jsonEncode(data));
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<dynamic> registerStep1(dynamic data) async {
     try {
-      return await _apiServices.getPostApiResponse(AppUrl.registerstep1, jsonEncode(data));
-    } catch (e) { rethrow; }
+      return await _apiServices.getPostApiResponse(
+          AppUrl.registerStep1, jsonEncode(data));
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<dynamic> registerStep2(dynamic data) async {
     try {
-      return await _apiServices.getPostApiResponse(AppUrl.registerstep2, jsonEncode(data));
-    } catch (e) { rethrow; }
+      return await _apiServices.getPostApiResponse(
+          AppUrl.registerStep2, jsonEncode(data));
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<dynamic> registerStep3(dynamic data, [File? file]) async {
     try {
       if (file != null) {
         return await _apiServices.getPostMultipartApiResponse(
-            AppUrl.registerstep3, data, file, fileKey: 'profilePicture');
+            AppUrl.registerStep3, data, file,
+            fileKey: 'profilePicture');
       } else {
-        return await _apiServices.getPostApiResponse(AppUrl.registerstep3, jsonEncode(data));
+        return await _apiServices.getPostApiResponse(
+            AppUrl.registerStep3, jsonEncode(data));
       }
-    } catch (e) { rethrow; }
-  }
-
-  Future<dynamic> registerStep6(dynamic data, [File? file]) async {
-    try {
-      return await _apiServices.getPostMultipartApiResponse(
-          AppUrl.registerstep5, data, file, fileKey: 'profilePicture');
-    } catch (e) { rethrow; }
-  }
-
-  Future<dynamic> registerApi(dynamic data) async {
-    try {
-      return await _apiServices.getPostApiResponse(AppUrl.register, data);
-    } catch (e) { rethrow; }
-  }
-
-  Future<dynamic> checkEmail(dynamic data) async {
-    try {
-      return await _apiServices.getPostApiResponse(AppUrl.check_email, jsonEncode(data));
-    } catch (e) { rethrow; }
-  }
-
-  Future<dynamic> verifyEmailOtp(dynamic data) async {
-    try {
-      return await _apiServices.getPostApiResponse(AppUrl.verify_email, jsonEncode(data));
-    } catch (e) { rethrow; }
-  }
-
-  Future<dynamic> getDoctors() async {
-    try {
-      return await _apiServices.getGetApiResponse(AppUrl.get_doctors);
-    } catch (e) { rethrow; }
-  }
-
-  Future<dynamic> getDoctorCategories() async {
-    try {
-      return await _apiServices.getGetApiResponse(AppUrl.get_doctors_categories);
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<dynamic> getAvailableDoctorsBySpecialty(int specialtyId) async {
+  Future<dynamic> registerStep6(dynamic data, [File? file]) async {
     try {
-      return await _apiServices.getGetApiResponse('${AppUrl.get_doctors_by_specialty}?specialtyId=$specialtyId');
+      return await _apiServices.getPostMultipartApiResponse(
+          AppUrl.registerStep5, data, file,
+          fileKey: 'profilePicture');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> registerApi(dynamic data) async {
+    try {
+      return await _apiServices.getPostApiResponse(AppUrl.register, data);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> checkEmail(dynamic data) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+          AppUrl.checkEmail, jsonEncode(data));
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> verifyEmailOtp(dynamic data) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+          AppUrl.verifyEmail, jsonEncode(data));
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getDoctors() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.getDoctors);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getDoctorCategories() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.getDoctorsCategories);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getAvailableDoctorsBySpecialty({String? specialtyId}) async {
+    try {
+      String url = AppUrl.getDoctorsBySpecialty;
+      if (specialtyId != null && specialtyId.isNotEmpty) {
+        url += "?specialtyId=$specialtyId";
+      }
+      return await _apiServices.getGetApiResponse(url);
     } catch (e) {
       rethrow;
     }
@@ -213,34 +247,106 @@ class ApiServices {
 
   Future<dynamic> getAppointments() async {
     try {
-      return await _apiServices.getGetApiResponse(AppUrl.get_appointments);
-    } catch (e) { rethrow; }
+      return await _apiServices.getGetApiResponse(AppUrl.getAppointments);
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<dynamic> getPatientProfile() async {
     try {
-      return await _apiServices.getGetApiResponse(AppUrl.get_patient_profile);
-    } catch (e) { rethrow; }
+      return await _apiServices.getGetApiResponse(AppUrl.getPatientProfile);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getDoctorProfile() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.getDoctorProfile);
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<dynamic> bookAppointment(dynamic data) async {
     try {
-      return await _apiServices.getPostApiResponse(AppUrl.book_appointments, jsonEncode(data));
-    } catch (e) { rethrow; }
+      return await _apiServices.getPostApiResponse(
+          AppUrl.bookAppointments, jsonEncode(data));
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> updatePatientProfile(
+      Map<String, String> formData, File? file) async {
+    try {
+      return await _apiServices.getPatchMultipartApiResponse(
+        AppUrl.updatePatientProfile,
+        formData,
+        file,
+        fileKey: 'profilePic',
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> updateDoctorProfile(
+      Map<String, String> formData, File? file) async {
+    try {
+      return await _apiServices.getPatchMultipartApiResponse(
+        AppUrl.updateDoctorProfile,
+        formData,
+        file,
+        fileKey: 'profilePic',
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getChatMessages(String appointmentId,
+      {int limit = 50, String? before}) async {
+    try {
+      String url =
+          '${AppUrl.getChatMessages}/$appointmentId/messages?limit=$limit';
+      if (before != null) url += '&before=$before';
+      return await _apiServices.getGetApiResponse(url);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> sendChatMessage(
+      String appointmentId, Map<String, String> fields, File? file) async {
+    try {
+      String url = '${AppUrl.sendChatMessage}/$appointmentId/messages';
+      if (file != null) {
+        return await _apiServices.getPostMultipartApiResponse(url, fields, file,
+            fileKey: 'file');
+      } else {
+        return await _apiServices.getPostApiResponse(url, jsonEncode(fields));
+      }
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<dynamic> cancelAppointment(String appointmentId, String reason) async {
     try {
-      final url = '${AppUrl.cancel_appointment}/$appointmentId/cancel';
-      final payload = jsonEncode({"reason": reason});
+      final url = '${AppUrl.patientCancelAppointment}/$appointmentId/cancel';
+      final payload = {"cancelReason": reason};
       return await _apiServices.getPatchApiResponse(url, payload);
-    } catch (e) { rethrow; }
+    } catch (e) {
+      rethrow;
+    }
   }
-
 
   Future<dynamic> getUpcomingAppointments() async {
     try {
-      return await _apiServices.getGetApiResponse(AppUrl.get_upcoming_appointments);
+      return await _apiServices
+          .getGetApiResponse(AppUrl.getUpcomingAppointments);
     } catch (e) {
       rethrow;
     }
@@ -248,7 +354,8 @@ class ApiServices {
 
   Future<dynamic> getCancelledAppointments() async {
     try {
-      return await _apiServices.getGetApiResponse(AppUrl.get_cancelled_appointments);
+      return await _apiServices
+          .getGetApiResponse(AppUrl.getCancelledAppointments);
     } catch (e) {
       rethrow;
     }
@@ -256,7 +363,7 @@ class ApiServices {
 
   Future<dynamic> getPastAppointments() async {
     try {
-      return await _apiServices.getGetApiResponse(AppUrl.get_past_appointments);
+      return await _apiServices.getGetApiResponse(AppUrl.getPastAppointments);
     } catch (e) {
       rethrow;
     }
@@ -264,22 +371,23 @@ class ApiServices {
 
   Future<dynamic> getHealthArticles() async {
     try {
-      return await _apiServices.getGetApiResponse(AppUrl.get_health_articles);
+      return await _apiServices.getGetApiResponse(AppUrl.getHealthArticles);
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<List<dynamic>> getPatientAppointments(String patientId, {String? status}) async {
+  Future<List<dynamic>> getPatientAppointments(String patientId,
+      {String? status}) async {
     try {
-      String url = '${AppUrl.get_appointments}/$patientId';
+      String url = '${AppUrl.getAppointments}/$patientId';
       if (status != null) {
         url += '?status=$status';
       }
 
       print("Fetching Patient Appointments from: $url");
       final response = await _apiServices.getGetApiResponse(url);
-      
+
       if (response is List) {
         return response;
       } else {
@@ -295,7 +403,7 @@ class ApiServices {
 
   Future<dynamic> getDoctorPatients() async {
     try {
-      return await _apiServices.getGetApiResponse(AppUrl.get_doctor_patients);
+      return await _apiServices.getGetApiResponse(AppUrl.getDoctorPatients);
     } catch (e) {
       rethrow;
     }
@@ -303,8 +411,8 @@ class ApiServices {
 
   Future<dynamic> getFirstAidTopics() async {
     try {
-      print("Fetching First Aid Topics from: ${AppUrl.get_first_aid_topics}");
-      return await _apiServices.getGetApiResponse(AppUrl.get_first_aid_topics);
+      print("Fetching First Aid Topics from: ${AppUrl.getFirstAidTopics}");
+      return await _apiServices.getGetApiResponse(AppUrl.getFirstAidTopics);
     } catch (e) {
       rethrow;
     }
@@ -312,7 +420,8 @@ class ApiServices {
 
   Future<dynamic> getDoctorMonthlyEarnings(int year, int month) async {
     try {
-      return await _apiServices.getGetApiResponse('${AppUrl.get_doctor_earnings_by_month}?year=$year&month=$month');
+      return await _apiServices.getGetApiResponse(
+          '${AppUrl.getDoctorEarningsByMonth}?year=$year&month=$month');
     } catch (e) {
       rethrow;
     }
@@ -320,7 +429,7 @@ class ApiServices {
 
   Future<dynamic> getDoctorBalance() async {
     try {
-      return await _apiServices.getGetApiResponse(AppUrl.get_doctor_balance);
+      return await _apiServices.getGetApiResponse(AppUrl.getDoctorBalance);
     } catch (e) {
       rethrow;
     }
@@ -328,7 +437,45 @@ class ApiServices {
 
   Future<dynamic> getDoctorUpcomingAppointments() async {
     try {
-      return await _apiServices.getGetApiResponse(AppUrl.get_doctor_upcoming_appointments);
+      return await _apiServices
+          .getGetApiResponse(AppUrl.getDoctorUpcomingAppointments);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getDoctorPastAppointments() async {
+    try {
+      return await _apiServices
+          .getGetApiResponse(AppUrl.getDoctorPastAppointments);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getDoctorCancelledAppointments() async {
+    try {
+      return await _apiServices
+          .getGetApiResponse(AppUrl.getDoctorCancelledAppointments);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> approveAppointment(String id) async {
+    try {
+      return await _apiServices.getPatchApiResponse(
+          "${AppUrl.doctorAppointmentActions}/$id/approve", {});
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> doctorCancelAppointment(String id, String reason) async {
+    try {
+      return await _apiServices.getPatchApiResponse(
+          "${AppUrl.doctorAppointmentActions}/$id/cancel",
+          {"cancelReason": reason});
     } catch (e) {
       rethrow;
     }

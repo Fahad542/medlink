@@ -1,3 +1,5 @@
+import 'package:medlink/core/constants/app_url.dart';
+
 class UserModel {
   final String id;
   final String name;
@@ -10,6 +12,7 @@ class UserModel {
   final double? weight;
   final double? height;
   final String? nextAppointment;
+  final String? lastAppointmentId;
   final String? dateOfBirth;
   final String? address;
   final String? emergencyContactName;
@@ -32,6 +35,7 @@ class UserModel {
     this.weight,
     this.height,
     this.nextAppointment,
+    this.lastAppointmentId,
     this.dateOfBirth,
     this.address,
     this.emergencyContactName,
@@ -45,49 +49,81 @@ class UserModel {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     // Some APIs nest patient details inside a 'patient' or 'profile' object
-    final profile = json['patient'] is Map<String, dynamic> 
-        ? json['patient'] 
+    final profile = json['patient'] is Map<String, dynamic>
+        ? json['patient']
         : (json['patientProfile'] is Map<String, dynamic>
             ? json['patientProfile']
-            : (json['profile'] is Map<String, dynamic> 
-                ? json['profile'] 
-                : (json['patient_profile'] is Map<String, dynamic> 
-                    ? json['patient_profile'] 
+            : (json['profile'] is Map<String, dynamic>
+                ? json['profile']
+                : (json['patient_profile'] is Map<String, dynamic>
+                    ? json['patient_profile']
                     : (json['user'] is Map<String, dynamic>
                         ? json['user']
                         : {}))));
 
     dynamic getField(String key) => json[key] ?? profile[key];
 
-    final profileImageRaw = getField('profileImage') ?? getField('profilePhotoUrl') ?? getField('profile_image') ?? getField('profile_image_url');
-    String? profileImageUrl;
-    if (profileImageRaw != null && profileImageRaw.toString().isNotEmpty) {
-      final String rawPath = profileImageRaw.toString();
-      if (rawPath.startsWith('http')) {
-        profileImageUrl = rawPath;
-      } else {
-        // Ensure relative paths from backend are converted to full URLs
-        final String cleanPath = rawPath.startsWith('/') ? rawPath.substring(1) : rawPath;
-        profileImageUrl = 'https://medlink-be-production.up.railway.app/$cleanPath';
-      }
-    }
+    final profileImageRaw = getField('profileImage') ??
+        getField('profilePhotoUrl') ??
+        getField('profile_image') ??
+        getField('profile_image_url');
+    String? profileImageUrl = AppUrl.getFullUrl(profileImageRaw?.toString());
 
     return UserModel(
-      id: getField('id')?.toString() ?? getField('_id')?.toString() ?? getField('user_id')?.toString() ?? '',
-      name: getField('name') ?? getField('fullName') ?? getField('full_name') ?? '',
+      id: getField('id')?.toString() ??
+          getField('_id')?.toString() ??
+          getField('user_id')?.toString() ??
+          '',
+      name: getField('name') ??
+          getField('fullName') ??
+          getField('full_name') ??
+          '',
       email: getField('email') ?? '',
-      phoneNumber: getField('phoneNumber') ?? getField('phone_number') ?? getField('phone') ?? getField('mobile') ?? getField('contact') ?? '',
+      phoneNumber: getField('phoneNumber') ??
+          getField('phone_number') ??
+          getField('phone') ??
+          getField('mobile') ??
+          getField('contact') ??
+          '',
       profileImage: profileImageUrl,
       gender: getField('gender') ?? getField('sex'),
-      bloodGroup: getField('bloodGroup') ?? getField('blood_group') ?? getField('blood_type') ?? getField('bloodGroup'),
-      age: getField('age') is int ? getField('age') : int.tryParse(getField('age')?.toString() ?? ''),
-      weight: getField('weight') is num ? (getField('weight') as num).toDouble() : (getField('weightKg') is num ? (getField('weightKg') as num).toDouble() : double.tryParse(getField('weight')?.toString() ?? getField('weightKg')?.toString() ?? '')),
-      height: getField('height') is num ? (getField('height') as num).toDouble() : (getField('heightCm') is num ? (getField('heightCm') as num).toDouble() : double.tryParse(getField('height')?.toString() ?? getField('heightCm')?.toString() ?? '')),
-      nextAppointment: getField('nextAppointment') ?? getField('next_appointment'),
-      dateOfBirth: getField('dateOfBirth') ?? getField('dob') ?? getField('date_of_birth') ?? getField('birth_date') ?? getField('birthDate'),
-      address: getField('address') ?? getField('location') ?? getField('residential_address') ?? getField('home_address'),
-      emergencyContactName: getField('emergencyContactName') ?? getField('emergency_contact_name'),
-      emergencyContactPhone: getField('emergencyContactPhone') ?? getField('emergency_contact_phone'),
+      bloodGroup: getField('bloodGroup') ??
+          getField('blood_group') ??
+          getField('blood_type'),
+      age: getField('age') is int
+          ? getField('age')
+          : int.tryParse(getField('age')?.toString() ?? ''),
+      weight: getField('weight') is num
+          ? (getField('weight') as num).toDouble()
+          : (getField('weightKg') is num
+              ? (getField('weightKg') as num).toDouble()
+              : double.tryParse(getField('weight')?.toString() ??
+                  getField('weightKg')?.toString() ??
+                  '')),
+      height: getField('height') is num
+          ? (getField('height') as num).toDouble()
+          : (getField('heightCm') is num
+              ? (getField('heightCm') as num).toDouble()
+              : double.tryParse(getField('height')?.toString() ??
+                  getField('heightCm')?.toString() ??
+                  '')),
+      nextAppointment:
+          getField('nextAppointment') ?? getField('next_appointment'),
+      lastAppointmentId: getField('lastAppointmentId')?.toString() ??
+          getField('last_appointment_id')?.toString(),
+      dateOfBirth: getField('dateOfBirth') ??
+          getField('dob') ??
+          getField('date_of_birth') ??
+          getField('birth_date') ??
+          getField('birthDate'),
+      address: getField('address') ??
+          getField('location') ??
+          getField('residential_address') ??
+          getField('home_address'),
+      emergencyContactName: getField('emergencyContactName') ??
+          getField('emergency_contact_name'),
+      emergencyContactPhone: getField('emergencyContactPhone') ??
+          getField('emergency_contact_phone'),
       role: getField('role') as String?,
       isActive: getField('isActive') as bool?,
       isVerified: getField('isVerified') as bool?,
@@ -109,6 +145,7 @@ class UserModel {
       'weight': weight,
       'height': height,
       'nextAppointment': nextAppointment,
+      'lastAppointmentId': lastAppointmentId,
       'dateOfBirth': dateOfBirth,
       'address': address,
       'emergencyContactName': emergencyContactName,

@@ -3,6 +3,9 @@ import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/models/ambulance_model.dart';
 import 'package:medlink/views/Patient App/consultation/chat_view.dart';
 
+import 'package:medlink/views/services/session_view_model.dart';
+import 'package:provider/provider.dart';
+
 class AmbulanceTrackingView extends StatefulWidget {
   final AmbulanceModel ambulance;
 
@@ -41,9 +44,9 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      backgroundColor: const Color(0xFF212529), // Dark background for status bar
+      backgroundColor:
+          const Color(0xFF212529), // Dark background for status bar
       appBar: AppBar(
-
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: const BackButton(color: Colors.white),
@@ -88,13 +91,13 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                       ),
                     ),
                   ),
-                   Positioned(
+                  Positioned(
                     top: 200,
                     left: -50,
                     right: -50,
                     child: Container(
                       height: 50,
-                       decoration: BoxDecoration(
+                      decoration: BoxDecoration(
                         border: Border.symmetric(
                           horizontal: BorderSide(
                               color: Colors.white.withOpacity(0.05), width: 2),
@@ -146,8 +149,8 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                               height: 60 + (40 * _pulseAnimation.value),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: AppColors.primary
-                                    .withOpacity(0.3 * (1 - _pulseAnimation.value)),
+                                color: AppColors.primary.withOpacity(
+                                    0.3 * (1 - _pulseAnimation.value)),
                               ),
                             ),
                             // Core Marker
@@ -225,7 +228,6 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                       ),
                       // Removed SizedBox spacer
 
-
                       // ETA Header (Refined)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -259,13 +261,17 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 8),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFECFDF5), // Very light green
+                              color:
+                                  const Color(0xFFECFDF5), // Very light green
                               borderRadius: BorderRadius.circular(30),
-                              border: Border.all(color: const Color(0xFF10B981).withOpacity(0.2)),
+                              border: Border.all(
+                                  color:
+                                      const Color(0xFF10B981).withOpacity(0.2)),
                             ),
                             child: const Row(
                               children: [
-                                Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF10B981)),
+                                Icon(Icons.check_circle_rounded,
+                                    size: 16, color: Color(0xFF10B981)),
                                 SizedBox(width: 6),
                                 Text(
                                   "ON TIME",
@@ -281,7 +287,7 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                           ),
                         ],
                       ),
-                      
+
                       // Collapsible Content
                       AnimatedCrossFade(
                         firstChild: Column(
@@ -295,7 +301,7 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                               children: [
                                 Container(
                                   height: 50, // Reduced from 64
-                                  width: 50,  // Reduced from 64
+                                  width: 50, // Reduced from 64
                                   decoration: BoxDecoration(
                                     color: Colors.grey[100],
                                     borderRadius: BorderRadius.circular(16),
@@ -307,7 +313,8 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                       )
                                     ],
                                     image: const DecorationImage(
-                                      image: NetworkImage('https://img.freepik.com/free-photo/portrait-smiling-male-doctor_171337-1532.jpg'),
+                                      image: NetworkImage(
+                                          'https://img.freepik.com/free-photo/portrait-smiling-male-doctor_171337-1532.jpg'),
                                       fit: BoxFit.cover,
                                     ),
                                   ),
@@ -315,7 +322,8 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                 const SizedBox(width: 16),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         children: [
@@ -328,14 +336,18 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                             ),
                                           ),
                                           const SizedBox(width: 6),
-                                          const Icon(Icons.verified, size: 16, color: AppColors.primary)
+                                          const Icon(Icons.verified,
+                                              size: 16,
+                                              color: AppColors.primary)
                                         ],
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
                                         "Paramedic • ${widget.ambulance.plateNumber}",
                                         style: TextStyle(
-                                            color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.w500),
+                                            color: Colors.grey[500],
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500),
                                       ),
                                       const SizedBox(height: 4),
                                       Row(
@@ -353,7 +365,8 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                           Text(
                                             " (112)",
                                             style: TextStyle(
-                                                color: Colors.grey[400], fontSize: 13),
+                                                color: Colors.grey[400],
+                                                fontSize: 13),
                                           ),
                                         ],
                                       ),
@@ -371,24 +384,38 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                 Expanded(
                                   child: TextButton.icon(
                                     onPressed: () {
+                                      final userVM = Provider.of<UserViewModel>(
+                                          context,
+                                          listen: false);
+                                      final currentUserId =
+                                          userVM.loginSession?.data?.user?.id ??
+                                              0;
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
                                           builder: (context) => ChatView(
-                                              recipientName:
-                                                  widget.ambulance.driverName),
+                                            recipientName:
+                                                widget.ambulance.driverName,
+                                            appointmentId: widget.ambulance
+                                                .id, // Ambulance id as placeholder
+                                            currentUserId: currentUserId,
+                                          ),
                                         ),
                                       );
                                     },
-                                    icon: Image.asset("assets/Icons/chat.png", width: 22, height: 22),
+                                    icon: Image.asset("assets/Icons/chat.png",
+                                        width: 22, height: 22),
                                     label: const Text("Message"),
                                     style: TextButton.styleFrom(
-                                      backgroundColor: const Color(0xFFF1F5F9), // Slate 100
-                                      foregroundColor: const Color(0xFF475569), // Slate 600
+                                      backgroundColor:
+                                          const Color(0xFFF1F5F9), // Slate 100
+                                      foregroundColor:
+                                          const Color(0xFF475569), // Slate 600
                                       padding: const EdgeInsets.symmetric(
                                           vertical: 18),
                                       shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(16)),
+                                          borderRadius:
+                                              BorderRadius.circular(16)),
                                     ),
                                   ),
                                 ),
@@ -398,17 +425,21 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                     onPressed: () {
                                       _showCallDriverBottomSheet(context);
                                     },
-                                    icon: const Icon(Icons.phone_rounded, size: 22),
+                                    icon: const Icon(Icons.phone_rounded,
+                                        size: 22),
                                     label: const Text("Call Driver"),
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF10B981), // Emerald 500
+                                      backgroundColor: const Color(
+                                          0xFF10B981), // Emerald 500
                                       foregroundColor: Colors.white,
                                       padding: const EdgeInsets.symmetric(
                                           vertical: 18),
                                       elevation: 0,
-                                      shadowColor: const Color(0xFF10B981).withOpacity(0.4),
+                                      shadowColor: const Color(0xFF10B981)
+                                          .withOpacity(0.4),
                                       shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(16)),
+                                          borderRadius:
+                                              BorderRadius.circular(16)),
                                     ),
                                   ),
                                 ),
@@ -465,7 +496,8 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                   shape: BoxShape.circle,
                   border: Border.all(color: AppColors.primary, width: 3),
                   image: const DecorationImage(
-                    image: NetworkImage('https://img.freepik.com/free-photo/portrait-smiling-male-doctor_171337-1532.jpg'),
+                    image: NetworkImage(
+                        'https://img.freepik.com/free-photo/portrait-smiling-male-doctor_171337-1532.jpg'),
                     fit: BoxFit.cover,
                   ),
                   boxShadow: [
@@ -489,7 +521,7 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                 ),
               ),
               const SizedBox(height: 8),
-               const Text(
+              const Text(
                 "Calling...",
                 style: TextStyle(
                   color: AppColors.primary,
@@ -498,22 +530,26 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                   letterSpacing: 1.0,
                 ),
               ),
-              
+
               const Spacer(),
-              
+
               // Action Buttons
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 60),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 40, vertical: 60),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    _buildCallActionButton(Icons.mic_off_rounded, Colors.white, Colors.grey[800]!),
-                    _buildCallActionButton(Icons.videocam_off_rounded, Colors.white, Colors.grey[800]!),
-                    _buildCallActionButton(Icons.volume_up_rounded, Colors.black, Colors.white),
+                    _buildCallActionButton(
+                        Icons.mic_off_rounded, Colors.white, Colors.grey[800]!),
+                    _buildCallActionButton(Icons.videocam_off_rounded,
+                        Colors.white, Colors.grey[800]!),
+                    _buildCallActionButton(
+                        Icons.volume_up_rounded, Colors.black, Colors.white),
                   ],
                 ),
               ),
-              
+
               Padding(
                 padding: const EdgeInsets.only(bottom: 50),
                 child: GestureDetector(
@@ -532,7 +568,8 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                         ),
                       ],
                     ),
-                    child: const Icon(Icons.call_end_rounded, color: Colors.white, size: 32),
+                    child: const Icon(Icons.call_end_rounded,
+                        color: Colors.white, size: 32),
                   ),
                 ),
               ),

@@ -1,12 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:medlink/models/user_model.dart';
+import 'package:medlink/models/doctor_model.dart';
 import 'package:medlink/models/user_login_model.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/data/network/api_services.dart';
 
-class PatientPersonalInfoViewModel extends ChangeNotifier {
+class DoctorPersonalInfoViewModel extends ChangeNotifier {
   final UserViewModel _userViewModel;
   final ApiServices _apiServices = ApiServices();
   final ImagePicker _picker = ImagePicker();
@@ -19,37 +19,40 @@ class PatientPersonalInfoViewModel extends ChangeNotifier {
 
   // Controllers
   final TextEditingController nameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
-  final TextEditingController dobController = TextEditingController();
-  final TextEditingController genderController = TextEditingController();
-  final TextEditingController bloodGroupController = TextEditingController();
-  final TextEditingController addressController = TextEditingController();
-  final TextEditingController ageController = TextEditingController();
-  final TextEditingController weightController = TextEditingController();
-  final TextEditingController heightController = TextEditingController();
+  final TextEditingController specializationController =
+      TextEditingController();
+  final TextEditingController experienceController = TextEditingController();
+  final TextEditingController bioController = TextEditingController();
+  final TextEditingController clinicNameController = TextEditingController();
+  final TextEditingController clinicAddressController = TextEditingController();
 
-  PatientPersonalInfoViewModel(this._userViewModel) {
+  DoctorPersonalInfoViewModel(this._userViewModel) {
     _initializeFields();
-    fetchPatientProfile();
+    fetchDoctorProfile();
   }
 
   void _initializeFields() {
-    final user = _userViewModel.patient;
-    if (user != null) {
-      _populateControllers(user);
+    final doctor = _userViewModel.doctor;
+    if (doctor != null) {
+      _populateControllers(doctor);
     }
   }
 
-  void _populateControllers(UserModel user) {
-    nameController.text = user.name;
-    phoneController.text = user.phoneNumber;
-    dobController.text = user.dateOfBirth ?? "";
-    genderController.text = user.gender ?? "";
-    bloodGroupController.text = user.bloodGroup ?? "";
-    addressController.text = user.address ?? "";
-    ageController.text = user.age?.toString() ?? "";
-    weightController.text = user.weight?.toString() ?? "";
-    heightController.text = user.height?.toString() ?? "";
+  void _populateControllers(DoctorModel doctor) {
+    nameController.text = doctor.name;
+    specializationController.text = doctor.specialty;
+    experienceController.text = doctor.experience ?? "";
+    bioController.text = doctor.about;
+    clinicNameController.text = doctor.hospital;
+    clinicAddressController.text = doctor.location ?? "";
+    // Note: Email and phone might need to be fetched from session or a separate profile call
+    final user = _userViewModel.loginSession?.data?.user;
+    if (user != null) {
+      emailController.text = user.email ?? "";
+      phoneController.text = user.phone ?? "";
+    }
   }
 
   Future<void> pickImage() async {
@@ -65,12 +68,12 @@ class PatientPersonalInfoViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> fetchPatientProfile() async {
+  Future<void> fetchDoctorProfile() async {
     _isLoading = true;
     notifyListeners();
 
     try {
-      final response = await _apiServices.getPatientProfile();
+      final response = await _apiServices.getDoctorProfile();
       if (response != null && response['success'] == true) {
         final Map<String, dynamic> data = response['data'];
 
@@ -81,16 +84,11 @@ class PatientPersonalInfoViewModel extends ChangeNotifier {
               _userViewModel.loginSession!.data!.accessToken;
           final currentRole = _userViewModel.loginSession!.data!.user?.role;
 
-          // Prepare the updated user data
-          // IMPORTANT: The backend might return 'fullName' but User model expects 'fullName'
-          // and UserModel.fromJson expects 'fullName' or 'name'.
-          // We ensure 'role' is preserved because the backend might not return it in the profile call.
           final Map<String, dynamic> updatedUserJson = {
             ...data,
-            'role': currentRole ?? 'PATIENT',
+            'role': currentRole ?? 'DOCTOR',
           };
 
-          // Wrap in the structure UserLoginModel expects
           final Map<String, dynamic> updatedSessionJson = {
             'success': true,
             'data': {
@@ -103,20 +101,19 @@ class PatientPersonalInfoViewModel extends ChangeNotifier {
           await _userViewModel.saveUserLoginSession(updatedLoginModel);
 
           // Update local controllers with fresh data
-          final updatedUser = UserModel.fromJson(updatedUserJson);
-          _populateControllers(updatedUser);
+          final updatedDoctor = DoctorModel.fromJson(updatedUserJson);
+          _populateControllers(updatedDoctor);
         }
       }
     } catch (e) {
-      debugPrint("Error fetching patient profile: $e");
+      debugPrint("Error fetching doctor profile: $e");
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  // Getter for profile image
-  String? get profileImage => _userViewModel.patient?.profileImage;
+  String? get profileImage => _userViewModel.doctor?.imageUrl;
 
   Future<void> saveChanges(BuildContext context) async {
     _isLoading = true;
@@ -126,21 +123,18 @@ class PatientPersonalInfoViewModel extends ChangeNotifier {
       final Map<String, String> formData = {
         "fullName": nameController.text.trim(),
         "phone": phoneController.text.trim(),
-        "dateOfBirth": dobController.text.trim(),
-        "gender": genderController.text.trim(),
-        "bloodGroup": bloodGroupController.text.trim(),
-        "address": addressController.text.trim(),
-        "age": ageController.text.trim(),
-        "weight": weightController.text.trim(),
-        "height": heightController.text.trim(),
+        "specialization": specializationController.text.trim(),
+        "experienceInYears": experienceController.text.trim(),
+        "bio": bioController.text.trim(),
+        "clinicName": clinicNameController.text.trim(),
+        "clinicAddress": clinicAddressController.text.trim(),
       };
 
       final response =
-          await _apiServices.updatePatientProfile(formData, _imageFile);
+          await _apiServices.updateDoctorProfile(formData, _imageFile);
 
       if (response != null && response['success'] == true) {
-        // Fetch the updated profile to sync local state
-        await fetchPatientProfile();
+        await fetchDoctorProfile();
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
