@@ -1,12 +1,13 @@
 class AppUrl {
   /// Base URL
-  // static const String baseUrl = 'https://medlink-be-production.up.railway.app';
+  //static const String baseUrl = 'https://medlink-be-production.up.railway.app';
 
-  static const String baseUrl = 'http://192.168.100.59:3000';
+  // static const String baseUrl = 'http://192.168.100.78:3000'; // Real IP (for physical devices)
+  static const String baseUrl =
+      'http://10.0.2.2:3000'; // Emulator Magic IP (points to your machine)
 
   /// Auth Endpoints
   static const String register = '${baseUrl}/auth/register';
-  static const String loginEndPoint = '${baseUrl}/auth/login';
   static const String checkEmail = '$register/email/step1';
   static const String verifyEmail = '$register/email/step2';
 
@@ -27,6 +28,9 @@ class AppUrl {
   static const String doctorRegisterStep2 = '${baseUrl}/auth/doctor/verify-otp';
   static const String doctorRegisterStep3 = '${baseUrl}/auth/doctor/register';
 
+  /// Common Auth Endpoints
+  static const String loginEndPoint = '${baseUrl}/auth/login';
+
   /// Patient App Endpoints
   static const String getPatientProfile = '${baseUrl}/patient/profile';
   static const String updatePatientProfile = '${baseUrl}/patient/profile';
@@ -43,6 +47,12 @@ class AppUrl {
   static const String getPastAppointments =
       '${baseUrl}/patient/appointments/past';
   static const String getHealthArticles = '${baseUrl}/patient/health-articles';
+  static const String getPatientPrescriptions =
+      '${baseUrl}/patient/prescriptions';
+  static const String getPrescriptionByAppointment =
+      '${baseUrl}/patient/prescriptions/by-appointment'; // /{id}
+  static const String uploadTestReport =
+      '${baseUrl}/patient/prescriptions'; // /{id}/tests/{testId}/report
 
   /// Doctor App Endpoints
   static const String getDoctorProfile = '${baseUrl}/doctor/profile-details';
@@ -57,8 +67,10 @@ class AppUrl {
       '${baseUrl}/doctor/appointments/past';
   static const String getDoctorCancelledAppointments =
       '${baseUrl}/doctor/appointments/cancelled';
+  static const String updateDoctorAvailability =
+      '${baseUrl}/doctor/availability';
   static const String doctorAppointmentActions =
-      '${baseUrl}/doctor/appointments'; // Will append /:id/approve or /:id/cancel dynamically
+      '${baseUrl}/doctor/appointments'; // /{id}/approve or /{id}/cancel or /{id}/consultation
 
   /// Common/Appointments Endpoints
   static const String getAppointments = '${baseUrl}/appointments/patient';

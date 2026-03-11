@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class Step3Otp extends StatefulWidget {
   final String phoneNumber;
+  final String? debugOtp; // Add this
   final Function(String) onNext;
   final VoidCallback onResend;
   final bool isLoading;
@@ -14,6 +16,7 @@ class Step3Otp extends StatefulWidget {
   const Step3Otp({
     super.key,
     required this.phoneNumber,
+    this.debugOtp, // Add this
     required this.onNext,
     required this.onResend,
     this.isLoading = false,
@@ -97,6 +100,36 @@ class _Step3OtpState extends State<Step3Otp> {
             ),
           ),
           const SizedBox(height: 32), // Reduced from 48
+
+          if (kDebugMode)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.amber.shade200),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.bug_report_outlined,
+                        size: 16, color: Colors.amber.shade800),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Debug OTP: ${widget.debugOtp ?? 'Checking console...'}",
+                      style: TextStyle(
+                        color: Colors.amber.shade900,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
           Row(
             mainAxisAlignment:

@@ -59,10 +59,11 @@ class NetworkApiService extends BaseApiServices {
       final headers = await _getHeaders();
       final response = await http
           .get(Uri.parse(url), headers: headers)
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 30));
       responseJson = returnResponse(response);
-    } on SocketException {
-      throw FetchDataException('No Internet Connection');
+    } on SocketException catch (e) {
+      if (kDebugMode) print("SocketException for $url: $e");
+      throw FetchDataException('No Internet Connection or Server Unreachable');
     }
 
     return responseJson;
@@ -81,11 +82,12 @@ class NetworkApiService extends BaseApiServices {
             body: body,
             headers: headers,
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 30));
 
       responseJson = returnResponse(response);
-    } on SocketException {
-      throw FetchDataException('No Internet Connection');
+    } on SocketException catch (e) {
+      if (kDebugMode) print("SocketException for $url: $e");
+      throw FetchDataException('No Internet Connection or Server Unreachable');
     }
 
     return responseJson;
@@ -104,11 +106,12 @@ class NetworkApiService extends BaseApiServices {
             body: body,
             headers: headers,
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 30));
 
       responseJson = returnResponse(response);
-    } on SocketException {
-      throw FetchDataException('No Internet Connection');
+    } on SocketException catch (e) {
+      if (kDebugMode) print("SocketException for $url: $e");
+      throw FetchDataException('No Internet Connection or Server Unreachable');
     }
 
     return responseJson;
@@ -165,8 +168,9 @@ class NetworkApiService extends BaseApiServices {
           await request.send().timeout(const Duration(seconds: 20));
       final response = await http.Response.fromStream(streamedResponse);
       responseJson = returnResponse(response);
-    } on SocketException {
-      throw FetchDataException('No Internet Connection');
+    } on SocketException catch (e) {
+      if (kDebugMode) print("SocketException for $url: $e");
+      throw FetchDataException('No Internet Connection or Server Unreachable');
     }
     return responseJson;
   }
@@ -211,11 +215,12 @@ class NetworkApiService extends BaseApiServices {
       }
 
       final streamedResponse =
-          await request.send().timeout(const Duration(seconds: 25));
+          await request.send().timeout(const Duration(seconds: 30));
       final response = await http.Response.fromStream(streamedResponse);
       responseJson = returnResponse(response);
-    } on SocketException {
-      throw FetchDataException('No Internet Connection');
+    } on SocketException catch (e) {
+      if (kDebugMode) print("SocketException for $url: $e");
+      throw FetchDataException('No Internet Connection or Server Unreachable');
     }
     return responseJson;
   }
@@ -280,12 +285,13 @@ class NetworkApiService extends BaseApiServices {
       }
 
       final streamedResponse =
-          await request.send().timeout(const Duration(seconds: 25));
+          await request.send().timeout(const Duration(seconds: 30));
       final response = await http.Response.fromStream(streamedResponse);
 
       responseJson = returnResponse(response);
-    } on SocketException {
-      throw FetchDataException('No Internet Connection');
+    } on SocketException catch (e) {
+      if (kDebugMode) print("SocketException for $url: $e");
+      throw FetchDataException('No Internet Connection or Server Unreachable');
     }
 
     return responseJson;

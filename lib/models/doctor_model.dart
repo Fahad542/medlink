@@ -90,9 +90,10 @@ class DoctorModel {
       experience: (getField('experience_years') ??
               getField('experience') ??
               getField('yearsExperience') ??
+              getField('experienceInYears') ??
               0)
           .toString(),
-      location: getField('location') ?? 'Unknown Location',
+      location: getField('clinicAddress') ?? getField('location') ?? 'Unknown Location',
       availabilityDays: (getField('availabilityDays') as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??

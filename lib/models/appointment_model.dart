@@ -13,6 +13,32 @@ enum AppointmentStatus {
 
 enum AppointmentType { online, inPerson }
 
+class PrescriptionModel {
+  final String id;
+  final String? diagnosis;
+  final String? notes;
+  final List<dynamic>? items;
+  final List<dynamic>? tests;
+
+  PrescriptionModel({
+    required this.id,
+    this.diagnosis,
+    this.notes,
+    this.items,
+    this.tests,
+  });
+
+  factory PrescriptionModel.fromJson(Map<String, dynamic> json) {
+    return PrescriptionModel(
+      id: json['id']?.toString() ?? '',
+      diagnosis: json['diagnosis'],
+      notes: json['notes'],
+      items: json['items'],
+      tests: json['tests'],
+    );
+  }
+}
+
 class AppointmentModel {
   final String id;
   final String doctorId;
@@ -23,6 +49,8 @@ class AppointmentModel {
   final String? reason;
   final DoctorModel? doctor; // For UI convenience
   final UserModel? user;
+  final Map<String, dynamic>? vitals;
+  final PrescriptionModel? prescription;
 
   AppointmentModel({
     required this.id,
@@ -34,6 +62,8 @@ class AppointmentModel {
     this.reason,
     this.doctor,
     this.user,
+    this.vitals,
+    this.prescription,
   });
 
   factory AppointmentModel.fromJson(Map<String, dynamic> json) {
@@ -98,6 +128,10 @@ class AppointmentModel {
       reason: json['reason'],
       doctor: doctorModel,
       user: patientModel,
+      vitals: json['vitals'],
+      prescription: json['prescription'] != null
+          ? PrescriptionModel.fromJson(json['prescription'])
+          : null,
     );
   }
 

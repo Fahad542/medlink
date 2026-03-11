@@ -11,6 +11,7 @@ import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/views/Patient App/consultation/chat_view.dart';
 import 'package:medlink/views/Patient App/consultation/waiting_room_view.dart';
 
+import 'package:medlink/views/doctor/Consultation/submit_consultation_view.dart';
 import '../../models/user_model.dart';
 import 'package:medlink/views/doctor/past_appointments_view.dart';
 import 'package:medlink/views/doctor/Doctor%20Patient%20Dashboard/appointment_detail_view.dart';
@@ -215,8 +216,20 @@ class DoctorAppointmentCard extends StatelessWidget {
             color: Colors.transparent,
             child: InkWell(
               onTap: () {
-                if (appointment.status == AppointmentStatus.upcoming ||
-                    appointment.status == AppointmentStatus.cancelled) {
+                final bool isDone =
+                    appointment.status == AppointmentStatus.completed ||
+                        appointment.prescription != null;
+
+                if (isDone) {
+                  // Show prescription detail for completed appointments or those with data
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            SubmitConsultationView(appointment: appointment)),
+                  );
+                } else if (appointment.status == AppointmentStatus.cancelled) {
+                  // Show patient history for cancelled appointments
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -236,14 +249,19 @@ class DoctorAppointmentCard extends StatelessWidget {
                               ),
                             )),
                   );
-                } else {
+                } else if (appointment.status == AppointmentStatus.confirmed ||
+                    appointment.status == AppointmentStatus.pending) {
+                  // Allow consultation for both CONFIRMED and PENDING
                   Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) => const AppointmentDetailView(
-                              title: "General Checkup",
-                              date: "12 Dec, 04:30 PM",
-                              reason: "Viral Infection")));
+                          builder: (_) => SubmitConsultationView(
+                              appointment: appointment)));
+                } else {
+                  // For other statuses (cancelled, etc.)
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content:
+                          Text("Cannot start consultation for this visit")));
                 }
               },
               borderRadius: BorderRadius.circular(16),
@@ -345,7 +363,7 @@ class DoctorAppointmentCard extends StatelessWidget {
             ),
           ),
 
-          // Bottom Actions for Upcoming (Cancel & Reschedule)
+          // Bottom Actions for Unconfirmed (Request Confirmation)
 
           if (appointment.status == AppointmentStatus.unconfirmed) ...[
             const SizedBox(height: 12),
@@ -485,6 +503,21 @@ class DoctorAppointmentCard extends StatelessWidget {
                     MaterialPageRoute(
                         builder: (_) => WaitingRoomView(
                             callTargetName: patientName, isDoctor: true)));
+              },
+            ),
+            _buildBSActionItem(
+              context,
+              iconData: Icons.task_alt_rounded,
+              title: "Complete Consultation",
+              subtitle: "Submit medical findings and prescription",
+              color: AppColors.primary,
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            SubmitConsultationView(appointment: appointment)));
               },
             ),
             _buildBSActionItem(

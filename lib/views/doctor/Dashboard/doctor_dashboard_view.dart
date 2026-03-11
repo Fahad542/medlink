@@ -612,17 +612,6 @@ class DoctorDashboardView extends StatelessWidget {
 
   Widget _buildAppointmentCard(
       BuildContext context, AppointmentModel appointment) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>
-                AppointmentDetailsEditView(appointment: appointment),
-          ),
-        );
-      },
-      child: DoctorAppointmentCard(appointment: appointment),
-    );
+    return DoctorAppointmentCard(appointment: appointment);
   }
 }

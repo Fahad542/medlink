@@ -166,6 +166,7 @@ class _RegisterViewState extends State<RegisterView> {
 
     final commonStep2 = Step3Otp(
       phoneNumber: authViewModel.phoneController.text,
+      debugOtp: authViewModel.debugOtp, // Add this line
       isLoading: authViewModel.loading,
       isResendLoading: authViewModel.resendLoading,
       onNext: (otp) async {

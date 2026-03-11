@@ -343,6 +343,16 @@ class ApiServices {
     }
   }
 
+  Future<dynamic> completeAppointment(String appointmentId) async {
+    try {
+      final url =
+          '${AppUrl.baseUrl}/patient/appointments/$appointmentId/complete';
+      return await _apiServices.getPatchApiResponse(url, {});
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<dynamic> getUpcomingAppointments() async {
     try {
       return await _apiServices
@@ -476,6 +486,60 @@ class ApiServices {
       return await _apiServices.getPatchApiResponse(
           "${AppUrl.doctorAppointmentActions}/$id/cancel",
           {"cancelReason": reason});
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> submitConsultation(
+      String appointmentId, Map<String, dynamic> data) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        "${AppUrl.doctorAppointmentActions}/$appointmentId/consultation",
+        jsonEncode(data),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getPatientPrescriptions() async {
+    try {
+      return await _apiServices
+          .getGetApiResponse(AppUrl.getPatientPrescriptions);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getPrescriptionByAppointment(String appointmentId) async {
+    try {
+      return await _apiServices.getGetApiResponse(
+          "${AppUrl.getPrescriptionByAppointment}/$appointmentId");
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> uploadTestReport(
+      String prescriptionId, String testId, File file) async {
+    try {
+      // /{prescriptionId}/tests/{testId}/report
+      final url =
+          "${AppUrl.uploadTestReport}/$prescriptionId/tests/$testId/report";
+      return await _apiServices.getPatchMultipartApiResponse(url, {}, file,
+          fileKey: 'report');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> updateDoctorAvailability(bool isAvailable) async {
+    try {
+      return await _apiServices.getPatchApiResponse(
+        AppUrl.updateDoctorAvailability,
+        {"isAvailable": isAvailable},
+      );
     } catch (e) {
       rethrow;
     }

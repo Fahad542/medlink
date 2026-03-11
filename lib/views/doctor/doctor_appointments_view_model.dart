@@ -88,6 +88,20 @@ class DoctorAppointmentsViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> approveAppointment(String id) async {
+    try {
+      final response = await _apiServices.approveAppointment(id);
+      if (response != null && response['success'] == true) {
+        await fetchAllAppointments();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint("Error approving appointment: $e");
+      return false;
+    }
+  }
+
   Future<bool> cancelAppointment(String id, String reason) async {
     try {
       final response = await _apiServices.doctorCancelAppointment(id, reason);

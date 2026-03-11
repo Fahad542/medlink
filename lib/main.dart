@@ -17,6 +17,7 @@ import 'package:medlink/views/Login/login_view.dart';
 import 'package:medlink/views/Onboarding/splash_view.dart';
 import 'package:medlink/views/doctor/doctor_appointments_view_model.dart';
 import 'package:medlink/views/doctor/Doctor%20patients/doctor_patients_view_model.dart';
+import 'package:medlink/views/Patient App/prescriptions/prescription_view_model.dart';
 // import 'package:medlink/views/home/home_view.dart'; // Removed direct access
 
 import 'package:flutter/services.dart';
@@ -24,7 +25,7 @@ import 'package:flutter/services.dart';
 void main() {
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.light, 
+    statusBarIconBrightness: Brightness.light,
   ));
   runApp(const MedLinkApp());
 }
@@ -42,11 +43,13 @@ class MedLinkApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => DoctorViewModel()),
         ChangeNotifierProvider(create: (_) => AppointmentViewModel()),
         ChangeNotifierProvider(create: (_) => ProfileViewModel()),
-        ChangeNotifierProvider(create: (_) => UserViewModel()), // Session Management
+        ChangeNotifierProvider(
+            create: (_) => UserViewModel()), // Session Management
         ChangeNotifierProvider(create: (_) => LoginViewModel()),
         ChangeNotifierProvider(create: (_) => HealthHubViewModel()),
         ChangeNotifierProvider(create: (_) => DoctorAppointmentsViewModel()),
         ChangeNotifierProvider(create: (_) => DoctorPatientsViewModel()),
+        ChangeNotifierProvider(create: (_) => PrescriptionViewModel()),
       ],
       child: MaterialApp(
         title: 'MedLink Africa',
@@ -66,7 +69,7 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     // Basic auth check using the global user state
     final userViewModel = Provider.of<UserViewModel>(context);
-    
+
     if (userViewModel.patient != null) {
       return const MainScreen();
     } else if (userViewModel.doctor != null) {
@@ -74,7 +77,7 @@ class AuthWrapper extends StatelessWidget {
     } else if (userViewModel.driver != null) {
       return const AmbulanceMainView();
     }
-    
+
     return const LoginView();
   }
 }

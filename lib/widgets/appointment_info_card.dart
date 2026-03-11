@@ -8,8 +8,10 @@ import 'package:medlink/views/doctor/Doctor%20profile/doctor_profile_view.dart';
 import 'package:provider/provider.dart';
 import 'package:medlink/views/Patient App/appointment/appointment_viewmodel.dart';
 import 'package:medlink/utils/utils.dart';
+import 'package:medlink/data/network/api_services.dart';
 
 import 'package:medlink/views/services/session_view_model.dart';
+
 class AppointmentInfoCard extends StatelessWidget {
   final AppointmentModel appointment;
   final bool showConfirmationActions;
@@ -409,7 +411,9 @@ class AppointmentInfoCard extends StatelessWidget {
     );
   }
 
-  void _showPrescriptionSheet(BuildContext context) {
+  void _showPrescriptionSheet(BuildContext context,
+      {AppointmentModel? updatedAppointment}) {
+    final displayAppointment = updatedAppointment ?? appointment;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -453,11 +457,11 @@ class AppointmentInfoCard extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF1E293B)),
                       ),
-                      Text(
-                        "Issued on ${DateFormat('MMM d, yyyy').format(DateTime.now())}",
-                        style: TextStyle(
-                            color: Colors.grey.shade500, fontSize: 13),
-                      )
+                      // Text(
+                      //   "Issued on ${DateFormat('MMM d, yyyy').format(displayAppointment.prescription. ?? DateTime.now())}",
+                      //   style: TextStyle(
+                      //       color: Colors.grey.shade500, fontSize: 13),
+                      // )
                     ],
                   ),
                   IconButton(
@@ -508,8 +512,11 @@ class AppointmentInfoCard extends StatelessWidget {
                             child: CircleAvatar(
                               radius: 28,
                               backgroundImage: NetworkImage(
-                                  appointment.doctor?.imageUrl ??
+                                  displayAppointment.doctor?.imageUrl ??
                                       'https://via.placeholder.com/150'),
+                              onBackgroundImageError: (exception, stackTrace) {
+                                debugPrint("Image load error: $exception");
+                              },
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -517,13 +524,14 @@ class AppointmentInfoCard extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "Dr. ${appointment.doctor?.name ?? 'Doctor'}",
+                                "${displayAppointment.doctor?.name ?? 'Doctor'}",
                                 style: const TextStyle(
                                     fontWeight: FontWeight.bold, fontSize: 16),
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                appointment.doctor?.specialty ?? "Specialist",
+                                displayAppointment.doctor?.specialty ??
+                                    "Specialist",
                                 style: TextStyle(
                                     color: AppColors.primary.withOpacity(0.8),
                                     fontWeight: FontWeight.w500,
@@ -531,7 +539,7 @@ class AppointmentInfoCard extends StatelessWidget {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                "License ID: 893421",
+                                "License ID: ${displayAppointment.doctor?.id != null && displayAppointment.doctor!.id.length >= 6 ? displayAppointment.doctor!.id.substring(0, 6).toUpperCase() : 'VERIFIED'}",
                                 style: TextStyle(
                                     color: Colors.grey.shade500, fontSize: 12),
                               ),
@@ -543,38 +551,46 @@ class AppointmentInfoCard extends StatelessWidget {
                     const SizedBox(height: 32),
 
                     // Medicines Section
-                    // Medicines Section
-                    Text(
-                      "Prescribed Medicines",
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey.shade800),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildMedicineItem("Amoxicillin 500mg", "1 Tablet",
-                        "Twice daily (After Food)", "5 Days"),
-                    _buildMedicineItem("Paracetamol 650mg", "1 Tablet",
-                        "SOS (For Fever > 100°F)", "3 Days"),
-                    _buildMedicineItem("Cetirizine 10mg", "1 Tablet",
-                        "Once daily (Night)", "5 Days"),
+                    if (displayAppointment.prescription?.items != null &&
+                        displayAppointment.prescription!.items!.isNotEmpty) ...[
+                      Text(
+                        "Prescribed Medicines",
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade800),
+                      ),
+                      const SizedBox(height: 16),
+                      ...displayAppointment.prescription!.items!.map((med) {
+                        return _buildMedicineItem(
+                          med['medicineName'] ?? "Medicine",
+                          med['dosage'] ?? "N/A",
+                          med['frequency'] ?? "N/A",
+                          med['duration'] ?? "As needed",
+                        );
+                      }).toList(),
+                    ],
 
                     const SizedBox(height: 32),
 
                     // Tests Section
-                    // Tests Section
-                    Text(
-                      "Recommended Tests",
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey.shade800),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildTestItem("Complete Blood Count (CBC)",
-                        "Check for infection levels"),
-                    _buildTestItem(
-                        "Typhoid Test (Widal)", "Screening for fever cause"),
+                    if (displayAppointment.prescription?.tests != null &&
+                        displayAppointment.prescription!.tests!.isNotEmpty) ...[
+                      Text(
+                        "Recommended Tests",
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey.shade800),
+                      ),
+                      const SizedBox(height: 16),
+                      ...displayAppointment.prescription!.tests!.map((test) {
+                        return _buildTestItem(
+                          test['testName'] ?? "Medical Test",
+                          test['notes'] ?? "Recommended by doctor",
+                        );
+                      }).toList(),
+                    ],
 
                     const SizedBox(height: 32),
 
@@ -595,27 +611,11 @@ class AppointmentInfoCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: Colors.grey.shade200),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            "• Drink at least 3 liters of water daily.",
-                            style:
-                                TextStyle(color: Colors.black87, height: 1.5),
-                          ),
-                          const Text(
-                            "• Avoid spicy and oily food.",
-                            style:
-                                TextStyle(color: Colors.black87, height: 1.5),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            "Follow up in 5 days if symptoms persist.",
-                            style: TextStyle(
-                                color: AppColors.primary.withOpacity(0.8),
-                                fontWeight: FontWeight.w500),
-                          ),
-                        ],
+                      child: Text(
+                        displayAppointment.prescription?.notes ??
+                            "No additional notes provided.",
+                        style:
+                            const TextStyle(color: Colors.black87, height: 1.5),
                       ),
                     ),
                     const SizedBox(height: 40), // Bottom padding
@@ -636,31 +636,73 @@ class AppointmentInfoCard extends StatelessWidget {
                       offset: const Offset(0, -5)),
                 ],
               ),
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text("Downloading Prescription...")));
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 18),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
-                  elevation: 0,
-                  shadowColor: Colors.transparent,
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.download_rounded, size: 22),
-                    SizedBox(width: 8),
-                    Text("Download Prescription",
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold)),
-                  ],
-                ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (displayAppointment.status != AppointmentStatus.completed)
+                    ElevatedButton(
+                      onPressed: () async {
+                        final vm = Provider.of<AppointmentViewModel>(context,
+                            listen: false);
+                        bool success =
+                            await vm.completeAppointment(displayAppointment.id);
+                        if (success && context.mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text(
+                                      "Appointment Marked as Completed!")));
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 18),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
+                        elevation: 0,
+                        minimumSize: const Size(double.infinity, 54),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.check_circle_outline),
+                          SizedBox(width: 10),
+                          Text("Complete Appointment",
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  if (displayAppointment.status != AppointmentStatus.completed)
+                    const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text("Downloading Prescription...")));
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                      minimumSize: const Size(double.infinity, 54),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.download_rounded, size: 22),
+                        SizedBox(width: 8),
+                        Text("Download Prescription",
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -873,7 +915,10 @@ class AppointmentInfoCard extends StatelessWidget {
     Color statusColor = AppColors.primary;
     String statusText = "Upcoming";
 
-    if (appointment.status == AppointmentStatus.completed) {
+    final bool isDone = appointment.status == AppointmentStatus.completed ||
+        appointment.prescription != null;
+
+    if (isDone) {
       statusBg = Colors.green.withOpacity(0.1);
       statusColor = Colors.green;
       statusText = "Completed";
@@ -882,102 +927,134 @@ class AppointmentInfoCard extends StatelessWidget {
       statusColor = Colors.red;
       statusText = "Cancelled";
     } else if (appointment.status == AppointmentStatus.unconfirmed) {
-      statusBg = Colors.orange.withOpacity(0.1);
-      statusColor = Colors.orange; // Reverted to Orange as requested
+      statusBg = Colors.orange;
+      statusColor = Colors.white;
       statusText = "Unconfirmed";
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.withOpacity(0.1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.08),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              // Doctor Image
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.grey.withOpacity(0.1)),
-                ),
-                child: ClipOval(
-                  child: Image.network(
-                    appointment.doctor?.imageUrl ??
-                        'https://via.placeholder.com/150',
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: Colors.grey[200],
-                        child: const Icon(Icons.person, color: Colors.grey),
-                      );
-                    },
+    return GestureDetector(
+      onTap: () async {
+        if (isDone) {
+          _showPrescriptionSheet(context);
+        } else {
+          // PROACTIVE CHECK: If it's NOT done, check if a prescription exists (list API might have missed it)
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) =>
+                const Center(child: CircularProgressIndicator()),
+          );
+
+          try {
+            final api = ApiServices();
+            final response =
+                await api.getPrescriptionByAppointment(appointment.id);
+
+            if (context.mounted) Navigator.pop(context); // Close loader
+
+            if (response != null &&
+                response['success'] == true &&
+                response['data'] != null) {
+              final fullAppointment =
+                  AppointmentModel.fromJson(response['data']);
+              if (fullAppointment.prescription != null) {
+                // If found, update local model and show prescription
+                if (context.mounted) {
+                  _showPrescriptionSheet(context,
+                      updatedAppointment: fullAppointment);
+                }
+                return;
+              }
+            }
+          } catch (e) {
+            if (context.mounted) Navigator.pop(context);
+            debugPrint("Error checking for prescription: $e");
+          }
+
+          // If no prescription found, show normal options
+          if (context.mounted) _showAppointmentOptions(context);
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.grey.withOpacity(0.1)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.08),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                // Doctor Image
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.grey.withOpacity(0.1)),
+                  ),
+                  child: ClipOval(
+                    child: Image.network(
+                      appointment.doctor?.imageUrl ??
+                          'https://via.placeholder.com/150',
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey[200],
+                          child: const Icon(Icons.person, color: Colors.grey),
+                        );
+                      },
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              // Info Column
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      appointment.doctor?.name ?? "Doctor",
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                          color: Color(0xFF1E293B)),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      appointment.doctor?.specialty ?? "Specialist",
-                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Icon(Icons.access_time_rounded,
-                            size: 14,
-                            color: AppColors.primary.withOpacity(0.7)),
-                        const SizedBox(width: 4),
-                        Text(
-                          DateFormat('MMM d, h:mm a')
-                              .format(appointment.dateTime),
-                          style: TextStyle(
-                              color: AppColors.primary.withOpacity(0.8),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              // Action Button (3-dots for Upcoming, Status for others)
-              if (appointment.status == AppointmentStatus.upcoming)
-                InkWell(
-                  onTap: () => _showAppointmentOptions(context),
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    child:
-                        const Icon(Icons.more_vert_rounded, color: Colors.grey),
+                const SizedBox(width: 12),
+                // Info Column
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        appointment.doctor?.name ?? "Doctor",
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: Color(0xFF1E293B)),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        appointment.doctor?.specialty ?? "Specialist",
+                        style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Icon(Icons.access_time_rounded,
+                              size: 14,
+                              color: AppColors.primary.withOpacity(0.7)),
+                          const SizedBox(width: 4),
+                          Text(
+                            DateFormat('MMM d, h:mm a')
+                                .format(appointment.dateTime),
+                            style: TextStyle(
+                                color: AppColors.primary.withOpacity(0.8),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                )
-              else
+                ),
+                // Action Button (Status Badge)
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -991,51 +1068,53 @@ class AppointmentInfoCard extends StatelessWidget {
                         color: statusColor),
                   ),
                 ),
-            ],
-          ),
-
-          // Bottom Actions ONLY if enabled and upcoming
-          if (showConfirmationActions &&
-              appointment.status == AppointmentStatus.unconfirmed) ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => _showPrescriptionSheet(context),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 0),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                      side: BorderSide(color: Colors.grey.shade300),
-                      foregroundColor: Colors.grey.shade700,
-                      minimumSize: const Size(0, 32),
-                    ),
-                    child: const Text("See Prescription",
-                        style: TextStyle(fontSize: 12)),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => _showConfirmSessionDialog(context),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 0),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                      side: const BorderSide(color: AppColors.primary),
-                      backgroundColor: Colors.white,
-                      foregroundColor: AppColors.primary,
-                      minimumSize: const Size(0, 32),
-                    ),
-                    child: const Text("Confirm Session",
-                        style: TextStyle(fontSize: 12)),
-                  ),
-                ),
               ],
             ),
-          ]
-        ],
+
+            // Bottom Actions ONLY if enabled and upcoming
+            if (showConfirmationActions &&
+                !isDone &&
+                appointment.status == AppointmentStatus.unconfirmed) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _showPrescriptionSheet(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 0),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                        side: BorderSide(color: Colors.grey.shade300),
+                        foregroundColor: Colors.grey.shade700,
+                        minimumSize: const Size(0, 32),
+                      ),
+                      child: const Text("See Prescription",
+                          style: TextStyle(fontSize: 12)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => _showConfirmSessionDialog(context),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 0),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                        side: const BorderSide(color: AppColors.primary),
+                        backgroundColor: Colors.white,
+                        foregroundColor: AppColors.primary,
+                        minimumSize: const Size(0, 32),
+                      ),
+                      child: const Text("Confirm Session",
+                          style: TextStyle(fontSize: 12)),
+                    ),
+                  ),
+                ],
+              ),
+            ]
+          ],
+        ),
       ),
     );
   }

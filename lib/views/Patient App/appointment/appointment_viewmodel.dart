@@ -89,6 +89,21 @@ class AppointmentViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> completeAppointment(String appointmentId) async {
+    try {
+      final response = await _apiService.completeAppointment(appointmentId);
+      if (response != null && response['success'] == true) {
+        _upcomingAppointments.removeWhere((a) => a.id == appointmentId);
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print("Error completing appointment: $e");
+      return false;
+    }
+  }
+
   Future<void> loadUpcomingAppointments() async {
     _isLoading = true;
     notifyListeners();

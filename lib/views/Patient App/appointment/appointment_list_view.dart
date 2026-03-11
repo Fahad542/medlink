@@ -63,28 +63,7 @@ class _AppointmentListViewState extends State<AppointmentListView>
 
   @override
   Widget build(BuildContext context) {
-    // We'll filter real data for the tabs
     final appointmentVM = Provider.of<AppointmentViewModel>(context);
-    final upcoming = appointmentVM.appointments
-        .where((a) =>
-            a.status == AppointmentStatus.upcoming ||
-            a.status == AppointmentStatus.pending ||
-            a.status == AppointmentStatus.confirmed)
-        .toList();
-
-    // Past appointments logic: dateTime < now AND NOT cancelled AND NOT upcoming
-    final past = appointmentVM.appointments
-        .where((a) =>
-            a.dateTime.isBefore(DateTime.now()) &&
-            a.status != AppointmentStatus.cancelled &&
-            a.status != AppointmentStatus.upcoming &&
-            a.status != AppointmentStatus.pending &&
-            a.status != AppointmentStatus.confirmed)
-        .toList();
-
-    final cancelled = appointmentVM.appointments
-        .where((a) => a.status == AppointmentStatus.cancelled)
-        .toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -135,14 +114,18 @@ class _AppointmentListViewState extends State<AppointmentListView>
                 RefreshIndicator(
                     onRefresh: () => _fetchAppointmentsForTab(0),
                     child: _buildAppointmentList(
-                        upcoming, "No upcoming appointments")),
+                        appointmentVM.upcomingAppointments,
+                        "No upcoming appointments")),
                 RefreshIndicator(
                     onRefresh: () => _fetchAppointmentsForTab(1),
-                    child: _buildAppointmentList(past, "No past appointments")),
+                    child: _buildAppointmentList(
+                        appointmentVM.pastAppointments,
+                        "No past appointments")),
                 RefreshIndicator(
                     onRefresh: () => _fetchAppointmentsForTab(2),
                     child: _buildAppointmentList(
-                        cancelled, "No canceled appointments")),
+                        appointmentVM.cancelledAppointments,
+                        "No canceled appointments")),
               ],
             ),
     );

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
-import 'package:medlink/views/Patient App/history/medical_history_detail_view.dart';
+import 'medical_history_detail_view.dart';
 
 class HistoryView extends StatelessWidget {
   const HistoryView({super.key});
@@ -28,15 +28,15 @@ class HistoryView extends StatelessWidget {
         "status": "Delivered"
       },
       {
-         "title": "Video Consultation",
+        "title": "Video Consultation",
         "subtitle": "Dr. Emily Davis • Dermatologist",
         "date": "20 Aug 2025",
         "time": "2:15 PM",
         "type": "Consultation",
         "status": "Completed"
       },
-       {
-         "title": "Blood Test",
+      {
+        "title": "Blood Test",
         "subtitle": "City Lab Center",
         "date": "10 Aug 2025",
         "time": "9:00 AM",
@@ -55,7 +55,7 @@ class HistoryView extends StatelessWidget {
           final item = historyItems[index];
           final isAppointment = item['type'] == 'Appointment';
           final isPrescription = item['type'] == 'Prescription';
-          
+
           IconData icon;
           Color iconColor;
           Color iconBg;
@@ -65,16 +65,15 @@ class HistoryView extends StatelessWidget {
             iconColor = Colors.orange;
             iconBg = Colors.orange.withOpacity(0.1);
           } else if (isPrescription) {
-             icon = Icons.medication_outlined;
+            icon = Icons.medication_outlined;
             iconColor = Colors.green;
             iconBg = Colors.green.withOpacity(0.1);
           } else if (item['type'] == 'Lab Test') {
-             icon = Icons.biotech_rounded;
+            icon = Icons.biotech_rounded;
             iconColor = Colors.purple;
             iconBg = Colors.purple.withOpacity(0.1);
-          }
-          else {
-             icon = Icons.video_camera_front_outlined;
+          } else {
+            icon = Icons.video_camera_front_outlined;
             iconColor = Colors.blue;
             iconBg = Colors.blue.withOpacity(0.1);
           }
@@ -84,7 +83,8 @@ class HistoryView extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => MedicalHistoryDetailView(historyItem: item),
+                  builder: (context) =>
+                      MedicalHistoryDetailView(historyItem: item),
                 ),
               );
             },
@@ -109,7 +109,7 @@ class HistoryView extends StatelessWidget {
                     child: Icon(icon, color: iconColor, size: 24),
                   ),
                   const SizedBox(width: 16),
-                  
+
                   // Details
                   Expanded(
                     child: Column(
@@ -136,7 +136,7 @@ class HistoryView extends StatelessWidget {
                       ],
                     ),
                   ),
-                  
+
                   // Date/Status
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
@@ -151,14 +151,18 @@ class HistoryView extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: Colors.grey[100],
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                           item['status']!,
-                           style: GoogleFonts.inter(fontSize: 10, color: Colors.grey[700], fontWeight: FontWeight.bold),
+                          item['status']!,
+                          style: GoogleFonts.inter(
+                              fontSize: 10,
+                              color: Colors.grey[700],
+                              fontWeight: FontWeight.bold),
                         ),
                       )
                     ],

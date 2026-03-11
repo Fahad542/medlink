@@ -50,14 +50,21 @@ class DoctorSettingsProfileView extends StatelessWidget {
                           ),
                         ],
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          _StatItem(label: "Experience", value: "8+", unit: "Yrs"),
-                          _VerticalDivider(),
-                          _StatItem(label: "Patients", value: "1.5k", unit: "Lives"),
-                          _VerticalDivider(),
-                          _StatItem(label: "Rating", value: "4.9", unit: "Star"),
+                          _StatItem(
+                              label: "Experience",
+                              value: doctor?.experience ?? "0",
+                              unit: "Yrs"),
+                          const _VerticalDivider(),
+                          const _StatItem(
+                              label: "Patients", value: "1.5k", unit: "Lives"),
+                          const _VerticalDivider(),
+                          _StatItem(
+                              label: "Rating",
+                              value: doctor?.rating.toString() ?? "0.0",
+                              unit: "Star"),
                         ],
                       ),
                     ),

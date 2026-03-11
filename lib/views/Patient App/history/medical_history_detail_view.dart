@@ -1,247 +1,268 @@
 import 'package:flutter/material.dart';
-import 'package:medlink/core/constants/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 
 class MedicalHistoryDetailView extends StatelessWidget {
-  final Map<String, String> historyItem;
+  final Map<String, dynamic> historyItem;
 
   const MedicalHistoryDetailView({super.key, required this.historyItem});
 
   @override
   Widget build(BuildContext context) {
+    final title = historyItem['title'] ?? 'Medical Record';
+    final subtitle = historyItem['subtitle'] ?? '';
+    final date = historyItem['date'] ?? '';
+    final time = historyItem['time'] ?? '';
+    final type = historyItem['type'] ?? 'Record';
+    final status = historyItem['status'] ?? '';
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      appBar: const CustomAppBar(title: "Details"),
+      appBar: CustomAppBar(title: title),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Card
-            Container(
+            _buildStatusBadge(status),
+            const SizedBox(height: 20),
+            _buildInfoCard(context, title, subtitle, date, time, type),
+            const SizedBox(height: 30),
+            _buildSectionTitle('Notes & Details'),
+            const SizedBox(height: 12),
+            _buildDetailContainer(
+              'This is a $type record for $title with $subtitle on $date at $time. The status is $status.',
+            ),
+            const SizedBox(height: 30),
+            if (type == 'Appointment' || type == 'Consultation') ...[
+              _buildSectionTitle('Doctor Information'),
+              const SizedBox(height: 12),
+              _buildDoctorInfoCard(subtitle),
+            ],
+            const SizedBox(height: 30),
+            SizedBox(
               width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  // Action for downloading report
+                },
+                icon: const Icon(Icons.download_rounded),
+                label: const Text('Download Report'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                ],
-              ),
-              child: Column(
-                children: [
-                   Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      _getIconForType(historyItem['type']!),
-                      color: AppColors.primary,
-                      size: 32,
-                    ),
-                   ),
-                   const SizedBox(height: 16),
-                   Text(
-                     historyItem['title']!,
-                     style: GoogleFonts.inter(
-                       fontSize: 22,
-                       fontWeight: FontWeight.bold,
-                       color: AppColors.textPrimary,
-                     ),
-                     textAlign: TextAlign.center,
-                   ),
-                   const SizedBox(height: 8),
-                   Container(
-                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                     decoration: BoxDecoration(
-                       color: _getStatusColor(historyItem['status']!).withOpacity(0.1),
-                       borderRadius: BorderRadius.circular(20),
-                     ),
-                     child: Text(
-                       historyItem['status']!,
-                       style: GoogleFonts.inter(
-                         color: _getStatusColor(historyItem['status']!),
-                         fontSize: 12,
-                         fontWeight: FontWeight.bold,
-                       ),
-                     ),
-                   ),
-                ],
+                ),
               ),
             ),
-            const SizedBox(height: 24),
-            
-            // Details Section
-            Text(
-              "Information",
-              style: GoogleFonts.inter(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-             const SizedBox(height: 16),
-             Container(
-               padding: const EdgeInsets.all(20),
-               decoration: BoxDecoration(
-                 color: Colors.white,
-                 borderRadius: BorderRadius.circular(20),
-                 border: Border.all(color: Colors.grey[100]!),
-               ),
-               child: Column(
-                 children: [
-                   _buildDetailRow(Icons.calendar_today_rounded, "Date", historyItem['date']!),
-                   const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider(height: 1)),
-                   _buildDetailRow(Icons.access_time_rounded, "Time", historyItem['time']!),
-                   const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider(height: 1)),
-                   _buildDetailRow(Icons.person_outline_rounded, "Provider", historyItem['subtitle']!),
-                   const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider(height: 1)),
-                   _buildDetailRow(Icons.category_outlined, "Type", historyItem['type']!),
-                 ],
-               ),
-             ),
-             
-             const SizedBox(height: 24),
-             if (historyItem['type'] == 'Prescription') ...[
-                Text(
-                  "Medications",
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                 Container(
-                   width: double.infinity,
-                   padding: const EdgeInsets.all(20),
-                   decoration: BoxDecoration(
-                     color: Colors.white,
-                     borderRadius: BorderRadius.circular(20),
-                     border: Border.all(color: Colors.grey[100]!),
-                   ),
-                   child: Column(
-                     crossAxisAlignment: CrossAxisAlignment.start,
-                     children: [
-                       _buildMedicineItem("Amoxicillin", "500mg • 2x Daily"),
-                       const SizedBox(height: 16),
-                       _buildMedicineItem("Paracetamol", "500mg • As needed"),
-                     ],
-                   ),
-                 ),
-             ],
-
-             if (historyItem['type'] == 'Appointment') ...[
-               Text(
-                  "Diagnosis Notes",
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                 Container(
-                   width: double.infinity,
-                   padding: const EdgeInsets.all(20),
-                   decoration: BoxDecoration(
-                     color: Colors.white,
-                     borderRadius: BorderRadius.circular(20),
-                     border: Border.all(color: Colors.grey[100]!),
-                   ),
-                   child: Text(
-                     "Patient presented with mild fever and sore throat. Recommended rest and hydration along with prescribed antibiotics.",
-                     style: GoogleFonts.inter(color: Colors.grey[600], height: 1.5, fontSize: 14),
-                   ),
-                 ),
-                 const SizedBox(height: 24),
-                 // Dummy Report Attachment
-                  Text(
-                  "Attachments",
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                 Container(
-                   height: 150,
-                   width: double.infinity,
-                   decoration: BoxDecoration(
-                     borderRadius: BorderRadius.circular(16),
-                     image: const DecorationImage(
-                       image: NetworkImage("https://img.freepik.com/free-vector/medical-checkup-report-concept-illustration_114360-15340.jpg?w=1480"),
-                       fit: BoxFit.cover
-                     )
-                   ),
-                 )
-             ]
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDetailRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8F9FA),
-            borderRadius: BorderRadius.circular(8),
+  Widget _buildStatusBadge(String status) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: status == 'Completed' || status == 'Report Ready'
+            ? Colors.green.withOpacity(0.1)
+            : Colors.blue.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        status,
+        style: GoogleFonts.inter(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: status == 'Completed' || status == 'Report Ready'
+              ? Colors.green[700]
+              : Colors.blue[700],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoCard(BuildContext context, String title, String subtitle,
+      String date, String time, String type) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-          child: Icon(icon, size: 20, color: Colors.grey[600]),
-        ),
-        const SizedBox(width: 16),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[500])),
-            const SizedBox(height: 2),
-            Text(value, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-          ],
-        ),
-      ],
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  type == 'Appointment'
+                      ? Icons.calendar_today_rounded
+                      : type == 'Prescription'
+                          ? Icons.medication_outlined
+                          : type == 'Lab Test'
+                              ? Icons.biotech_rounded
+                              : Icons.video_camera_front_outlined,
+                  color: AppColors.primary,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      type,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[500],
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    Text(
+                      title,
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          const Divider(),
+          const SizedBox(height: 20),
+          _buildDetailRow(Icons.person_outline_rounded, subtitle),
+          const SizedBox(height: 12),
+          _buildDetailRow(Icons.event_rounded, '$date • $time'),
+        ],
+      ),
     );
   }
 
-  Widget _buildMedicineItem(String name, String dose) {
+  Widget _buildDetailRow(IconData icon, String text) {
     return Row(
       children: [
-        const Icon(Icons.medication_liquid_sharp, color: AppColors.primary, size: 20),
+        Icon(icon, size: 20, color: Colors.grey[400]),
         const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(name, style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15)),
-            Text(dose, style: GoogleFonts.inter(color: Colors.grey[500], fontSize: 12)),
-          ],
-        )
+        Expanded(
+          child: Text(
+            text,
+            style: GoogleFonts.inter(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[700],
+            ),
+          ),
+        ),
       ],
     );
   }
 
-  IconData _getIconForType(String type) {
-    switch (type) {
-      case 'Appointment': return Icons.calendar_today_rounded;
-      case 'Prescription': return Icons.medication_outlined;
-      case 'Lab Test': return Icons.biotech_rounded;
-      default: return Icons.local_hospital_outlined;
-    }
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: GoogleFonts.inter(
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+        color: AppColors.textPrimary,
+      ),
+    );
   }
 
-  Color _getStatusColor(String status) {
-    if (status == 'Completed' || status == 'Delivered') return Colors.green;
-    return Colors.blue;
+  Widget _buildDetailContainer(String content) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Text(
+        content,
+        style: GoogleFonts.inter(
+          fontSize: 14,
+          height: 1.6,
+          color: Colors.grey[600],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDoctorInfoCard(String doctorName) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 25,
+            backgroundColor: AppColors.primary.withOpacity(0.1),
+            child: const Icon(Icons.person, color: AppColors.primary),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  doctorName,
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Medical Specialist',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: Colors.grey[500],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.chat_bubble_outline_rounded,
+                color: AppColors.primary),
+          ),
+        ],
+      ),
+    );
   }
 }

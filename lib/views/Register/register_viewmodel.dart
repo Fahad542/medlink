@@ -29,6 +29,9 @@ class RegisterViewModel extends ChangeNotifier {
   String? _tempUserId;
   String? get tempUserId => _tempUserId;
 
+  String? _debugOtp;
+  String? get debugOtp => _debugOtp;
+
   int _currentStep = 0;
   int get currentStep => _currentStep;
 
@@ -153,6 +156,7 @@ class RegisterViewModel extends ChangeNotifier {
     endTime = const TimeOfDay(hour: 17, minute: 0);
 
     _tempUserId = null;
+    _debugOtp = null;
     notifyListeners();
   }
 
@@ -275,6 +279,10 @@ class RegisterViewModel extends ChangeNotifier {
         final value = await _apiServices.patientSendOtp(phone);
         setLoading(false);
         final data = value is Map ? value['data'] : null;
+        if (data is Map && data.containsKey('otp')) {
+          _debugOtp = data['otp'].toString();
+          notifyListeners();
+        }
         final message = (data is Map ? data['message'] : null) ??
             value['message'] ??
             'OTP sent to your phone';
@@ -293,6 +301,10 @@ class RegisterViewModel extends ChangeNotifier {
         final value = await _apiServices.doctorSendOtp(phone);
         setLoading(false);
         final data = value is Map ? value['data'] : null;
+        if (data is Map && data.containsKey('otp')) {
+          _debugOtp = data['otp'].toString();
+          notifyListeners();
+        }
         final message = (data is Map ? data['message'] : null) ??
             value['message'] ??
             'OTP sent to your phone';
