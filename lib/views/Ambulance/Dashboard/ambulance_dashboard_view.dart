@@ -84,8 +84,7 @@ class AmbulanceDashboardView extends StatelessWidget {
                     child: const CircleAvatar(
                       radius: 24,
                       backgroundColor: Colors.white24,
-                      backgroundImage: NetworkImage('https://randomuser.me/api/portraits/men/32.jpg'),
-                      child: null, // No child needed if image loads, errorBuilder handles valid errors usually but CircleAvatar doesn't expose it easily. 
+                      child: Icon(Icons.person, color: Colors.white, size: 28),
                     ),
                   ),
                   const SizedBox(width: 12),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:medlink/data/network/api_services.dart';
-import 'package:medlink/models/appointment_model.dart';
+import 'package:medlink/models/chat_history_model.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 
 class ChatListViewModel extends ChangeNotifier {
@@ -10,43 +10,41 @@ class ChatListViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  List<AppointmentModel> _appointments = [];
-  List<AppointmentModel> get appointments => _appointments;
+  List<ChatHistoryModel> _chatHistory = [];
+  List<ChatHistoryModel> get chatHistory => _chatHistory;
 
   ChatListViewModel(this._userViewModel) {
-    fetchAppointments();
+    fetchChatHistory();
   }
 
-  Future<void> fetchAppointments() async {
+  Future<void> fetchChatHistory() async {
+    final patientId = _userViewModel.patient?.id;
+    if (patientId == null) {
+      debugPrint("No patient ID found in Session");
+      return;
+    }
+
     _isLoading = true;
     notifyListeners();
 
     try {
-      // Fetch upcoming and past appointments to show in chat list
-      final upcoming = await _apiServices.getUpcomingAppointments();
-      final past = await _apiServices.getPastAppointments();
+      final response = await _apiServices.getChatHistory(patientId);
       
-      List<AppointmentModel> all = [];
-      if (upcoming != null && upcoming['success'] == true) {
-        final List<dynamic> data = upcoming['data'];
-        all.addAll(data.map((json) => AppointmentModel.fromJson(json)));
+      if (response != null && response['success'] == true) {
+        final List<dynamic> data = response['data'] ?? [];
+        _chatHistory = data.map((json) => ChatHistoryModel.fromJson(json)).toList();
+      } else {
+        _chatHistory = [];
       }
-      if (past != null && past['success'] == true) {
-        final List<dynamic> data = past['data'];
-        all.addAll(data.map((json) => AppointmentModel.fromJson(json)));
-      }
-      
-      // Filter for appointments that are suitable for chat (e.g. not cancelled)
-      _appointments = all.where((a) => a.status != AppointmentStatus.cancelled).toList();
-      
-      // Sort by date descending
-      _appointments.sort((a, b) => b.dateTime.compareTo(a.dateTime));
       
     } catch (e) {
-      debugPrint("Error fetching appointments for chat: $e");
+      debugPrint("Error fetching chat history: $e");
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
+
+  // Support for RefreshIndicator
+  Future<void> onRefresh() => fetchChatHistory();
 }

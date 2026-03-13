@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/data/network/api_services.dart';
+import 'package:medlink/utils/utils.dart';
 
 class PrescriptionBottomSheet extends StatefulWidget {
-  const PrescriptionBottomSheet({super.key});
+  final String appointmentId;
+  const PrescriptionBottomSheet({super.key, required this.appointmentId});
 
   @override
   State<PrescriptionBottomSheet> createState() => _PrescriptionBottomSheetState();
@@ -22,10 +25,13 @@ class _PrescriptionBottomSheetState extends State<PrescriptionBottomSheet> {
   final TextEditingController _remarksCtrl = TextEditingController();
   
   // Vitals Controllers
-  final TextEditingController _bpCtrl = TextEditingController();
+  final TextEditingController _bpSystolicCtrl = TextEditingController();
+  final TextEditingController _bpDiastolicCtrl = TextEditingController();
   final TextEditingController _pulseCtrl = TextEditingController();
   final TextEditingController _tempCtrl = TextEditingController();
   final TextEditingController _weightCtrl = TextEditingController();
+
+  bool _isLoading = false;
 
   // Controllers for Medicine
   final TextEditingController _medNameCtrl = TextEditingController();
@@ -79,10 +85,63 @@ class _PrescriptionBottomSheetState extends State<PrescriptionBottomSheet> {
     _durationValue = 3;
   }
 
+  Future<void> _submitConsultation() async {
+    if (_complaintCtrl.text.isEmpty || _diagnosisCtrl.text.isEmpty) {
+      Utils.toastMessage(context, "Please fill clinical assessment details",
+          isError: true);
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final Map<String, dynamic> data = {
+        "chiefComplaint": _complaintCtrl.text.trim(),
+        "provisionalDiagnosis": _diagnosisCtrl.text.trim(),
+        "vitals": {
+          "bpSystolic": int.tryParse(_bpSystolicCtrl.text),
+          "bpDiastolic": int.tryParse(_bpDiastolicCtrl.text),
+          "pulse": int.tryParse(_pulseCtrl.text),
+          "temperatureC": double.tryParse(_tempCtrl.text),
+          "weightKg": double.tryParse(_weightCtrl.text),
+        },
+        "tests": _labTests.map((test) => {"testName": test, "notes": null}).toList(),
+        "medications": _medicines.map((med) => {
+          "medicineName": med["name"],
+          "dosage": med["dosage"],
+          "frequency": med["frequency"],
+        }).toList(),
+      };
+
+      final response = await ApiServices().submitConsultation(widget.appointmentId, data);
+
+      if (response != null && response['success'] == true) {
+        if (mounted) {
+          Utils.toastMessage(context, "Consultation submitted successfully");
+          Navigator.pop(context);
+        }
+      } else {
+        if (mounted) {
+          Utils.toastMessage(context, "Failed to submit consultation", isError: true);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Utils.toastMessage(context, e.toString(), isError: true);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.8,
+    return Stack(
+      children: [
+        Container(
+          height: MediaQuery.of(context).size.height * 0.8,
       decoration: const BoxDecoration(
         color: Color(0xFFFAFAFA), // Premium off-white background
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)), // Slightly more rounded
@@ -118,6 +177,19 @@ class _PrescriptionBottomSheetState extends State<PrescriptionBottomSheet> {
           ),
         ],
       ),
+    ),
+    if (_isLoading)
+      Container(
+        height: MediaQuery.of(context).size.height * 0.8,
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.3),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+      ),
+    ],
     );
   }
 
@@ -147,10 +219,7 @@ class _PrescriptionBottomSheetState extends State<PrescriptionBottomSheet> {
                 ]
               ),
               child: InkWell(
-                onTap: () {
-                   Navigator.pop(context);
-                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Prescription Saved!")));
-                },
+                onTap: _submitConsultation,
                 borderRadius: BorderRadius.circular(30),
                 child: const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -191,16 +260,22 @@ class _PrescriptionBottomSheetState extends State<PrescriptionBottomSheet> {
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          Expanded(child: _buildVitalItem("BP", "mmHg", _bpCtrl)),
+                          Expanded(child: _buildVitalItem("BP Systolic", "mmHg", _bpSystolicCtrl)),
                           Container(width: 1, height: 30, color: Colors.grey[200], margin: const EdgeInsets.symmetric(horizontal: 12)),
-                          Expanded(child: _buildVitalItem("Pulse", "bpm", _pulseCtrl)),
+                          Expanded(child: _buildVitalItem("BP Diastolic", "mmHg", _bpDiastolicCtrl)),
                         ],
                       ),
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          Expanded(child: _buildVitalItem("Temp", "°F", _tempCtrl)),
+                          Expanded(child: _buildVitalItem("Pulse", "bpm", _pulseCtrl)),
                           Container(width: 1, height: 30, color: Colors.grey[200], margin: const EdgeInsets.symmetric(horizontal: 12)),
+                          Expanded(child: _buildVitalItem("Temp", "°C", _tempCtrl)),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
                           Expanded(child: _buildVitalItem("Weight", "kg", _weightCtrl)),
                         ],
                       ),

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:medlink/widgets/no_data_widget.dart';
+import 'package:medlink/widgets/chat_list_shimmer.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/views/Patient App/consultation/chat_view.dart';
+import 'package:medlink/widgets/custom_network_image.dart';
 
 import 'package:medlink/views/Patient App/consultation/chat_list_viewmodel.dart';
 import 'package:medlink/views/services/session_view_model.dart';
@@ -26,44 +29,29 @@ class ChatListView extends StatelessWidget {
             backgroundColor: const Color(0xFFF1F5F9),
             appBar: const CustomAppBar(title: "Online Consultation"),
             body: viewModel.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : viewModel.appointments.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.chat_bubble_outline_rounded,
-                                size: 64, color: Colors.grey[400]),
-                            const SizedBox(height: 16),
-                            Text(
-                              "No active consultations",
-                              style: GoogleFonts.inter(
-                                  color: Colors.grey[600],
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500),
-                            ),
-                          ],
-                        ),
+                ? const ChatListShimmer(itemCount: 5)
+                : viewModel.chatHistory.isEmpty
+                    ? const NoDataWidget(
+                        title: "No Consultations",
+                        subTitle: "You have no active consultations right now.",
                       )
                     : RefreshIndicator(
-                        onRefresh: () => viewModel.fetchAppointments(),
+                        onRefresh: () => viewModel.fetchChatHistory(),
                         child: ListView.separated(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 12),
-                          itemCount: viewModel.appointments.length,
+                          itemCount: viewModel.chatHistory.length,
                           separatorBuilder: (context, index) =>
                               const SizedBox(height: 8),
                           itemBuilder: (context, index) {
-                            final appointment = viewModel.appointments[index];
-                            final doctor = appointment.doctor;
+                            final chat = viewModel.chatHistory[index];
+                            final doctor = chat.doctor;
 
-                            final String doctorName =
-                                doctor?.name ?? "Dr. Sarah Johnson";
-                            final String lastMessage =
-                                appointment.reason ?? "Consultation request";
+                            final String doctorName = doctor.fullName;
+                            final String lastMessage = chat.lastMessage;
                             final String time = DateFormat('hh:mm a')
-                                .format(appointment.dateTime);
-                            final String? profileImage = doctor?.imageUrl;
+                                .format(chat.lastMessageDate);
+                            final String? profileImage = doctor.profilePhotoUrl;
 
                             return Container(
                               decoration: BoxDecoration(
@@ -79,19 +67,12 @@ class ChatListView extends StatelessWidget {
                               child: ListTile(
                                 contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 16, vertical: 4),
-                                leading: CircleAvatar(
-                                  radius: 22,
-                                  backgroundColor:
-                                      AppColors.primary.withOpacity(0.1),
-                                  backgroundImage: profileImage != null &&
-                                          profileImage.isNotEmpty
-                                      ? NetworkImage(profileImage)
-                                      : null,
-                                  child: profileImage == null ||
-                                          profileImage.isEmpty
-                                      ? const Icon(Icons.person,
-                                          color: AppColors.primary, size: 20)
-                                      : null,
+                                leading: CustomNetworkImage(
+                                  imageUrl: profileImage,
+                                  width: 44,
+                                  height: 44,
+                                  shape: BoxShape.circle,
+                                  placeholderName: doctorName,
                                 ),
                                 title: Text(doctorName,
                                     style: GoogleFonts.inter(
@@ -119,12 +100,9 @@ class ChatListView extends StatelessWidget {
                                           builder: (_) => ChatView(
                                                 recipientName: doctorName,
                                                 profileImage: profileImage,
-                                                appointmentId: appointment.id,
-                                                currentUserId:
-                                                    userVM.patient?.id != null
-                                                        ? int.parse(
-                                                            userVM.patient!.id)
-                                                        : 0,
+                                                doctorId: doctor.id.toString(),
+                                                patientId: userVM.patient?.id ?? '',
+                                                appointmentId: chat.id,
                                               )));
                                 },
                               ),

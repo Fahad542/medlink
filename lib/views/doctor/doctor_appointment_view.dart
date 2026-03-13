@@ -14,10 +14,14 @@ import 'package:medlink/views/Patient App/consultation/waiting_room_view.dart';
 import 'package:medlink/views/doctor/Consultation/submit_consultation_view.dart';
 import '../../models/user_model.dart';
 import 'package:medlink/views/doctor/past_appointments_view.dart';
+import 'package:medlink/views/doctor/past_appointments_view_model.dart';
+import 'package:medlink/widgets/custom_button.dart';
 import 'package:medlink/views/doctor/Doctor%20Patient%20Dashboard/appointment_detail_view.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/doctor/Dashboard/doctor_dashboard_view_model.dart';
 import 'package:medlink/data/network/api_services.dart';
+import 'package:medlink/widgets/no_data_widget.dart';
+import 'package:medlink/widgets/appointment_list_shimmer.dart';
 
 class DoctorAppointmentView extends StatelessWidget {
   final bool showBackButton;
@@ -77,21 +81,21 @@ class DoctorAppointmentView extends StatelessWidget {
         body: TabBarView(
           children: [
             RefreshIndicator(
-              onRefresh: () => docApptVM.fetchUpcomingAppointments(),
+              onRefresh: () => docApptVM.fetchAllAppointments(),
               child: docApptVM.isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const AppointmentListShimmer(itemCount: 6)
                   : _buildAppointmentList(upcoming, "No upcoming visits"),
             ),
             RefreshIndicator(
-              onRefresh: () => docApptVM.fetchPastAppointments(),
+              onRefresh: () => docApptVM.fetchAllAppointments(),
               child: docApptVM.isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const AppointmentListShimmer(itemCount: 6)
                   : _buildAppointmentList(completed, "No past visits"),
             ),
             RefreshIndicator(
-              onRefresh: () => docApptVM.fetchCancelledAppointments(),
+              onRefresh: () => docApptVM.fetchAllAppointments(),
               child: docApptVM.isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const AppointmentListShimmer(itemCount: 6)
                   : _buildAppointmentList(cancelled, "No cancelled visits"),
             ),
           ],
@@ -103,27 +107,9 @@ class DoctorAppointmentView extends StatelessWidget {
   Widget _buildAppointmentList(
       List<AppointmentModel> appointments, String emptyMessage) {
     if (appointments.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.05),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.calendar_today_rounded,
-                  size: 64, color: AppColors.primary.withOpacity(0.5)),
-            ),
-            const SizedBox(height: 16),
-            Text(emptyMessage,
-                style: GoogleFonts.inter(
-                    fontSize: 16,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w600)),
-          ],
-        ),
+      return NoDataWidget(
+        title: emptyMessage,
+        subTitle: "You have no appointments in this category.",
       );
     }
     return ListView.builder(
@@ -233,19 +219,20 @@ class DoctorAppointmentCard extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (_) => PastAppointmentsView(
-                              patient: UserModel(
-                                id: appointment.user?.id ?? "mock_id",
-                                name: appointment.user?.name ?? patientName,
-                                profileImage: appointment.user?.profileImage,
-                                email: appointment.user?.email ??
-                                    "patient@example.com",
-                                phoneNumber: appointment.user?.phoneNumber ??
-                                    "+1 234 567 8900",
-                                age: appointment.user?.age ?? 28,
-                                gender: appointment.user?.gender ?? "Female",
-                                bloodGroup:
-                                    appointment.user?.bloodGroup ?? "O+",
+                        builder: (_) => ChangeNotifierProvider(
+                              create: (_) => PastAppointmentsViewModel(),
+                              child: PastAppointmentsView(
+                                patient: UserModel(
+                                  id: appointment.user?.id ?? "mock_id",
+                                  name: appointment.user?.name ?? patientName,
+                                  profileImage: appointment.user?.profileImage,
+                                  email: appointment.user?.email ??
+                                      "patient@example.com",
+                                  phoneNumber: appointment.user?.phoneNumber ??
+                                      "+1 234 567 8900",
+                                  age: appointment.user?.age ?? 28,
+                                  role: appointment.user?.role ?? "patient",
+                                ),
                               ),
                             )),
                   );
@@ -484,7 +471,8 @@ class DoctorAppointmentCard extends StatelessWidget {
                         builder: (_) => ChatView(
                               recipientName: patientName,
                               appointmentId: appointment.id,
-                              currentUserId: currentUserId,
+                              doctorId: currentUserId.toString(),
+                              patientId: appointment.userId,
                             )));
               },
             ),
@@ -502,22 +490,10 @@ class DoctorAppointmentCard extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                         builder: (_) => WaitingRoomView(
-                            callTargetName: patientName, isDoctor: true)));
-              },
-            ),
-            _buildBSActionItem(
-              context,
-              iconData: Icons.task_alt_rounded,
-              title: "Complete Consultation",
-              subtitle: "Submit medical findings and prescription",
-              color: AppColors.primary,
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) =>
-                            SubmitConsultationView(appointment: appointment)));
+                              callTargetName: patientName,
+                              isDoctor: true,
+                              appointmentId: appointment.id,
+                            )));
               },
             ),
             _buildBSActionItem(

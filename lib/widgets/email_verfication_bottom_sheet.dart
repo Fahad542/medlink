@@ -24,8 +24,8 @@ class EmailVerificationSheet extends StatefulWidget {
 class _EmailVerificationSheetState extends State<EmailVerificationSheet> {
   final _formKey = GlobalKey<FormState>();
   final List<TextEditingController> _otpControllers = List.generate(
-      4, (_) => TextEditingController());
-  final List<FocusNode> _focusNodes = List.generate(4, (_) => FocusNode());
+      6, (_) => TextEditingController());
+  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
   bool _isOtpSent = false;
   String? _otpError;
 
@@ -40,11 +40,10 @@ class _EmailVerificationSheetState extends State<EmailVerificationSheet> {
 
   void _onDigitEntered(int index, String value) {
     if (value.isNotEmpty) {
-      if (index < 3) {
+      if (index < 5) {
         _focusNodes[index + 1].requestFocus();
       } else {
         _focusNodes[index].unfocus();
-        // Auto-submit logic if needed
       }
     } else {
       if (index > 0) {
@@ -128,9 +127,9 @@ class _EmailVerificationSheetState extends State<EmailVerificationSheet> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      for (int i = 0; i < 4; i++) ...[
+                      for (int i = 0; i < 6; i++) ...[
                         _buildOtpDigitField(i),
-                        if (i != 3) const SizedBox(width: 16),
+                        if (i != 5) const SizedBox(width: 10),
                       ],
                     ],
                   ),
@@ -163,8 +162,8 @@ class _EmailVerificationSheetState extends State<EmailVerificationSheet> {
                         }
                       } else {
                         String otp = _otpControllers.map((c) => c.text).join();
-                        if (otp.length < 4) {
-                          setState(() => _otpError = "Please enter full 4-digit code");
+                        if (otp.length < 6) {
+                          setState(() => _otpError = "Please enter full 6-digit code");
                           return;
                         }
                         setState(() => _otpError = null);
@@ -204,8 +203,8 @@ class _EmailVerificationSheetState extends State<EmailVerificationSheet> {
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
-      width: 56,
-      height: 64,
+      width: 44,
+      height: 56,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),

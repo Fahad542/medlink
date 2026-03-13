@@ -6,6 +6,7 @@ import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/Patient%20App/profile/patient_personal_info_viewmodel.dart';
+import 'package:medlink/widgets/shimmer_widgets.dart';
 import '../../../widgets/custom_button.dart';
 
 class PersonalInformationView extends StatelessWidget {
@@ -23,11 +24,7 @@ class PersonalInformationView extends StatelessWidget {
             backgroundColor: const Color(0xFFF9FAFB),
             appBar: const CustomAppBar(title: "Personal Information"),
             body: viewModel.isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.primary,
-                    ),
-                  )
+                ? const PersonalInfoShimmer()
                 : SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.all(24),
@@ -160,7 +157,7 @@ class PersonalInformationView extends StatelessWidget {
         Text(
           label,
           style: GoogleFonts.inter(
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w400,
             fontSize: 13,
             color: Colors.black87,
           ),
@@ -183,7 +180,7 @@ class PersonalInformationView extends StatelessWidget {
             readOnly: readOnly,
             maxLines: maxLines,
             keyboardType: keyboardType,
-            style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15),
+            style: GoogleFonts.inter(fontWeight: FontWeight.w400, fontSize: 15),
             decoration: InputDecoration(
               filled: true,
               fillColor: readOnly ? Colors.grey.shade50 : Colors.white,

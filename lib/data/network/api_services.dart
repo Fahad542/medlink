@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:http/http.dart' as http;
 import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/data/network/network_api_services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -181,15 +182,15 @@ class ApiServices {
     }
   }
 
-  Future<dynamic> registerStep6(dynamic data, [File? file]) async {
-    try {
-      return await _apiServices.getPostMultipartApiResponse(
-          AppUrl.registerStep5, data, file,
-          fileKey: 'profilePicture');
-    } catch (e) {
-      rethrow;
-    }
-  }
+  // Future<dynamic> registerStep6(dynamic data, [File? file]) async {
+  //   try {
+  //     return await _apiServices.getPostMultipartApiResponse(
+  //         AppUrl.registerStep5, data, file,
+  //         fileKey: 'profilePicture');
+  //   } catch (e) {
+  //     rethrow;
+  //   }
+  // }
 
   Future<dynamic> registerApi(dynamic data) async {
     try {
@@ -202,7 +203,7 @@ class ApiServices {
   Future<dynamic> checkEmail(dynamic data) async {
     try {
       return await _apiServices.getPostApiResponse(
-          AppUrl.checkEmail, jsonEncode(data));
+          AppUrl.patientRegisterStep1, jsonEncode(data));
     } catch (e) {
       rethrow;
     }
@@ -211,7 +212,7 @@ class ApiServices {
   Future<dynamic> verifyEmailOtp(dynamic data) async {
     try {
       return await _apiServices.getPostApiResponse(
-          AppUrl.verifyEmail, jsonEncode(data));
+          AppUrl.patientRegisterStep2, jsonEncode(data));
     } catch (e) {
       rethrow;
     }
@@ -261,6 +262,24 @@ class ApiServices {
     }
   }
 
+  Future<dynamic> getChatHistory(String patientId) async {
+    try {
+      final url = "${AppUrl.getChatHistory}/$patientId/doctors";
+      return await _apiServices.getGetApiResponse(url);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getUnifiedChatHistory(String doctorId, String patientId) async {
+    try {
+      final url = "${AppUrl.getUnifiedChatHistory}/doctor/$doctorId/patient/$patientId";
+      return await _apiServices.getGetApiResponse(url);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<dynamic> getDoctorProfile() async {
     try {
       return await _apiServices.getGetApiResponse(AppUrl.getDoctorProfile);
@@ -271,6 +290,9 @@ class ApiServices {
 
   Future<dynamic> bookAppointment(dynamic data) async {
     try {
+      print("========== BOOK APPOINTMENT API BODY ==========");
+      print(jsonEncode(data));
+      print("===============================================");
       return await _apiServices.getPostApiResponse(
           AppUrl.bookAppointments, jsonEncode(data));
     } catch (e) {
@@ -306,11 +328,11 @@ class ApiServices {
     }
   }
 
-  Future<dynamic> getChatMessages(String appointmentId,
+  Future<dynamic> getChatMessages(String recipientId,
       {int limit = 50, String? before}) async {
     try {
       String url =
-          '${AppUrl.getChatMessages}/$appointmentId/messages?limit=$limit';
+          '${AppUrl.getChatMessages}/$recipientId/messages?limit=$limit';
       if (before != null) url += '&before=$before';
       return await _apiServices.getGetApiResponse(url);
     } catch (e) {
@@ -319,9 +341,9 @@ class ApiServices {
   }
 
   Future<dynamic> sendChatMessage(
-      String appointmentId, Map<String, String> fields, File? file) async {
+      String recipientId, Map<String, String> fields, File? file) async {
     try {
-      String url = '${AppUrl.sendChatMessage}/$appointmentId/messages';
+      String url = '${AppUrl.sendChatMessage}/$recipientId/messages';
       if (file != null) {
         return await _apiServices.getPostMultipartApiResponse(url, fields, file,
             fileKey: 'file');
@@ -387,6 +409,38 @@ class ApiServices {
     }
   }
 
+  Future<dynamic> getEmergencyNumbers() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.getEmergencyNumbers);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getQuickInstructions() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.getQuickInstructions);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getFirstAidTopics() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.getFirstAidTopics);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getHealthVideos() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.getHealthVideos);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<List<dynamic>> getPatientAppointments(String patientId,
       {String? status}) async {
     try {
@@ -419,14 +473,6 @@ class ApiServices {
     }
   }
 
-  Future<dynamic> getFirstAidTopics() async {
-    try {
-      print("Fetching First Aid Topics from: ${AppUrl.getFirstAidTopics}");
-      return await _apiServices.getGetApiResponse(AppUrl.getFirstAidTopics);
-    } catch (e) {
-      rethrow;
-    }
-  }
 
   Future<dynamic> getDoctorMonthlyEarnings(int year, int month) async {
     try {
@@ -493,6 +539,7 @@ class ApiServices {
 
   Future<dynamic> submitConsultation(
       String appointmentId, Map<String, dynamic> data) async {
+    print(data);
     try {
       return await _apiServices.getPostApiResponse(
         "${AppUrl.doctorAppointmentActions}/$appointmentId/consultation",
@@ -539,6 +586,84 @@ class ApiServices {
       return await _apiServices.getPatchApiResponse(
         AppUrl.updateDoctorAvailability,
         {"isAvailable": isAvailable},
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getDoctorArticles() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.getDoctorArticles);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getPatientProfileForDoctor(String patientId) async {
+    try {
+      return await _apiServices.getGetApiResponse(
+          "${AppUrl.getPatientProfileForDoctor}/$patientId/profile");
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getDoctorChatHistory(String doctorId) async {
+    try {
+      return await _apiServices.getGetApiResponse(
+          "${AppUrl.getDoctorChatHistory}/$doctorId/patients");
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getDoctorAppointmentsHistory([String? patientId]) async {
+    try {
+      String url = AppUrl.getDoctorAppointmentsHistory;
+      if (patientId != null && patientId.isNotEmpty) {
+        url += "?patientId=$patientId";
+      }
+      return await _apiServices.getGetApiResponse(url);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getPrescriptionDetails(String appointmentId) async {
+    try {
+      return await _apiServices.getGetApiResponse(
+          "${AppUrl.getPrescriptionDetails}/$appointmentId/prescription-details");
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> uploadArticle({
+    required String title,
+    required String category,
+    required String contentHtml,
+    required bool isPublished,
+    required String? imagePath,
+  }) async {
+    try {
+      Map<String, String> data = {
+        'title': title,
+        'category': category,
+        'contentHtml': contentHtml,
+        'isPublished': isPublished.toString(),
+      };
+
+      File? imageFile;
+      if (imagePath != null) {
+        imageFile = File(imagePath);
+      }
+
+      return await _apiServices.getPostMultipartApiResponse(
+        AppUrl.uploadArticle,
+        data,
+        imageFile,
+        fileKey: 'coverImage',
       );
     } catch (e) {
       rethrow;

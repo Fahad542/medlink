@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/models/first_aid_topic_model.dart';
 import 'package:medlink/models/health_article_model.dart';
+import 'package:medlink/models/emergency_number_model.dart';
+import 'package:medlink/models/quick_instruction_model.dart';
+import 'package:medlink/models/health_video_model.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 
 class HealthHubViewModel extends ChangeNotifier {
@@ -19,7 +22,25 @@ class HealthHubViewModel extends ChangeNotifier {
   List<HealthArticle> get healthArticles => _healthArticles;
   bool get isLoadingArticles => _isLoadingArticles;
 
-  void fetchHealthArticles() async {
+  List<EmergencyNumber> _emergencyNumbers = [];
+  bool _isLoadingEmergencyNumbers = false;
+
+  List<EmergencyNumber> get emergencyNumbers => _emergencyNumbers;
+  bool get isLoadingEmergencyNumbers => _isLoadingEmergencyNumbers;
+
+  List<QuickInstructionModel> _quickInstructions = [];
+  bool _isLoadingQuickInstructions = false;
+
+  List<QuickInstructionModel> get quickInstructions => _quickInstructions;
+  bool get isLoadingQuickInstructions => _isLoadingQuickInstructions;
+
+  List<HealthVideo> _healthVideos = [];
+  bool _isLoadingVideos = false;
+
+  List<HealthVideo> get healthVideos => _healthVideos;
+  bool get isLoadingVideos => _isLoadingVideos;
+
+  Future<void> fetchHealthArticles() async {
     _isLoadingArticles = true;
     notifyListeners();
 
@@ -37,7 +58,59 @@ class HealthHubViewModel extends ChangeNotifier {
     }
   }
 
-  void fetchFirstAidTopics() async {
+  Future<void> fetchDoctorArticles() async {
+    _isLoadingArticles = true;
+    notifyListeners();
+
+    try {
+      final response = await _apiServices.getDoctorArticles();
+      if (response != null && response['data'] != null) {
+        final List<dynamic> dataList = response['data'];
+        _healthArticles =
+            dataList.map((json) => HealthArticle.fromJson(json)).toList();
+      }
+    } catch (e) {
+      debugPrint("Error fetching doctor articles: $e");
+    } finally {
+      _isLoadingArticles = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> uploadArticle({
+    required String title,
+    required String category,
+    required String contentHtml,
+    required bool isPublished,
+    required String? imagePath,
+  }) async {
+    _isLoadingArticles = true;
+    notifyListeners();
+
+    try {
+      final response = await _apiServices.uploadArticle(
+        title: title,
+        category: category,
+        contentHtml: contentHtml,
+        isPublished: isPublished,
+        imagePath: imagePath,
+      );
+
+      if (response != null) {
+        await fetchDoctorArticles(); // Refresh the list
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint("Error uploading article: $e");
+      return false;
+    } finally {
+      _isLoadingArticles = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchFirstAidTopics() async {
     _isLoadingFirstAid = true;
     notifyListeners();
 
@@ -51,6 +124,60 @@ class HealthHubViewModel extends ChangeNotifier {
       debugPrint("Error fetching first aid topics: $e");
     } finally {
       _isLoadingFirstAid = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchEmergencyNumbers() async {
+    _isLoadingEmergencyNumbers = true;
+    notifyListeners();
+
+    try {
+      final response = await _apiServices.getEmergencyNumbers();
+      if (response != null && response['data'] != null) {
+        final List<dynamic> dataList = response['data'];
+        _emergencyNumbers = dataList.map((json) => EmergencyNumber.fromJson(json)).toList();
+      }
+    } catch (e) {
+      debugPrint("Error fetching emergency numbers: $e");
+    } finally {
+      _isLoadingEmergencyNumbers = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchQuickInstructions() async {
+    _isLoadingQuickInstructions = true;
+    notifyListeners();
+
+    try {
+      final response = await _apiServices.getQuickInstructions();
+      if (response != null && response['data'] != null) {
+        final List<dynamic> dataList = response['data'];
+        _quickInstructions = dataList.map((json) => QuickInstructionModel.fromJson(json)).toList();
+      }
+    } catch (e) {
+      debugPrint("Error fetching quick instructions: $e");
+    } finally {
+      _isLoadingQuickInstructions = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchHealthVideos() async {
+    _isLoadingVideos = true;
+    notifyListeners();
+
+    try {
+      final response = await _apiServices.getHealthVideos();
+      if (response != null && response['data'] != null) {
+        final List<dynamic> dataList = response['data'];
+        _healthVideos = dataList.map((json) => HealthVideo.fromJson(json)).toList();
+      }
+    } catch (e) {
+      debugPrint("Error fetching health videos: $e");
+    } finally {
+      _isLoadingVideos = false;
       notifyListeners();
     }
   }
@@ -83,5 +210,19 @@ class HealthHubViewModel extends ChangeNotifier {
 
     // Default style
     return {"color": AppColors.primary, "icon": Icons.health_and_safety_rounded};
+  }
+
+  Future<void> refreshData(bool isDoctor) async {
+    if (isDoctor) {
+      await fetchDoctorArticles();
+    } else {
+      await Future.wait([
+        fetchHealthArticles(),
+        fetchEmergencyNumbers(),
+        fetchQuickInstructions(),
+        fetchFirstAidTopics(),
+        fetchHealthVideos(),
+      ]);
+    }
   }
 }

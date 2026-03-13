@@ -54,7 +54,12 @@ class AppointmentDetailsView extends StatelessWidget {
                   ),
                   child: CircleAvatar(
                     radius: 28,
-                    backgroundImage: NetworkImage(doctor.imageUrl),
+                    backgroundImage: (doctor.imageUrl.isNotEmpty) 
+                        ? NetworkImage(doctor.imageUrl) 
+                        : null,
+                    child: (doctor.imageUrl.isEmpty) 
+                        ? const Icon(Icons.person, size: 30, color: Colors.grey) 
+                        : null,
                   ),
                 ),
                 const SizedBox(width: 16),

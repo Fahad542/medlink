@@ -30,17 +30,49 @@ class DoctorDashboardViewModel extends ChangeNotifier {
   int get appointmentsCount => _appointmentsCount;
   List<AppointmentModel> get upcomingAppointments => _upcomingAppointments;
 
-  void toggleOnlineStatus(bool value) {
+  Future<void> updateAvailability(bool value) async {
+    // Optimistically update UI
+    final previousStatus = _isOnline;
     _isOnline = value;
     notifyListeners();
+
+    try {
+      final response = await _apiServices.updateDoctorAvailability(value);
+      if (response == null || response['success'] != true) {
+        // Rollback on failure
+        _isOnline = previousStatus;
+        notifyListeners();
+        debugPrint("Failed to update availability on server");
+      }
+    } catch (e) {
+      // Rollback on error
+      _isOnline = previousStatus;
+      notifyListeners();
+      debugPrint("Error updating availability: $e");
+    }
   }
 
   Future<void> fetchData() async {
     await Future.wait([
       fetchEarnings(),
       fetchUpcomingAppointments(),
-      fetchPatientsCount(),
+      fetchAvailability(),
     ]);
+  }
+
+  Future<void> fetchAvailability() async {
+    try {
+      final response = await _apiServices.getDoctorProfile();
+      if (response != null && response['success'] == true) {
+        final data = response['data'];
+        if (data != null) {
+          _isOnline = data['isAvailable'] ?? data['isActive'] ?? true;
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching doctor availability: $e");
+    }
   }
 
   Future<void> fetchEarnings() async {

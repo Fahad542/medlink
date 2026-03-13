@@ -227,10 +227,17 @@ class _DoctorProfileContent extends StatelessWidget {
                           const SizedBox(width: 12),
                           GestureDetector(
                             onTap: () {
-                               Navigator.push(
-                                 context,
-                                 MaterialPageRoute(builder: (_) => const WaitingRoomView()),
-                               );
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => WaitingRoomView(
+                                          callTargetName: doctor.name,
+                                          isDoctor: false,
+                                          appointmentId:
+                                              viewModel.getAppointmentId(
+                                                  doctor.id),
+                                        )),
+                              );
                             },
                             child: Container(
                               width: 36,

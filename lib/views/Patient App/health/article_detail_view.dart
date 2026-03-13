@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/models/health_article_model.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:medlink/widgets/custom_network_image.dart';
 
 class ArticleDetailView extends StatelessWidget {
   final HealthArticle article;
@@ -27,9 +29,12 @@ class ArticleDetailView extends StatelessWidget {
                 children: [
                    Hero(
                     tag: article.coverImageUrl,
-                    child: Image.network(
-                      article.coverImageUrl,
+                    child: CustomNetworkImage(
+                      imageUrl: article.coverImageUrl,
                       fit: BoxFit.cover,
+                      height: double.infinity,
+                      width: double.infinity,
+                      errorAssetImage: 'assets/No-Image.png',
                     ),
                   ),
                   Container(
@@ -63,7 +68,16 @@ class ArticleDetailView extends StatelessWidget {
               const SizedBox(width: 8),
               _buildAppBarButton(
                 icon: Icons.share_rounded,
-                onPressed: () {},
+                onPressed: () {
+                  try {
+                    Share.share(
+                      "Check out this article on Medlink: ${article.title}\n\n${_stripHtml(article.contentHtml).substring(0, 100)}...",
+                      subject: "Health Article",
+                    );
+                  } catch (e) {
+                    debugPrint("Error sharing article: $e");
+                  }
+                },
               ),
               const SizedBox(width: 16),
             ],
@@ -116,20 +130,23 @@ class ArticleDetailView extends StatelessWidget {
                   Text(
                     article.title,
                     style: const TextStyle(
-                      fontSize: 24,
+                      fontSize: 20, // Reduced from 24
                       fontWeight: FontWeight.bold,
                       height: 1.3,
                       color: Color(0xFF1E293B),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20), // Slightly reduced spacing
 
                   // Author Info
                   Row(
                     children: [
-                      const CircleAvatar(
-                        radius: 20,
-                        backgroundImage: NetworkImage('https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=2070&auto=format&fit=crop'),
+                       CustomNetworkImage(
+                        width: 36,
+                        height: 36,
+                        shape: BoxShape.circle,
+                        imageUrl: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=2070&auto=format&fit=crop',
+                        placeholderName: "Sarah Smith",
                       ),
                       const SizedBox(width: 12),
                       Column(
@@ -137,11 +154,11 @@ class ArticleDetailView extends StatelessWidget {
                         children: [
                           const Text(
                             "Dr. Sarah Smith",
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13), // Reduced from 14
                           ),
                           Text(
                             "Medical Editor",
-                            style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                            style: TextStyle(color: Colors.grey, fontSize: 11), // Reduced from 12
                           ),
                         ],
                       ),
@@ -154,14 +171,14 @@ class ArticleDetailView extends StatelessWidget {
                   // Article Content
                   Text(
                     "Overview",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey[800]),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey[800]), // Reduced from 18
                   ),
                   const SizedBox(height: 12),
                   Text(
                     _stripHtml(article.contentHtml),
                     style: TextStyle(
-                      fontSize: 16,
-                      height: 1.8,
+                      fontSize: 14, // Reduced from 16
+                      height: 1.7, // Slightly tighter line height
                       color: Colors.grey[700],
                     ),
                   ),
@@ -203,6 +220,18 @@ class ArticleDetailView extends StatelessWidget {
         icon: Icon(icon, color: Colors.white, size: 20),
         constraints: const BoxConstraints(),
         padding: const EdgeInsets.all(8),
+      ),
+    );
+  }
+
+
+  Widget _buildArticleImagePlaceholder() {
+    return Container(
+      width: double.infinity,
+      color: Colors.grey[200],
+      child: Image.asset(
+        'assets/No-Image.png',
+        fit: BoxFit.contain,
       ),
     );
   }

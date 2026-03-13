@@ -6,7 +6,7 @@ import 'package:medlink/views/doctor/payout_settings_view.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:medlink/views/doctor/Doctor%20earnings/doctor_earnings_view_model.dart';
-// ... other imports ...
+import 'package:medlink/widgets/no_data_widget.dart';
 
 class DoctorEarningsView extends StatelessWidget {
   final bool showBackButton;
@@ -217,11 +217,10 @@ class DoctorEarningsView extends StatelessWidget {
             child: viewModel.isLoading
               ? const Center(child: CircularProgressIndicator())
               : viewModel.recentTransactions.isEmpty
-                  ? Center(
-                      child: Text(
-                        "No recent transactions",
-                        style: GoogleFonts.inter(color: Colors.grey),
-                      ),
+                  ? const NoDataWidget(
+                      title: "No Transactions",
+                      subTitle: "You have no recent transactions yet.",
+                      imageHeight: 120, // Smaller image to fit the 350 height box
                     )
                   : ListView.builder(
                       padding: EdgeInsets.zero,

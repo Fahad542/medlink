@@ -41,18 +41,35 @@ class DoctorCard extends StatelessWidget {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.network(
-                    doctor.imageUrl,
-                    height: 70, // Reduced from 80
-                    width: 70,
-                    fit: BoxFit.cover,
-                    errorBuilder: (c, e, s) => Container(
-                      height: 70,
+                  child: Builder(builder: (context) {
+                    final String url = doctor.imageUrl.toLowerCase();
+                    final bool isPlaceholder = url.isEmpty || 
+                        url.contains('unsplash.com') ||
+                        url.contains('randomuser.me') ||
+                        url.contains('pravatar.cc') ||
+                        url.contains('placeholder.com');
+
+                    if (isPlaceholder) {
+                      return Container(
+                        height: 70,
+                        width: 70,
+                        color: Colors.grey[200],
+                        child: const Icon(Icons.person, color: Colors.grey),
+                      );
+                    }
+                    return Image.network(
+                      doctor.imageUrl,
+                      height: 70, // Reduced from 80
                       width: 70,
-                      color: Colors.grey[200],
-                      child: const Icon(Icons.person, color: Colors.grey),
-                    ),
-                  ),
+                      fit: BoxFit.cover,
+                      errorBuilder: (c, e, s) => Container(
+                        height: 70,
+                        width: 70,
+                        color: Colors.grey[200],
+                        child: const Icon(Icons.person, color: Colors.grey),
+                      ),
+                    );
+                  }),
                 ),
                 const SizedBox(width: 14),
                 Expanded(

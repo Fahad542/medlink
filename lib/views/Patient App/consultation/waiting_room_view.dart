@@ -7,7 +7,8 @@ import 'package:medlink/views/Patient App/consultation/video_call_view.dart';
 class WaitingRoomView extends StatefulWidget {
   final String? callTargetName;
   final bool isDoctor;
-  const WaitingRoomView({super.key, this.callTargetName, this.isDoctor = false});
+  final String? appointmentId;
+  const WaitingRoomView({super.key, this.callTargetName, this.isDoctor = false, this.appointmentId});
 
   @override
   State<WaitingRoomView> createState() => _WaitingRoomViewState();
@@ -33,15 +34,12 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
                 color: Colors.grey[900],
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: Colors.white24, width: 1),
-                image: isCameraOn 
-                 ? const DecorationImage(
-                     image: NetworkImage('https://via.placeholder.com/400x600'), // Self view placeholder
-                     fit: BoxFit.cover,
-                   )
-                 : null,
+                // image: isCameraOn ? ... : null,
               ),
               child: isCameraOn 
-               ? null 
+               ? const Center(
+                   child: Icon(Icons.person, color: Colors.white24, size: 80),
+                 ) 
                : Center(
                    child: Column(
                      mainAxisAlignment: MainAxisAlignment.center,
@@ -102,7 +100,10 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => VideoCallView(isDoctor: widget.isDoctor)),
+                  MaterialPageRoute(builder: (context) => VideoCallView(
+                    isDoctor: widget.isDoctor,
+                    appointmentId: widget.appointmentId,
+                  )),
                 );
               },
               style: ElevatedButton.styleFrom(

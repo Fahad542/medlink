@@ -7,8 +7,9 @@ import 'package:permission_handler/permission_handler.dart';
 
 class VideoCallView extends StatefulWidget {
   final bool isDoctor;
+  final String? appointmentId;
 
-  const VideoCallView({super.key, this.isDoctor = false});
+  const VideoCallView({super.key, this.isDoctor = false, this.appointmentId});
 
   @override
   State<VideoCallView> createState() => _VideoCallViewState();
@@ -220,7 +221,9 @@ class _VideoCallViewState extends State<VideoCallView> {
                           context: context,
                           isScrollControlled: true,
                           backgroundColor: Colors.transparent,
-                          builder: (context) => const PrescriptionBottomSheet(),
+                          builder: (context) => PrescriptionBottomSheet(
+                            appointmentId: widget.appointmentId ?? "",
+                          ),
                         );
                       },
                     ),

@@ -81,14 +81,11 @@ class _AppointmentDetailsEditViewState extends State<AppointmentDetailsEditView>
                   CircleAvatar(
                     radius: 30,
                     backgroundColor: AppColors.primary.withOpacity(0.1),
-                    backgroundImage: widget.appointment.user?.profileImage != null
+                    backgroundImage: (widget.appointment.user?.profileImage != null && widget.appointment.user!.profileImage!.isNotEmpty)
                         ? NetworkImage(widget.appointment.user!.profileImage!)
                         : null,
-                    child: widget.appointment.user?.profileImage == null
-                        ? Text(
-                            widget.appointment.user?.name.substring(0, 1) ?? "P",
-                            style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primary),
-                          )
+                    child: (widget.appointment.user?.profileImage == null || widget.appointment.user!.profileImage!.isEmpty)
+                        ? const Icon(Icons.person, size: 30, color: Colors.grey)
                         : null,
                   ),
                   const SizedBox(width: 16),
@@ -122,7 +119,7 @@ class _AppointmentDetailsEditViewState extends State<AppointmentDetailsEditView>
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const VideoCallView(isDoctor: true)),
+                    MaterialPageRoute(builder: (context) => VideoCallView(isDoctor: true, appointmentId: widget.appointment.id)),
                   );
                 },
                 icon: const Icon(Icons.videocam_rounded, color: Colors.white),

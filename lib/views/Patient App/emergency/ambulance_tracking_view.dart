@@ -393,13 +393,13 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (context) => ChatView(
-                                            recipientName:
-                                                widget.ambulance.driverName,
-                                            appointmentId: widget.ambulance
-                                                .id, // Ambulance id as placeholder
-                                            currentUserId: currentUserId,
-                                          ),
+                                              builder: (context) => ChatView(
+                                              recipientName:
+                                                  widget.ambulance.driverName,
+                                              appointmentId: widget.ambulance.id,
+                                              doctorId: widget.ambulance.id,
+                                              patientId: currentUserId.toString(),
+                                            ),
                                         ),
                                       );
                                     },

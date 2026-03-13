@@ -124,7 +124,7 @@ class DoctorPersonalInfoViewModel extends ChangeNotifier {
         "fullName": nameController.text.trim(),
         "phone": phoneController.text.trim(),
         "specialization": specializationController.text.trim(),
-        "experienceInYears": experienceController.text.trim(),
+        "yearsOfExperience": experienceController.text.trim(),
         "bio": bioController.text.trim(),
         "clinicName": clinicNameController.text.trim(),
         "clinicAddress": clinicAddressController.text.trim(),

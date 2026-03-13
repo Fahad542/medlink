@@ -93,7 +93,13 @@ class AppointmentViewModel extends ChangeNotifier {
     try {
       final response = await _apiService.completeAppointment(appointmentId);
       if (response != null && response['success'] == true) {
-        _upcomingAppointments.removeWhere((a) => a.id == appointmentId);
+        // Move from upcoming to past if found
+        final upcomingIndex =
+            _upcomingAppointments.indexWhere((a) => a.id == appointmentId);
+        if (upcomingIndex != -1) {
+          final appointment = _upcomingAppointments.removeAt(upcomingIndex);
+          _pastAppointments.insert(0, appointment);
+        }
         notifyListeners();
         return true;
       }
@@ -151,7 +157,7 @@ class AppointmentViewModel extends ChangeNotifier {
     int doctorIdInt = int.tryParse(doctor.id) ?? 0;
 
     final appointmentData = {
-      "doctorId": doctorIdInt,
+      "doctorId": doctor.id,
       "date": DateFormat('yyyy-MM-dd').format(date),
       "startTime": formattedStartTime,
       "endTime": formattedEndTime,

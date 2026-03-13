@@ -1,59 +1,151 @@
 import 'package:flutter/material.dart';
+import 'package:medlink/widgets/no_data_widget.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/models/patient_appointment_history_model.dart';
 import 'package:medlink/models/user_model.dart';
 import 'package:medlink/views/doctor/Doctor%20Patient%20Dashboard/appointment_detail_view.dart';
+import 'package:medlink/views/doctor/Doctor%20Patient%20Dashboard/prescription_detail_view_model.dart';
+import 'package:medlink/views/doctor/past_appointments_view_model.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
+import 'package:medlink/widgets/shimmer_widgets.dart';
+import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 
-class PastAppointmentsView extends StatelessWidget {
-  final UserModel patient;
+class PastAppointmentsView extends StatefulWidget {
+  final UserModel? patient;
+  final String title;
+  final List<PatientAppointmentHistoryData>? history;
 
-  const PastAppointmentsView({super.key, required this.patient});
+  const PastAppointmentsView({
+    super.key,
+    this.patient,
+    this.title = "Past Appointments",
+    this.history,
+  });
+
+  @override
+  State<PastAppointmentsView> createState() => _PastAppointmentsViewState();
+}
+
+class _PastAppointmentsViewState extends State<PastAppointmentsView> {
+  @override
+  void initState() {
+    super.initState();
+    // Use addPostFrameCallback to avoid fetching during build if possible
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final viewModel = Provider.of<PastAppointmentsViewModel>(context, listen: false);
+      if (widget.history == null || widget.history!.isEmpty) {
+        viewModel.fetchHistory(widget.patient?.id);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
-      appBar: const CustomAppBar(title: "Past Appointments"),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-        child: Column(
-          children: [
-            _buildVisitCard(
-              "General Checkup",
-              "Mild Fever & Cough",
-              "Today, 10:00 AM",
-              true,
-              AppColors.primary,
-              iconAsset: "assets/Icons/appointment.png",
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AppointmentDetailView(title: "General Checkup", date: "Today, 10:00 AM", reason: "Mild Fever & Cough"))),
+      appBar: CustomAppBar(title: widget.title),
+      body: Consumer<PastAppointmentsViewModel>(
+        builder: (context, viewModel, child) {
+          // If we have history passed via constructor, use it. Otherwise use ViewModel data.
+          final displayHistory = (widget.history != null && widget.history!.isNotEmpty)
+              ? widget.history!
+              : viewModel.history;
+
+          if (viewModel.isLoading && displayHistory.isEmpty) {
+            return _buildLoadingState();
+          }
+
+          if (displayHistory.isEmpty) {
+            return _buildEmptyState();
+          }
+
+          return RefreshIndicator(
+            onRefresh: () => viewModel.fetchHistory(widget.patient?.id),
+            color: AppColors.primary,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+              child: Column(
+                children: displayHistory.map((item) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _buildVisitCard(
+                    title: item.appointmentName ?? "Consultation",
+                    subtitle: item.chiefComplaint ?? "No complaint provided",
+                    patientName: item.patientName ?? "Patient",
+                    time: _formatAppointmentDate(item.date),
+                    highlight: true,
+                    color: AppColors.primary,
+                    iconAsset: "assets/Icons/appointment.png",
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ChangeNotifierProvider(
+                          create: (_) => PrescriptionDetailViewModel(),
+                          child: AppointmentDetailView(
+                            title: item.appointmentName ?? "Consultation",
+                            date: _formatAppointmentDate(item.date),
+                            reason: item.chiefComplaint ?? "No complaint",
+                            appointmentId: item.appointmentId?.toString() ?? "0",
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                )).toList(),
+              ),
             ),
-            const SizedBox(height: 12),
-            _buildVisitCard(
-              "Blood Test",
-              "Typhoid",
-              "Yesterday, 02:00 PM",
-              false,
-              AppColors.primary,
-              iconAsset: "assets/Icons/appointment.png",
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AppointmentDetailView(title: "Blood Test", date: "Yesterday, 02:00 PM", reason: "Typhoid"))),
-            ),
-            const SizedBox(height: 12),
-            _buildVisitCard(
-              "Follow up",
-              "Viral Infection",
-              "12 Dec, 04:30 PM",
-              false,
-              AppColors.primary,
-              iconAsset: "assets/Icons/appointment.png",
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AppointmentDetailView(title: "Follow up", date: "12 Dec, 04:30 PM", reason: "Viral Infection"))),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildVisitCard(String title, String subtitle, String time, bool highlight, Color color, {String? iconAsset, VoidCallback? onTap}) {
+  Widget _buildLoadingState() {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      itemCount: 8,
+      itemBuilder: (context, index) => const VisitCardShimmer(),
+    );
+  }
+
+  String _formatAppointmentDate(String? dateStr) {
+    if (dateStr == null) return "N/A";
+    try {
+      final dateTime = DateTime.parse(dateStr).toLocal();
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final appointmentDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
+      final difference = today.difference(appointmentDate).inDays;
+
+      if (difference == 0) {
+        return "Today, ${DateFormat.jm().format(dateTime)}";
+      } else if (difference == 1) {
+        return "Yesterday, ${DateFormat.jm().format(dateTime)}";
+      } else {
+        return DateFormat('MMM d, yyyy - hh:mm a').format(dateTime);
+      }
+    } catch (e) {
+      return dateStr;
+    }
+  }
+
+  Widget _buildEmptyState() {
+    return const NoDataWidget(
+      subTitle: "No past appointments found",
+    );
+  }
+
+  Widget _buildVisitCard({
+    required String title,
+    required String subtitle,
+    required String patientName,
+    required String time,
+    required bool highlight,
+    required Color color,
+    String? iconAsset,
+    VoidCallback? onTap,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -97,7 +189,13 @@ class PastAppointmentsView extends StatelessWidget {
                       Text(time, style: TextStyle(fontSize: 10, color: Colors.grey[500], fontWeight: FontWeight.w600)),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
+                  Text(
+                    "Patient: $patientName",
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary.withOpacity(0.8)),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [

@@ -35,7 +35,15 @@ class DoctorModel {
   });
   factory DoctorModel.fromJson(Map<String, dynamic> json) {
     String getImageUrl(String? path) {
-      if (path == null || path.isEmpty) return 'https://i.pravatar.cc/300';
+      if (path == null || path.trim().isEmpty) return '';
+      final lowerPath = path.toLowerCase();
+      if (lowerPath.contains('unsplash.com') ||
+          lowerPath.contains('randomuser.me') ||
+          lowerPath.contains('pravatar.cc') ||
+          lowerPath.contains('placeholder.com') ||
+          lowerPath.contains('via.placeholder')) {
+        return '';
+      }
       return AppUrl.getFullUrl(path);
     }
 
@@ -91,6 +99,7 @@ class DoctorModel {
               getField('experience') ??
               getField('yearsExperience') ??
               getField('experienceInYears') ??
+              getField('yearsOfExperience') ??
               0)
           .toString(),
       location: getField('clinicAddress') ?? getField('location') ?? 'Unknown Location',

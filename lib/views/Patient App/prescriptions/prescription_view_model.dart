@@ -9,6 +9,13 @@ class PrescriptionViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  // Detail loading state (for View button)
+  bool _isDetailLoading = false;
+  bool get isDetailLoading => _isDetailLoading;
+
+  Map<String, dynamic>? _prescriptionDetail;
+  Map<String, dynamic>? get prescriptionDetail => _prescriptionDetail;
+
   List<dynamic> _prescriptions = [];
   List<dynamic> get prescriptions => _prescriptions;
 
@@ -25,6 +32,29 @@ class PrescriptionViewModel extends ChangeNotifier {
       debugPrint("Error fetching prescriptions: $e");
     } finally {
       _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Fetches full prescription detail by appointmentId.
+  /// Returns the detail map on success, null on failure.
+  Future<Map<String, dynamic>?> getPrescriptionDetail(String appointmentId) async {
+    _isDetailLoading = true;
+    _prescriptionDetail = null;
+    notifyListeners();
+
+    try {
+      final response = await _apiServices.getPrescriptionByAppointment(appointmentId);
+      if (response != null && response['success'] == true) {
+        _prescriptionDetail = response['data'] as Map<String, dynamic>?;
+        return _prescriptionDetail;
+      }
+      return null;
+    } catch (e) {
+      debugPrint("Error fetching prescription detail: $e");
+      return null;
+    } finally {
+      _isDetailLoading = false;
       notifyListeners();
     }
   }

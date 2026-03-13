@@ -172,11 +172,79 @@ class Step4Info extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
-              _buildAnimatedTextField(
-                label: "Blood Group",
-                hint: "Blood Group (Optional)",
-                icon: Icons.bloodtype_rounded,
-                controller: authVM.bloodGroupController,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 15,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: DropdownButtonFormField<String>(
+                      value: authVM.bloodGroupController.text.isNotEmpty ? authVM.bloodGroupController.text : null,
+                      onChanged: (String? newValue) {
+                        if (newValue != null) {
+                          authVM.bloodGroupController.text = newValue;
+                        }
+                      },
+                      dropdownColor: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      elevation: 4,
+                      items: <String>['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
+                          .map<DropdownMenuItem<String>>((String value) {
+                        return DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(
+                            value,
+                            style: GoogleFonts.inter(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                      icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.black54),
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.white,
+                        hintText: "Select Blood Group (Optional)",
+                        hintStyle: GoogleFonts.inter(color: Colors.grey[500], fontWeight: FontWeight.w400, fontSize: 13),
+                        prefixIcon: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.bloodtype_rounded, color: AppColors.primary, size: 18),
+                          ),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
+                      ),
+                    ),
+                  ),
+                ],
               ),
 
               const SizedBox(height: 40),

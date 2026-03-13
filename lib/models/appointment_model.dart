@@ -145,8 +145,9 @@ class AppointmentModel {
       case 'upcoming':
         return AppointmentStatus.upcoming;
       case 'completed':
-      case 'past':
         return AppointmentStatus.completed;
+      case 'past':
+        return AppointmentStatus.unconfirmed;
       case 'cancelled':
         return AppointmentStatus.cancelled;
       default:

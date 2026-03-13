@@ -5,6 +5,8 @@ import 'package:medlink/views/doctor/doctor_appointment_view.dart';
 import 'package:medlink/views/doctor/doctor_settings_profile_view.dart';
 import 'package:medlink/views/doctor/Doctor%20patients/doctor_patients_view.dart';
 import 'package:medlink/views/doctor/Doctor%20patients/doctor_patients_view_model.dart';
+import 'package:medlink/views/doctor/doctor_appointments_view_model.dart';
+import 'package:medlink/views/doctor/Dashboard/doctor_dashboard_view_model.dart';
 import 'package:provider/provider.dart';
 
 class DoctorMainScreen extends StatefulWidget {
@@ -78,6 +80,16 @@ class _DoctorMainScreenState extends State<DoctorMainScreen> {
         setState(() {
           _selectedIndex = index;
         });
+        
+        // Refresh dashboard data if the home tab is tapped
+        if (index == 0) {
+          Provider.of<DoctorDashboardViewModel>(context, listen: false).fetchData();
+        }
+        
+        // Always fetch fresh appointments if the appointments tab is tapped
+        if (index == 1) {
+          Provider.of<DoctorAppointmentsViewModel>(context, listen: false).fetchAllAppointments();
+        }
         
         // Lazy load patients if the patients tab is tapped
         if (index == 2) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:medlink/widgets/no_data_widget.dart';
 import 'package:medlink/models/appointment_model.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
 import 'package:medlink/views/services/session_view_model.dart';
@@ -13,7 +14,7 @@ import 'package:medlink/views/Patient App/consultation/waiting_room_view.dart';
 import 'package:medlink/views/Patient App/consultation/chat_view.dart';
 import 'package:medlink/views/doctor/Doctor%20profile/doctor_profile_view.dart';
 import 'package:medlink/widgets/appointment_info_card.dart';
-
+import 'package:medlink/widgets/appointment_list_shimmer.dart';
 class AppointmentListView extends StatefulWidget {
   const AppointmentListView({super.key});
 
@@ -107,7 +108,7 @@ class _AppointmentListViewState extends State<AppointmentListView>
         ),
       ),
       body: appointmentVM.isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const AppointmentListShimmer(itemCount: 6)
           : TabBarView(
               controller: _tabController,
               children: [
@@ -139,27 +140,9 @@ class _AppointmentListViewState extends State<AppointmentListView>
         children: [
           SizedBox(
             height: MediaQuery.of(context).size.height * 0.6,
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.05),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.event_note_rounded,
-                        size: 64, color: AppColors.primary.withOpacity(0.5)),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(emptyMessage,
-                      style: GoogleFonts.inter(
-                          fontSize: 16,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w600)),
-                ],
-              ),
+            child: NoDataWidget(
+              title: emptyMessage,
+              subTitle: "You have no appointments in this category.",
             ),
           ),
         ],

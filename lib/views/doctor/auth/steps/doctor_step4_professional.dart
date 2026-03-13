@@ -4,6 +4,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/data/network/api_services.dart';
+import 'package:provider/provider.dart';
+import 'package:medlink/widgets/shimmer_widgets.dart';
+import 'package:medlink/views/Register/register_viewmodel.dart';
 
 class DoctorStep4Professional extends StatefulWidget {
   final VoidCallback onNext;
@@ -37,6 +41,32 @@ class _DoctorStep4ProfessionalState extends State<DoctorStep4Professional> {
   String? _licenseError;
   File? _licenseFile;
   final ImagePicker _picker = ImagePicker();
+  List<Map<String, dynamic>> _categories = [];
+  bool _isLoadingCategories = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCategories();
+  }
+
+  Future<void> _fetchCategories() async {
+    try {
+      final response = await ApiServices().getDoctorCategories();
+      if (response != null && response['success'] == true) {
+        final List<dynamic> data = response['data'] ?? [];
+        setState(() {
+          _categories = data.whereType<Map<String, dynamic>>().toList();
+          _isLoadingCategories = false;
+        });
+      } else {
+        setState(() => _isLoadingCategories = false);
+      }
+    } catch (e) {
+      debugPrint("Error fetching categories: $e");
+      setState(() => _isLoadingCategories = false);
+    }
+  }
 
   Future<void> _pickFile() async {
     try {
@@ -101,13 +131,82 @@ class _DoctorStep4ProfessionalState extends State<DoctorStep4Professional> {
 
             const SizedBox(height: 24),
 
-            _buildAnimatedTextField(
-              label: "Specialization",
-              hint: "Enter your specialization (e.g. Cardiologist)",
-              icon: Icons.local_hospital_rounded,
-              controller: widget.specializationController,
-              validator: (v) => v!.isEmpty ? "Required" : null,
-            ),
+            _isLoadingCategories
+                ? const DropdownShimmer()
+                : Consumer<RegisterViewModel>(
+                    builder: (context, authVM, child) {
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.04),
+                              blurRadius: 15,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: DropdownButtonFormField<String>(
+                          value: _categories.any((c) => c['id']?.toString() == authVM.selectedSpecialtyId) 
+                              ? authVM.selectedSpecialtyId 
+                              : null,
+                          items: _categories.map((cat) {
+                            return DropdownMenuItem<String>(
+                              value: cat['id']?.toString(),
+                              child: Text(
+                                cat['name']?.toString() ?? "General",
+                                style: GoogleFonts.inter(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w400,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            if (newValue != null) {
+                              final selectedCat = _categories.firstWhere((c) => c['id']?.toString() == newValue);
+                              widget.specializationController.text = selectedCat['name']?.toString() ?? "";
+                              authVM.setSelectedSpecialtyId(newValue);
+                            }
+                          },
+                          validator: (v) => v == null || v.isEmpty ? "Required" : null,
+                          icon: Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey[600]),
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.white,
+                            hintText: "Select your specialization",
+                            hintStyle: GoogleFonts.inter(color: Colors.grey[500], fontWeight: FontWeight.w400, fontSize: 13),
+                            prefixIcon: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(Icons.local_hospital_rounded, color: AppColors.primary, size: 18),
+                              ),
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
 
             const SizedBox(height: 24),
 

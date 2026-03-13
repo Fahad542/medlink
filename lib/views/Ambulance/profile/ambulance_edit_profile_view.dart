@@ -57,11 +57,9 @@ class _AmbulanceEditProfileViewState extends State<AmbulanceEditProfileView> {
                           offset: const Offset(0, 5),
                         ),
                       ],
-                      image: const DecorationImage(
-                        image: NetworkImage('https://i.pravatar.cc/300?u=driver'),
-                        fit: BoxFit.cover,
-                      ),
+                      color: Colors.grey[200],
                     ),
+                    child: const Icon(Icons.person, color: Colors.grey, size: 50),
                   ),
                   Positioned(
                     bottom: 0,

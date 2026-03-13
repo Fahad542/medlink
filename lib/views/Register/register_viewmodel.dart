@@ -79,6 +79,7 @@ class RegisterViewModel extends ChangeNotifier {
   final TextEditingController consultationFeeController =
       TextEditingController();
   String? licensePath;
+  String? selectedSpecialtyId;
   List<String> availabilityDays = [];
   TimeOfDay startTime = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay endTime = const TimeOfDay(hour: 17, minute: 0);
@@ -149,6 +150,7 @@ class RegisterViewModel extends ChangeNotifier {
     selectedDob = null;
     profileImagePath = null;
     licensePath = null;
+    selectedSpecialtyId = null;
     driverLicensePath = null;
 
     availabilityDays = [];
@@ -219,6 +221,11 @@ class RegisterViewModel extends ChangeNotifier {
 
   void setLicensePath(String? path) {
     licensePath = path;
+    notifyListeners();
+  }
+
+  void setSelectedSpecialtyId(String? id) {
+    selectedSpecialtyId = id;
     notifyListeners();
   }
 
@@ -366,7 +373,7 @@ class RegisterViewModel extends ChangeNotifier {
     }
     final data = {
       "phoneNumber": phoneController.text,
-      "otp_code": otp,
+      "otp": otp,
     };
     return await registerStep3WithoutFile(data, context);
   }
@@ -711,7 +718,7 @@ class RegisterViewModel extends ChangeNotifier {
     try {
       final data = {
         'email': email,
-        'otp_code': otp,
+        'otp': otp,
       };
 
       final value = await _apiServices.verifyEmailOtp(data);
@@ -752,7 +759,7 @@ class RegisterViewModel extends ChangeNotifier {
           .toList();
       final availabilityJson = jsonEncode(availabilityList);
 
-      final formData = <String, String>{
+      final formData = <String, String> {
         'fullName': nameController.text.trim(),
         'email': emailController.text.trim(),
         'password': passwordController.text,
@@ -760,7 +767,7 @@ class RegisterViewModel extends ChangeNotifier {
         'bio': aboutController.text.trim().isNotEmpty
             ? aboutController.text.trim()
             : 'Medical professional',
-        'specialization': specializationController.text.trim(),
+        'specialtyIds': selectedSpecialtyId ?? "",
         'experienceInYears': experienceController.text.trim().isNotEmpty
             ? experienceController.text.trim()
             : '5',

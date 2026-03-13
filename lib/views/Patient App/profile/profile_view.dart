@@ -325,11 +325,12 @@ class _ProfileViewState extends State<ProfileView> {
                                 ? NetworkImage(user.profileImage!)
                                 : FileImage(File(user.profileImage!))
                                     as ImageProvider)
-                            : const NetworkImage(
-                                "https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=400&auto=format&fit=crop&q=60",
-                              ),
-                        // Remove the child Icon since we always have a dummy image now
-                        child: null,
+                            : null,
+                        child: (user?.profileImage == null ||
+                                user!.profileImage!.isEmpty)
+                            ? const Icon(Icons.person,
+                                size: 50, color: Colors.grey)
+                            : null,
                       ),
                     ),
                     const SizedBox(height: 12),

@@ -271,12 +271,12 @@ class DoctorSettingsProfileView extends StatelessWidget {
                       child: CircleAvatar(
                         radius: 45, 
                         backgroundColor: Colors.white,
-                        backgroundImage: NetworkImage(
-                          (doctor?.imageUrl != null && doctor!.imageUrl.isNotEmpty)
-                              ? doctor.imageUrl
-                              : "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&auto=format&fit=crop&q=60",
-                        ),
-                        child: null, 
+                        backgroundImage: (doctor?.imageUrl != null && doctor!.imageUrl.isNotEmpty)
+                              ? NetworkImage(doctor.imageUrl)
+                              : null,
+                        child: (doctor?.imageUrl == null || doctor!.imageUrl.isEmpty)
+                              ? const Icon(Icons.person, size: 50, color: Colors.grey)
+                              : null,
                       ),
                     ),
                     const SizedBox(height: 12),

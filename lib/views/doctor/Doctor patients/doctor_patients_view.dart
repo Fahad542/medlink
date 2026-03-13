@@ -11,12 +11,16 @@ import 'package:provider/provider.dart';
 import 'package:medlink/views/doctor/Doctor%20patients/doctor_patients_view_model.dart';
 
 import '../Doctor Patient Dashboard/patient_dashboard_view.dart';
+import '../Doctor Patient Dashboard/doctor_patient_dashboard_view_model.dart';
+import 'package:medlink/widgets/no_data_widget.dart';
 // ... other imports ...
 
 import 'package:medlink/views/services/session_view_model.dart';
+import 'package:medlink/widgets/shimmer_widgets.dart';
 
 class DoctorPatientsView extends StatefulWidget {
-  const DoctorPatientsView({super.key});
+  final bool showBackButton;
+  const DoctorPatientsView({super.key, this.showBackButton = false});
 
   @override
   State<DoctorPatientsView> createState() => _DoctorPatientsViewState();
@@ -31,9 +35,9 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
       builder: (context, viewModel, child) {
         return Scaffold(
           backgroundColor: const Color(0xFFF8F9FB),
-          appBar: const CustomAppBar(
+          appBar: CustomAppBar(
             title: "My Patients",
-            automaticallyImplyLeading: false,
+            automaticallyImplyLeading: widget.showBackButton,
           ),
           body: Column(
             children: [
@@ -53,13 +57,18 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
               // Patient List
               Expanded(
                 child: viewModel.isLoading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? const DoctorPatientListShimmer()
                     : viewModel.patients.isEmpty
-                        ? Center(
-                            child: Text(
-                              "No patients found.",
-                              style: GoogleFonts.inter(color: Colors.grey[500]),
-                            ),
+                        ? const Stack(
+                            children: [
+                              Align(
+                                alignment: Alignment(0, -0.25),
+                                child: NoDataWidget(
+                                  title: "No patients found.",
+                                  subTitle: "You don't have any patients in this category yet.",
+                                ),
+                              ),
+                            ],
                           )
                         : ListView.builder(
                             physics: const BouncingScrollPhysics(),
@@ -215,9 +224,11 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                  builder: (_) => PatientDashboardView(
-                        patient: patient,
-                      )),
+                builder: (_) => ChangeNotifierProvider(
+                  create: (_) => DoctorPatientDashboardViewModel(patient)..fetchPatientProfile(),
+                  child: const PatientDashboardView(),
+                ),
+              ),
             );
           },
           borderRadius: BorderRadius.circular(16),
@@ -395,7 +406,8 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
                           builder: (_) => ChatView(
                                 recipientName: patient.name ?? "Patient",
                                 appointmentId: patient.lastAppointmentId ?? "0",
-                                currentUserId: currentUserId,
+                                doctorId: currentUserId.toString(),
+                                patientId: patient.id,
                               )),
                     );
                   },
@@ -456,8 +468,11 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) =>
-                              WaitingRoomView(callTargetName: patient.name)),
+                          builder: (_) => WaitingRoomView(
+                                callTargetName: patient.name,
+                                isDoctor: true,
+                                appointmentId: patient.lastAppointmentId,
+                              )),
                     );
                   },
                   borderRadius: BorderRadius.circular(16),

@@ -17,12 +17,39 @@ import 'package:medlink/views/Login/login_view.dart';
 import 'package:medlink/views/Onboarding/splash_view.dart';
 import 'package:medlink/views/doctor/doctor_appointments_view_model.dart';
 import 'package:medlink/views/doctor/Doctor%20patients/doctor_patients_view_model.dart';
+import 'package:medlink/views/doctor/Dashboard/doctor_dashboard_view_model.dart';
 import 'package:medlink/views/Patient App/prescriptions/prescription_view_model.dart';
 // import 'package:medlink/views/home/home_view.dart'; // Removed direct access
 
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:medlink/services/notification_services.dart';
 
-void main() {
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+}
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp();
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    
+    NotificationServices notificationServices = NotificationServices();
+    notificationServices.requestNotificationPermission();
+    notificationServices.firebaseInit();
+    notificationServices.getDeviceToken().then((value) {
+      if (kDebugMode) {
+        print("Device Token: $value");
+      }
+    });
+  } catch (e) {
+    debugPrint("Firebase initialization failed: $e");
+  }
+  
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
@@ -50,6 +77,7 @@ class MedLinkApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => DoctorAppointmentsViewModel()),
         ChangeNotifierProvider(create: (_) => DoctorPatientsViewModel()),
         ChangeNotifierProvider(create: (_) => PrescriptionViewModel()),
+        ChangeNotifierProvider(create: (_) => DoctorDashboardViewModel()),
       ],
       child: MaterialApp(
         title: 'MedLink Africa',

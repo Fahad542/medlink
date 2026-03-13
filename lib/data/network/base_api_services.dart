@@ -9,4 +9,5 @@ abstract class BaseApiServices {
   Future<dynamic> getPatchMultipartApiResponse(
       String url, dynamic data, File? file,
       {String fileKey = 'image'});
+  Future<dynamic> getMultipartApiResponse(dynamic request);
 }

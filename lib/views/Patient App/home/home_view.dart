@@ -17,6 +17,7 @@ import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.da
 import 'package:medlink/views/Patient%20App/home/home_viewmodel.dart';
 import 'package:medlink/models/appointment_model.dart';
 import 'package:medlink/widgets/appointment_info_card.dart';
+import 'package:medlink/widgets/appointment_list_shimmer.dart';
 import 'package:provider/provider.dart';
 
 class HomeView extends StatefulWidget {
@@ -87,31 +88,13 @@ class _HomeViewState extends State<HomeView> {
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black
-                                        .withOpacity(0.05), // Softer shadow
+                                    color: Colors.black.withOpacity(0.05),
                                     blurRadius: 10,
                                     offset: const Offset(0, 4),
                                   ),
                                 ],
                               ),
-                              child: CircleAvatar(
-                                radius: 26,
-                                backgroundColor: Colors.white,
-                                backgroundImage: (userVM
-                                                .patient?.profileImage !=
-                                            null &&
-                                        userVM
-                                            .patient!.profileImage!.isNotEmpty)
-                                    ? (userVM.patient!.profileImage!
-                                            .startsWith('http')
-                                        ? NetworkImage(
-                                            userVM.patient!.profileImage!)
-                                        : FileImage(File(
-                                                userVM.patient!.profileImage!))
-                                            as ImageProvider)
-                                    : const NetworkImage(
-                                        "https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=400&auto=format&fit=crop&q=60"),
-                              ),
+                              child: _buildProfileAvatar(userVM),
                             ),
                             const SizedBox(width: 14),
                             Column(
@@ -372,7 +355,7 @@ class _HomeViewState extends State<HomeView> {
                               ),
                             ),
                             const SizedBox(height: 12),
-                            const AppointmentCardShimmer(),
+                            const AppointmentListShimmer(itemCount: 1),
                             const SizedBox(height: 15),
                           ] else if (appointmentVM.appointments.any((a) =>
                               a.status == AppointmentStatus.upcoming ||
@@ -1042,6 +1025,53 @@ class _HomeViewState extends State<HomeView> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildProfileAvatar(UserViewModel userVM) {
+    final profileImage = userVM.patient?.profileImage;
+    final hasImage = profileImage != null && profileImage.isNotEmpty;
+
+    // Local file (FileImage path)
+    if (hasImage && !profileImage.startsWith('http')) {
+      return CircleAvatar(
+        radius: 26,
+        backgroundColor: Colors.white,
+        backgroundImage: FileImage(File(profileImage)),
+      );
+    }
+
+    // Network image — use Image.network with errorBuilder
+    final fallback = CircleAvatar(
+      radius: 26,
+      backgroundColor: Colors.grey.shade200,
+      child: Icon(Icons.person_rounded, color: Colors.grey.shade500, size: 28),
+    );
+
+    final imageUrl = hasImage
+        ? profileImage
+        : "https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=400&auto=format&fit=crop&q=60";
+
+    return ClipOval(
+      child: Image.network(
+        imageUrl,
+        width: 52,
+        height: 52,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => fallback,
+        loadingBuilder: (_, child, progress) {
+          if (progress == null) return child;
+          return CircleAvatar(
+            radius: 26,
+            backgroundColor: Colors.grey.shade200,
+            child: const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        },
       ),
     );
   }

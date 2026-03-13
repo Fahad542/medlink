@@ -4,6 +4,7 @@ import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
 import 'package:medlink/models/appointment_model.dart';
 import 'package:medlink/widgets/appointment_info_card.dart';
+import 'package:medlink/widgets/no_data_widget.dart';
 // import 'package:medlink/viewmodels/auth_viewmodel.dart'; // To get userId
 
 class MyAppointmentsView extends StatefulWidget {
@@ -101,19 +102,9 @@ class _MyAppointmentsViewState extends State<MyAppointmentsView>
     }
 
     if (appointments.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.calendar_today_outlined,
-                size: 80, color: Colors.grey[300]),
-            const SizedBox(height: 16),
-            Text(
-              'No $type appointments',
-              style: TextStyle(color: Colors.grey[600], fontSize: 16),
-            ),
-          ],
-        ),
+      return NoDataWidget(
+        title: 'No ${type.capitalize()} Appointments',
+        subTitle: "You have no ${type.toLowerCase()} appointments right now.",
       );
     }
 

@@ -7,16 +7,19 @@ import 'package:medlink/views/doctor/Doctor%20Patient%20Dashboard/appointment_de
 
 import 'package:provider/provider.dart';
 import 'package:medlink/views/doctor/Patient%20history/patient_history_view_model.dart';
+import 'package:medlink/views/doctor/Doctor%20Patient%20Dashboard/prescription_detail_view_model.dart';
 // ... other imports ...
 
 class PatientHistoryView extends StatelessWidget {
   final String patientName;
   final UserModel? patient;
+  final bool showBackButton;
 
   const PatientHistoryView({
     super.key, 
     this.patientName = "John Doe",
     this.patient,
+    this.showBackButton = false,
   });
 
   @override
@@ -29,6 +32,7 @@ class PatientHistoryView extends StatelessWidget {
             backgroundColor: const Color(0xFFF8F9FB),
             appBar: CustomAppBar(
               title: patientName,
+              automaticallyImplyLeading: showBackButton,
               actions: [
                   _buildAppBarAction(assetPath: "assets/Icons/chat.png", onTap: () {}),
                   const SizedBox(width: 8),
@@ -82,10 +86,14 @@ class PatientHistoryView extends StatelessWidget {
       
       return GestureDetector(
         onTap: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => AppointmentDetailView(
-            date: date,
-            title: title,
-            reason: symptoms,
+          Navigator.push(context, MaterialPageRoute(builder: (_) => ChangeNotifierProvider(
+            create: (_) => PrescriptionDetailViewModel(),
+            child: AppointmentDetailView(
+              date: date,
+              title: title,
+              reason: symptoms,
+              appointmentId: visit['id']?.toString() ?? "0",
+            ),
           )));
         },
         child: Container(

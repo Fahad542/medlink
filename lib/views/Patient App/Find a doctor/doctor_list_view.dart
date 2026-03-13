@@ -7,6 +7,7 @@ import 'package:medlink/views/doctor/Doctor%20profile/doctor_profile_view.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/widgets/shimmer_widgets.dart';
 import 'package:medlink/widgets/doctor_card.dart';
+import 'package:medlink/widgets/no_data_widget.dart';
 import 'package:provider/provider.dart';
 
 class DoctorListView extends StatelessWidget {
@@ -44,120 +45,140 @@ class _DoctorListViewContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final doctorVM = Provider.of<DoctorViewModel>(context); // Global Data for Categories
     final localVM = Provider.of<DoctorListViewModel>(context); // Local UI Logic & Data
+
+    final filteredDoctors = localVM.localDoctors.where((doctor) {
+      bool matchesSearch = localVM.searchQuery.isEmpty || 
+          doctor.name.toLowerCase().contains(localVM.searchQuery.toLowerCase());
+      bool matchesSpecialty = localVM.selectedSpecialty == null || 
+          doctor.specialty == localVM.selectedSpecialty;
+      bool matchesLocation = localVM.selectedLocation == null || 
+          doctor.location == localVM.selectedLocation;
+      return matchesSearch && matchesSpecialty && matchesLocation;
+    }).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: const CustomAppBar(title: "Find a Doctor"),
 
-      body: Column(
+      body: Stack(
         children: [
-          // 1. Search Bar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
-                ]
-              ),
-              child: TextField(
-                onChanged: (value) {
-                   localVM.setSearchQuery(value);
-                },
-                style: GoogleFonts.inter(fontSize: 14, color: Colors.black),
-                decoration: InputDecoration(
-                  hintText: "Search doctor name...",
-                  hintStyle: GoogleFonts.inter(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.w500),
-                  prefixIcon: Icon(Icons.search_rounded, color: Colors.grey[400], size: 22),
-                  suffixIcon: GestureDetector(
-                    onTap: () {
-                      _showMainFilterSheet(context);
+          // 1. Content Layer
+          Column(
+            children: [
+              // Search Bar
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))
+                    ]
+                  ),
+                  child: TextField(
+                    onChanged: (value) {
+                       localVM.setSearchQuery(value);
                     },
-                    child: Container(
-                      margin: const EdgeInsets.all(6),
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9), // Light grey
-                        borderRadius: BorderRadius.circular(8),
+                    style: GoogleFonts.inter(fontSize: 14, color: Colors.black),
+                    decoration: InputDecoration(
+                      hintText: "Search doctor name...",
+                      hintStyle: GoogleFonts.inter(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.w500),
+                      prefixIcon: Icon(Icons.search_rounded, color: Colors.grey[400], size: 22),
+                      suffixIcon: GestureDetector(
+                        onTap: () {
+                          _showMainFilterSheet(context);
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.all(6),
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9), // Light grey
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(Icons.tune_rounded, color: Colors.black87, size: 18),
+                        ),
                       ),
-                      child: Icon(Icons.tune_rounded, color: Colors.black87, size: 18),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      errorBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     ),
                   ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  errorBorder: InputBorder.none,
-                  disabledBorder: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 ),
               ),
-            ),
+
+              // Headers and List
+              if (!localVM.isLoadingDoctors && filteredDoctors.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: Text(
+                      localVM.selectedSpecialty != null ? "${localVM.selectedSpecialty} Doctors" : "All Doctors",
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF1E293B),
+                      ),
+                    ),
+                  ),
+                ),
+
+              Expanded(
+                child: localVM.isLoadingDoctors
+                    ? const DoctorListShimmer()
+                    : filteredDoctors.isEmpty 
+                        ? const SizedBox.shrink()
+                        : ListView.builder(
+                            physics: const BouncingScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                            itemCount: filteredDoctors.length, 
+                            itemBuilder: (context, index) {
+                              return DoctorCard(
+                                doctor: filteredDoctors[index],
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => DoctorProfileView(doctor: filteredDoctors[index]),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          ),
+              ),
+            ],
           ),
 
-          // 2. All Doctors Header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8), // Adjusted padding
-            child: SizedBox(
-              width: double.infinity,
-              child: Text(
-                localVM.selectedSpecialty != null ? "${localVM.selectedSpecialty} Doctors" : "All Doctors",
-                style: GoogleFonts.inter(
-                  fontSize: 16, // Smaller header
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1E293B),
-                ),
+          // 2. Empty State Overlay (Slightly above center)
+          if (!localVM.isLoadingDoctors && filteredDoctors.isEmpty)
+            Align(
+              alignment: const Alignment(0, -0.2), // Moves it 10% up from center
+              child: NoDataWidget(
+                title: localVM.selectedSpecialty != null 
+                    ? "No ${localVM.selectedSpecialty} Doctors Found" 
+                    : (localVM.searchQuery.isNotEmpty 
+                        ? "No \"${localVM.searchQuery}\" Found"
+                        : "No Doctors Found"),
+                subTitle: "Try adjusting your search or filters to find more doctors.",
               ),
             ),
-          ),
-
-          // 3. Doctor List
-          Expanded(
-            child: localVM.isLoadingDoctors
-                ? const DoctorListShimmer()
-                : ListView.builder(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), // Adjusted padding
-                    itemCount: localVM.localDoctors.length, 
-                    itemBuilder: (context, index) {
-                      final doctor = localVM.localDoctors[index];
-                      // Simple client-side filter check
-                      bool matchesSearch = localVM.searchQuery.isEmpty || doctor.name.toLowerCase().contains(localVM.searchQuery.toLowerCase());
-                      bool matchesSpecialty = localVM.selectedSpecialty == null || doctor.specialty == localVM.selectedSpecialty;
-                      bool matchesLocation = localVM.selectedLocation == null || doctor.location == localVM.selectedLocation;
-
-                      if (!matchesSearch || !matchesSpecialty || !matchesLocation) {
-                        return const SizedBox.shrink(); 
-                      }
-                      
-                      return DoctorCard(
-                        doctor: doctor,
-                        onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => DoctorProfileView(doctor: doctor),
-                              ),
-                            );
-                        },
-                      );
-                    },
-                  ),
-          ),
         ],
       ),
     );
@@ -387,54 +408,7 @@ class _DoctorListViewContent extends StatelessWidget {
     );
   }
 
-  Widget _buildFilterChip(
-    BuildContext context, 
-    String label, 
-    IconData icon, 
-    List<String> options, 
-    {bool isSelected = false, VoidCallback? onClear}
-  ) {
-    return InkWell(
-      onTap: () {
-        if (options.isNotEmpty && label != "Specialty" && label != "Location") {
-        }
-        String title = icon == Icons.medical_services_outlined ? "Specialty" : "Location";
-        _showFilterOptions(context, title, options);
-      },
-      borderRadius: BorderRadius.circular(12), // Smoother
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10), // Compact padding
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withOpacity(0.1) : const Color(0xFFF1F5F9), 
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 18, color: isSelected ? AppColors.primary : Colors.grey[600]), // Smaller icon
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                label,
-                style: GoogleFonts.inter(
-                  color: isSelected ? AppColors.primary : Colors.grey[700], 
-                  fontWeight: FontWeight.w500,
-                  fontSize: 13, // Smaller font
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (isSelected && onClear != null)
-              GestureDetector(
-                onTap: onClear,
-                child: const Icon(Icons.close_rounded, size: 16, color: AppColors.primary),
-              )
-            else
-              Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Colors.grey[400]),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   void _showFilterOptions(BuildContext context, String title, List<String> options) {
     final vm = Provider.of<DoctorListViewModel>(context, listen: false);

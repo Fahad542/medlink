@@ -1,22 +1,22 @@
 class FirstAidTopic {
-  final String id;
+  final int id;
   final String title;
-  final String subline;
-  final String guide;
+  final String content;
+  final String category;
 
   FirstAidTopic({
     required this.id,
     required this.title,
-    required this.subline,
-    required this.guide,
+    required this.content,
+    required this.category,
   });
 
   factory FirstAidTopic.fromJson(Map<String, dynamic> json) {
     return FirstAidTopic(
-      id: json['_id'] ?? '',
+      id: json['id'] ?? 0,
       title: json['title'] ?? '',
-      subline: json['subline'] ?? '',
-      guide: json['guide'] ?? '',
+      content: json['content'] ?? '',
+      category: json['category'] ?? '',
     );
   }
 }

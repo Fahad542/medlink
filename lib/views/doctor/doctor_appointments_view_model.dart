@@ -10,8 +10,16 @@ class DoctorAppointmentsViewModel extends ChangeNotifier {
   List<AppointmentModel> _pastAppointments = [];
   List<AppointmentModel> _cancelledAppointments = [];
 
+  bool _hasFetched = false;
+
   DoctorAppointmentsViewModel() {
-    fetchAllAppointments();
+    // Removed automatic fetch to support lazy loading
+  }
+
+  Future<void> loadAppointmentsIfNotLoaded() async {
+    if (_hasFetched) return;
+    _hasFetched = true;
+    await fetchAllAppointments();
   }
 
   bool get isLoading => _isLoading;
@@ -48,6 +56,7 @@ class DoctorAppointmentsViewModel extends ChangeNotifier {
         } else {
           _upcomingAppointments = [];
         }
+        notifyListeners();
       }
     } catch (e) {
       debugPrint("Error fetching upcoming doctor appointments: $e");
@@ -65,6 +74,7 @@ class DoctorAppointmentsViewModel extends ChangeNotifier {
         } else {
           _pastAppointments = [];
         }
+        notifyListeners();
       }
     } catch (e) {
       debugPrint("Error fetching past doctor appointments: $e");
@@ -82,6 +92,7 @@ class DoctorAppointmentsViewModel extends ChangeNotifier {
         } else {
           _cancelledAppointments = [];
         }
+        notifyListeners();
       }
     } catch (e) {
       debugPrint("Error fetching cancelled doctor appointments: $e");

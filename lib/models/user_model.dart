@@ -67,7 +67,20 @@ class UserModel {
         getField('profilePhotoUrl') ??
         getField('profile_image') ??
         getField('profile_image_url');
-    String? profileImageUrl = AppUrl.getFullUrl(profileImageRaw?.toString());
+        
+    String? rawUrl = profileImageRaw?.toString();
+    if (rawUrl != null) {
+      final lowerPath = rawUrl.toLowerCase();
+      if (lowerPath.contains('unsplash.com') ||
+          lowerPath.contains('randomuser.me') ||
+          lowerPath.contains('pravatar.cc') ||
+          lowerPath.contains('placeholder.com') ||
+          lowerPath.contains('via.placeholder')) {
+        rawUrl = null;
+      }
+    }
+    
+    String? profileImageUrl = AppUrl.getFullUrl(rawUrl);
 
     return UserModel(
       id: getField('id')?.toString() ??

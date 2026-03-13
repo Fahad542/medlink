@@ -247,8 +247,10 @@ class NetworkApiService extends BaseApiServices {
 
       // Add headers
       final headers = await _getHeaders();
+      headers.remove('Content-Type'); 
+      headers.remove('Accept'); 
       request.headers.addAll(headers);
-      request.headers['accept'] = '*/*';
+      request.headers['Accept'] = '*/*';
 
       if (kDebugMode) {
         print("Req Method: $method");
@@ -297,16 +299,46 @@ class NetworkApiService extends BaseApiServices {
     return responseJson;
   }
 
+  @override
+  Future getMultipartApiResponse(dynamic request) async {
+    if (request is! http.MultipartRequest) {
+      throw FetchDataException('Invalid request type. Expected MultipartRequest.');
+    }
+
+    dynamic responseJson;
+    try {
+      final headers = await _getHeaders();
+      headers.remove('Content-Type'); 
+      headers.remove('Accept'); 
+      request.headers.addAll(headers);
+      request.headers['Accept'] = '*/*';
+
+      final streamedResponse =
+          await request.send().timeout(const Duration(seconds: 30));
+      final response = await http.Response.fromStream(streamedResponse);
+
+      responseJson = returnResponse(response);
+    } on SocketException catch (e) {
+      if (kDebugMode) print("SocketException: $e");
+      throw FetchDataException('No Internet Connection or Server Unreachable');
+    }
+    return responseJson;
+  }
+
   dynamic returnResponse(http.Response response) {
-    print("Status Code: ${response.statusCode}");
-    print("Response Body: ${response.body}");
+    if (kDebugMode) {
+      print("Status Code: ${response.statusCode}");
+      print("Response Body: ${response.body}");
+    }
 
     switch (response.statusCode) {
       case 200:
       case 201:
         try {
-          dynamic responseJson = jsonDecode(response.body);
-          print("Api resposne: ${responseJson}");
+          final responseJson = jsonDecode(response.body);
+          if (kDebugMode) {
+            print("API Response: $responseJson");
+          }
           return responseJson;
         } catch (e) {
           throw FetchDataException("Invalid JSON response: ${response.body}");
@@ -349,8 +381,15 @@ class NetworkApiService extends BaseApiServices {
           throw FetchDataException(response.body);
         }
       default:
-        throw FetchDataException(
-            'Error occurred while communicating with server with status code : ${response.statusCode}. Body: ${response.body}');
+        try {
+          dynamic responseJson = jsonDecode(response.body);
+          throw FetchDataException(
+              responseJson['message'] ?? 'Something went wrong (${response.statusCode})');
+        } catch (e) {
+          if (e is FetchDataException) rethrow;
+          throw FetchDataException(
+              'Something went wrong (${response.statusCode})');
+        }
     }
   }
 }

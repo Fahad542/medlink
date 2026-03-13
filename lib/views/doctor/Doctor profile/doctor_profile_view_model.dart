@@ -32,6 +32,16 @@ class DoctorProfileViewModel extends ChangeNotifier {
     return _appointmentVM.appointments.any((appt) => appt.doctorId == doctorId);
   }
 
+  String? getAppointmentId(String doctorId) {
+    try {
+      return _appointmentVM.appointments
+          .firstWhere((appt) => appt.doctorId == doctorId)
+          .id;
+    } catch (e) {
+      return null;
+    }
+  }
+
   Future<void> bookAppointment(DoctorModel doctor, String patientId, {required VoidCallback onSuccess, required Function(String) onError}) async {
     if (_selectedTime == null) {
       onError("Please select a time slot");
