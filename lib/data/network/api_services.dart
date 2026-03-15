@@ -271,9 +271,11 @@ class ApiServices {
     }
   }
 
-  Future<dynamic> getUnifiedChatHistory(String doctorId, String patientId) async {
+  Future<dynamic> getUnifiedChatHistory(
+      String doctorId, String patientId) async {
     try {
-      final url = "${AppUrl.getUnifiedChatHistory}/doctor/$doctorId/patient/$patientId";
+      final url =
+          "${AppUrl.getUnifiedChatHistory}/doctor/$doctorId/patient/$patientId";
       return await _apiServices.getGetApiResponse(url);
     } catch (e) {
       rethrow;
@@ -473,7 +475,6 @@ class ApiServices {
     }
   }
 
-
   Future<dynamic> getDoctorMonthlyEarnings(int year, int month) async {
     try {
       return await _apiServices.getGetApiResponse(
@@ -665,6 +666,15 @@ class ApiServices {
         imageFile,
         fileKey: 'coverImage',
       );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getAgoraToken(String channelName, String role) async {
+    try {
+      final url = '${AppUrl.getAgoraToken}?channelName=$channelName&role=$role';
+      return await _apiServices.getGetApiResponse(url);
     } catch (e) {
       rethrow;
     }

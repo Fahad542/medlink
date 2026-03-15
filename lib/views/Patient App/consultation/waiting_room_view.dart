@@ -1,14 +1,21 @@
+import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/views/Patient App/consultation/video_call_view.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:medlink/data/network/api_services.dart';
 
 class WaitingRoomView extends StatefulWidget {
   final String? callTargetName;
   final bool isDoctor;
   final String? appointmentId;
-  const WaitingRoomView({super.key, this.callTargetName, this.isDoctor = false, this.appointmentId});
+  const WaitingRoomView(
+      {super.key,
+      this.callTargetName,
+      this.isDoctor = false,
+      this.appointmentId});
 
   @override
   State<WaitingRoomView> createState() => _WaitingRoomViewState();
@@ -17,11 +24,135 @@ class WaitingRoomView extends StatefulWidget {
 class _WaitingRoomViewState extends State<WaitingRoomView> {
   bool isMicOn = true;
   bool isCameraOn = true;
+  bool _permissionsGranted = false;
+  late RtcEngine _engine;
+  bool _engineReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPermissions();
+  }
+
+  Future<void> _checkPermissions() async {
+    // Check current status first
+    var cameraStatus = await Permission.camera.status;
+    var micStatus = await Permission.microphone.status;
+
+    if (!cameraStatus.isGranted || !micStatus.isGranted) {
+      // Request permissions if not already granted
+      final status = await [Permission.camera, Permission.microphone].request();
+      cameraStatus = status[Permission.camera] ?? PermissionStatus.denied;
+      micStatus = status[Permission.microphone] ?? PermissionStatus.denied;
+    }
+
+    if (cameraStatus.isGranted && micStatus.isGranted) {
+      setState(() {
+        _permissionsGranted = true;
+      });
+      _initPreview();
+    } else {
+      // Handle denied permissions
+      if (mounted) {
+        if (cameraStatus.isPermanentlyDenied || micStatus.isPermanentlyDenied) {
+          _showSettingsDialog();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text("Camera and Mic permissions are required.")),
+          );
+        }
+      }
+    }
+  }
+
+  void _showSettingsDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Permissions Required"),
+        content: const Text(
+            "This app needs camera and microphone access to make video calls. Please enable them in settings."),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                openAppSettings();
+              },
+              child: const Text("Open Settings")),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _initPreview() async {
+    try {
+      if (widget.appointmentId == null) return;
+
+      final apiService = ApiServices();
+      // Fetch token just to get the App ID, we don't need the token for preview usually,
+      // but 'initialize' needs AppID.
+      final response =
+          await apiService.getAgoraToken(widget.appointmentId!, 'publisher');
+
+      if (response == null || response['data'] == null) {
+        debugPrint("Failed to fetch App ID for preview");
+        return;
+      }
+
+      final String appId = response['data']['appId'];
+
+      _engine = createAgoraRtcEngine();
+      await _engine.initialize(RtcEngineContext(
+        appId: appId,
+        channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
+      ));
+
+      // Set role to broadcaster so we can start preview
+      await _engine.setClientRole(role: ClientRoleType.clientRoleBroadcaster);
+      await _engine.enableVideo();
+      await _engine.startPreview();
+
+      if (mounted) {
+        setState(() {
+          _engineReady = true;
+        });
+      }
+    } catch (e) {
+      debugPrint("Preview error: $e");
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_engineReady) {
+      _engine.leaveChannel();
+      _engine.release();
+    }
+    super.dispose();
+  }
+
+  void _onToggleCamera() async {
+    setState(() {
+      isCameraOn = !isCameraOn;
+    });
+    if (_engineReady) {
+      if (isCameraOn) {
+        await _engine.enableVideo();
+        await _engine.startPreview();
+      } else {
+        await _engine.stopPreview();
+        // await _engine.disableVideo(); // Optional, but stopPreview is enough for local
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1E1E1E), // Dark background for video feel
+      backgroundColor: const Color(0xFF1E1E1E),
       appBar: const CustomAppBar(title: "Waiting Room"),
       body: Column(
         children: [
@@ -34,35 +165,82 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
                 color: Colors.grey[900],
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: Colors.white24, width: 1),
-                // image: isCameraOn ? ... : null,
               ),
-              child: isCameraOn 
-               ? const Center(
-                   child: Icon(Icons.person, color: Colors.white24, size: 80),
-                 ) 
-               : Center(
-                   child: Column(
-                     mainAxisAlignment: MainAxisAlignment.center,
-                     children: [
-                       const Icon(Icons.videocam_off_outlined, color: Colors.white38, size: 60),
-                       const SizedBox(height: 12),
-                       Text("Camera is off", style: GoogleFonts.inter(color: Colors.white38.withOpacity(0.5))),
-                     ],
-                   ),
-                 ),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // 1. The Camera Feed (Placeholder or Real)
+                  if (_permissionsGranted && isCameraOn)
+                    if (_engineReady)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(24),
+                        child: AgoraVideoView(
+                          controller: VideoViewController(
+                            rtcEngine: _engine,
+                            canvas: const VideoCanvas(uid: 0),
+                          ),
+                        ),
+                      )
+                    else
+                      const Center(child: CircularProgressIndicator())
+                  else
+                    Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            _permissionsGranted
+                                ? Icons.videocam_off_outlined
+                                : Icons.lock_outline,
+                            color: Colors.white38,
+                            size: 60,
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            _permissionsGranted
+                                ? "Camera is off"
+                                : "Camera permission needed",
+                            style: GoogleFonts.inter(
+                                color: Colors.white38.withOpacity(0.5)),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // 2. Mic Status Indicator (Overlay)
+                  Positioned(
+                    top: 16,
+                    right: 16,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Icon(
+                        isMicOn ? Icons.mic : Icons.mic_off,
+                        color: isMicOn ? Colors.greenAccent : Colors.redAccent,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          
+
           const SizedBox(height: 30),
 
           // Info Text
           Text(
-            "Waiting for ${widget.callTargetName ?? 'Dr. Sarah Johnson'}...",
-            style: GoogleFonts.inter(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+            "Waiting for ${widget.callTargetName ?? 'Doctor'}...",
+            style: GoogleFonts.inter(
+                color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
+          // TODO: Implement Real-time status check from Backend (isUserInCall?)
           Text(
-            "Your appointment starts in 5 minutes",
+            "Ready to join?",
             style: GoogleFonts.inter(color: Colors.white54, fontSize: 13),
           ),
 
@@ -75,7 +253,7 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildControlBtn(
-                  isMicOn ? Icons.mic : Icons.mic_off, 
+                  isMicOn ? Icons.mic : Icons.mic_off,
                   isMicOn ? Colors.white : Colors.red,
                   "Mic",
                   () => setState(() => isMicOn = !isMicOn),
@@ -84,7 +262,7 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
                   isCameraOn ? Icons.videocam : Icons.videocam_off,
                   isCameraOn ? Colors.white : Colors.red,
                   "Camera",
-                  () => setState(() => isCameraOn = !isCameraOn),
+                  _onToggleCamera,
                 ),
               ],
             ),
@@ -97,22 +275,44 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
             width: double.infinity,
             margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
             child: ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => VideoCallView(
-                    isDoctor: widget.isDoctor,
-                    appointmentId: widget.appointmentId,
-                  )),
-                );
-              },
+              onPressed: _permissionsGranted
+                  ? () async {
+                      // Ensure local engine is cleaned up before navigating
+                      if (_engineReady) {
+                        await _engine.leaveChannel();
+                        await _engine.release();
+                        setState(() {
+                          _engineReady = false;
+                        });
+                      }
+
+                      if (context.mounted) {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => VideoCallView(
+                              isDoctor: widget.isDoctor,
+                              appointmentId: widget.appointmentId,
+                              // Pass the initial states
+                              initialMicOn: isMicOn,
+                              initialCameraOn: isCameraOn,
+                            ),
+                          ),
+                        );
+                      }
+                    }
+                  : null, // Disable if permissions not granted
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor:
+                    _permissionsGranted ? AppColors.primary : Colors.grey,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
               ),
-              child: Text("Join Now", style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.bold)),
+              child: Text("Join Now",
+                  style: GoogleFonts.inter(
+                      fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ),
         ],
@@ -120,7 +320,8 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
     );
   }
 
-  Widget _buildControlBtn(IconData icon, Color color, String label, VoidCallback onTap) {
+  Widget _buildControlBtn(
+      IconData icon, Color color, String label, VoidCallback onTap) {
     return Column(
       children: [
         InkWell(
@@ -129,7 +330,9 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: color == Colors.red ? Colors.red.withOpacity(0.1) : Colors.white.withOpacity(0.1),
+              color: color == Colors.red
+                  ? Colors.red.withOpacity(0.1)
+                  : Colors.white.withOpacity(0.1),
               shape: BoxShape.circle,
               border: Border.all(color: color.withOpacity(0.5)),
             ),
@@ -137,7 +340,8 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
           ),
         ),
         const SizedBox(height: 8),
-        Text(label, style: GoogleFonts.inter(color: Colors.white54, fontSize: 12)),
+        Text(label,
+            style: GoogleFonts.inter(color: Colors.white54, fontSize: 12)),
       ],
     );
   }

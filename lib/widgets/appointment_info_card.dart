@@ -133,10 +133,12 @@ class AppointmentInfoCard extends StatelessWidget {
                 subtitle: "Join the virtual waiting room",
                 color: AppColors.primary,
                 onTap: () {
+                  Navigator.pop(context); // Close the bottom sheet first
                   Navigator.push(
                       context,
                       MaterialPageRoute(
                           builder: (_) => WaitingRoomView(
+                                callTargetName: appointment.doctor?.name,
                                 isDoctor: false,
                                 appointmentId: appointment.id,
                               )));
@@ -188,7 +190,6 @@ class AppointmentInfoCard extends StatelessWidget {
       ),
     );
   }
-
 
   void _showCancelDialog(BuildContext context) {
     showDialog(
@@ -505,7 +506,9 @@ class AppointmentInfoCard extends StatelessWidget {
       builder: (ctx) => Stack(
         alignment: Alignment.bottomCenter,
         children: [
-          GestureDetector(onTap: () => Navigator.pop(ctx), child: Container(color: Colors.transparent)),
+          GestureDetector(
+              onTap: () => Navigator.pop(ctx),
+              child: Container(color: Colors.transparent)),
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -518,12 +521,20 @@ class AppointmentInfoCard extends StatelessWidget {
                     onTap: () => Navigator.pop(ctx),
                     borderRadius: BorderRadius.circular(30),
                     child: Container(
-                      width: 40, height: 40,
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
-                        color: Colors.white, shape: BoxShape.circle,
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))],
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2))
+                        ],
                       ),
-                      child: const Icon(Icons.close, size: 20, color: Colors.black87),
+                      child: const Icon(Icons.close,
+                          size: 20, color: Colors.black87),
                     ),
                   ),
                 ),
@@ -532,9 +543,12 @@ class AppointmentInfoCard extends StatelessWidget {
               // Receipt card
               Container(
                 width: MediaQuery.of(ctx).size.width * 0.92,
-                constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.75),
+                constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(ctx).size.height * 0.75),
                 margin: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20)),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
                   child: SingleChildScrollView(
@@ -546,7 +560,10 @@ class AppointmentInfoCard extends StatelessWidget {
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
-                              colors: [AppColors.primary.withOpacity(0.15), AppColors.primary.withOpacity(0.05)],
+                              colors: [
+                                AppColors.primary.withOpacity(0.15),
+                                AppColors.primary.withOpacity(0.05)
+                              ],
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
                             ),
@@ -556,8 +573,13 @@ class AppointmentInfoCard extends StatelessWidget {
                               Container(
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 2),
-                                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+                                  border:
+                                      Border.all(color: Colors.white, width: 2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                        color: Colors.black.withOpacity(0.05),
+                                        blurRadius: 10)
+                                  ],
                                 ),
                                 child: avatar,
                               ),
@@ -566,25 +588,42 @@ class AppointmentInfoCard extends StatelessWidget {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text("Dr. $doctorName", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+                                    Text("Dr. $doctorName",
+                                        style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF1E293B))),
                                     if (specialty.isNotEmpty)
-                                      Text(specialty, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w500)),
+                                      Text(specialty,
+                                          style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Color(0xFF64748B),
+                                              fontWeight: FontWeight.w500)),
                                     Text(
-                                      DateFormat('MMM dd, yyyy • hh:mm a').format(ap.dateTime),
-                                      style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                                      DateFormat('MMM dd, yyyy • hh:mm a')
+                                          .format(ap.dateTime),
+                                      style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey[500]),
                                     ),
                                   ],
                                 ),
                               ),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
                                   color: AppColors.primary.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Text(
-                                  ap.type == AppointmentType.online ? 'Video' : 'In-Person',
-                                  style: const TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.w600),
+                                  ap.type == AppointmentType.online
+                                      ? 'Video'
+                                      : 'In-Person',
+                                  style: const TextStyle(
+                                      fontSize: 10,
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w600),
                                 ),
                               ),
                             ],
@@ -593,25 +632,36 @@ class AppointmentInfoCard extends StatelessWidget {
 
                         // ── Body ──
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 20),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               // Reason
-                              if (ap.reason != null && ap.reason!.isNotEmpty) ...[
+                              if (ap.reason != null &&
+                                  ap.reason!.isNotEmpty) ...[
                                 _buildRxSectionTitle("Reason for Visit"),
                                 const SizedBox(height: 6),
-                                Text(ap.reason!, style: const TextStyle(fontSize: 13, height: 1.4, color: Color(0xFF475569))),
+                                Text(ap.reason!,
+                                    style: const TextStyle(
+                                        fontSize: 13,
+                                        height: 1.4,
+                                        color: Color(0xFF475569))),
                                 const SizedBox(height: 16),
                                 _buildRxDashedLine(),
                                 const SizedBox(height: 16),
                               ],
 
                               // Diagnosis
-                              if (rx?.diagnosis != null && rx!.diagnosis!.isNotEmpty) ...[
+                              if (rx?.diagnosis != null &&
+                                  rx!.diagnosis!.isNotEmpty) ...[
                                 _buildRxSectionTitle("Diagnosis"),
                                 const SizedBox(height: 6),
-                                Text(rx.diagnosis!, style: const TextStyle(fontSize: 13, height: 1.4, color: Color(0xFF475569))),
+                                Text(rx.diagnosis!,
+                                    style: const TextStyle(
+                                        fontSize: 13,
+                                        height: 1.4,
+                                        color: Color(0xFF475569))),
                                 const SizedBox(height: 16),
                                 _buildRxDashedLine(),
                                 const SizedBox(height: 16),
@@ -622,22 +672,30 @@ class AppointmentInfoCard extends StatelessWidget {
                                 _buildRxSectionTitle("Vitals"),
                                 const SizedBox(height: 12),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 8),
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFF8F9FA),
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: Colors.grey.shade200),
+                                    border:
+                                        Border.all(color: Colors.grey.shade200),
                                   ),
                                   child: Column(
                                     children: [
-                                      if (vitals['bpSystolic'] != null && vitals['bpDiastolic'] != null)
-                                        _buildRxVitalRow("Blood Pressure", "${vitals['bpSystolic']}/${vitals['bpDiastolic']} mmHg"),
+                                      if (vitals['bpSystolic'] != null &&
+                                          vitals['bpDiastolic'] != null)
+                                        _buildRxVitalRow("Blood Pressure",
+                                            "${vitals['bpSystolic']}/${vitals['bpDiastolic']} mmHg"),
                                       if (vitals['heartRate'] != null)
-                                        _buildRxVitalRow("Heart Rate", "${vitals['heartRate']} bpm"),
+                                        _buildRxVitalRow("Heart Rate",
+                                            "${vitals['heartRate']} bpm"),
                                       if (vitals['weightKg'] != null)
-                                        _buildRxVitalRow("Weight", "${vitals['weightKg']} kg"),
+                                        _buildRxVitalRow("Weight",
+                                            "${vitals['weightKg']} kg"),
                                       if (vitals['temperature'] != null)
-                                        _buildRxVitalRow("Temperature", "${vitals['temperature']} °C", isLast: true),
+                                        _buildRxVitalRow("Temperature",
+                                            "${vitals['temperature']} °C",
+                                            isLast: true),
                                     ],
                                   ),
                                 ),
@@ -651,38 +709,71 @@ class AppointmentInfoCard extends StatelessWidget {
                                 _buildRxSectionTitle("Medications"),
                                 const SizedBox(height: 12),
                                 ...medications.map((med) {
-                                  final name = med['medicineName'] ?? med['name'] ?? '';
-                                  final dosage = med['dosage']?.toString() ?? '';
-                                  final frequency = med['frequency']?.toString() ?? '';
-                                  final duration = med['duration']?.toString() ?? '';
+                                  final name =
+                                      med['medicineName'] ?? med['name'] ?? '';
+                                  final dosage =
+                                      med['dosage']?.toString() ?? '';
+                                  final frequency =
+                                      med['frequency']?.toString() ?? '';
+                                  final duration =
+                                      med['duration']?.toString() ?? '';
                                   return Container(
                                     margin: const EdgeInsets.only(bottom: 10),
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
                                       color: const Color(0xFFF8FFFE),
                                       borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: AppColors.primary.withOpacity(0.1)),
+                                      border: Border.all(
+                                          color: AppColors.primary
+                                              .withOpacity(0.1)),
                                     ),
                                     child: Row(
                                       children: [
                                         Container(
                                           padding: const EdgeInsets.all(8),
-                                          decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), shape: BoxShape.circle),
-                                          child: const Icon(Icons.medication_outlined, size: 16, color: AppColors.primary),
+                                          decoration: BoxDecoration(
+                                              color: AppColors.primary
+                                                  .withOpacity(0.1),
+                                              shape: BoxShape.circle),
+                                          child: const Icon(
+                                              Icons.medication_outlined,
+                                              size: 16,
+                                              color: AppColors.primary),
                                         ),
                                         const SizedBox(width: 10),
                                         Expanded(
                                           child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
-                                              Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
-                                              if (dosage.isNotEmpty || frequency.isNotEmpty)
+                                              Text(name,
+                                                  style: const TextStyle(
+                                                      fontSize: 13,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color:
+                                                          Color(0xFF1E293B))),
+                                              if (dosage.isNotEmpty ||
+                                                  frequency.isNotEmpty)
                                                 Text(
-                                                  [if (dosage.isNotEmpty) dosage, if (frequency.isNotEmpty) frequency].join(' • '),
-                                                  style: const TextStyle(fontSize: 11, color: Color(0xFF00897B), fontWeight: FontWeight.w500),
+                                                  [
+                                                    if (dosage.isNotEmpty)
+                                                      dosage,
+                                                    if (frequency.isNotEmpty)
+                                                      frequency
+                                                  ].join(' • '),
+                                                  style: const TextStyle(
+                                                      fontSize: 11,
+                                                      color: Color(0xFF00897B),
+                                                      fontWeight:
+                                                          FontWeight.w500),
                                                 ),
                                               if (duration.isNotEmpty)
-                                                Text("Duration: $duration", style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                                                Text("Duration: $duration",
+                                                    style: TextStyle(
+                                                        fontSize: 11,
+                                                        color:
+                                                            Colors.grey[500])),
                                             ],
                                           ),
                                         ),
@@ -700,20 +791,31 @@ class AppointmentInfoCard extends StatelessWidget {
                                 _buildRxSectionTitle("Tests Required"),
                                 const SizedBox(height: 12),
                                 ...tests.map((test) {
-                                  final testName = test['testName'] ?? test['name'] ?? '';
+                                  final testName =
+                                      test['testName'] ?? test['name'] ?? '';
                                   final hasReport = test['reportUrl'] != null;
                                   return Padding(
                                     padding: const EdgeInsets.only(bottom: 12),
                                     child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         Expanded(
-                                          child: Text(testName, style: const TextStyle(fontSize: 13, color: Color(0xFF1E293B), fontWeight: FontWeight.w500)),
+                                          child: Text(testName,
+                                              style: const TextStyle(
+                                                  fontSize: 13,
+                                                  color: Color(0xFF1E293B),
+                                                  fontWeight: FontWeight.w500)),
                                         ),
                                         const SizedBox(width: 12),
                                         hasReport
-                                          ? const Icon(Icons.check_circle, size: 20, color: Color(0xFF00897B))
-                                          : const Icon(Icons.radio_button_unchecked, size: 20, color: Colors.grey),
+                                            ? const Icon(Icons.check_circle,
+                                                size: 20,
+                                                color: Color(0xFF00897B))
+                                            : const Icon(
+                                                Icons.radio_button_unchecked,
+                                                size: 20,
+                                                color: Colors.grey),
                                       ],
                                     ),
                                   );
@@ -724,10 +826,15 @@ class AppointmentInfoCard extends StatelessWidget {
                               ],
 
                               // Doctor's Notes
-                              if (rx?.notes != null && rx!.notes!.isNotEmpty) ...[
+                              if (rx?.notes != null &&
+                                  rx!.notes!.isNotEmpty) ...[
                                 _buildRxSectionTitle("Doctor's Notes"),
                                 const SizedBox(height: 6),
-                                Text(rx.notes!, style: const TextStyle(fontSize: 13, height: 1.4, color: Color(0xFF475569))),
+                                Text(rx.notes!,
+                                    style: const TextStyle(
+                                        fontSize: 13,
+                                        height: 1.4,
+                                        color: Color(0xFF475569))),
                               ],
 
                               const SizedBox(height: 20),
@@ -750,19 +857,20 @@ class AppointmentInfoCard extends StatelessWidget {
                   children: [
                     _buildRxActionButton(Icons.download_rounded, () {
                       ScaffoldMessenger.of(ctx).showSnackBar(
-                        const SnackBar(content: Text("Downloading prescription...")),
+                        const SnackBar(
+                            content: Text("Downloading prescription...")),
                       );
                     }),
                     const SizedBox(width: 20),
                     _buildRxActionButton(Icons.share_rounded, () {
                       ScaffoldMessenger.of(ctx).showSnackBar(
-                        const SnackBar(content: Text("Sharing prescription...")),
+                        const SnackBar(
+                            content: Text("Sharing prescription...")),
                       );
                     }),
                   ],
                 ),
               ),
-
             ],
           ),
         ],
@@ -773,9 +881,17 @@ class AppointmentInfoCard extends StatelessWidget {
   Widget _buildRxSectionTitle(String title) {
     return Row(
       children: [
-        Container(width: 6, height: 6, decoration: const BoxDecoration(color: Color(0xFF00BFA5), shape: BoxShape.circle)),
+        Container(
+            width: 6,
+            height: 6,
+            decoration: const BoxDecoration(
+                color: Color(0xFF00BFA5), shape: BoxShape.circle)),
         const SizedBox(width: 8),
-        Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF1E293B))),
+        Text(title,
+            style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1E293B))),
       ],
     );
   }
@@ -785,17 +901,22 @@ class AppointmentInfoCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(30),
       child: Container(
-        width: 50, height: 50,
+        width: 50,
+        height: 50,
         decoration: BoxDecoration(
           color: Colors.white,
           shape: BoxShape.circle,
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 10, offset: const Offset(0, 4))],
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.12),
+                blurRadius: 10,
+                offset: const Offset(0, 4))
+          ],
         ),
         child: Icon(icon, size: 22, color: const Color(0xFF1E293B)),
       ),
     );
   }
-
 
   Widget _buildRxVitalRow(String label, String value, {bool isLast = false}) {
     return Column(
@@ -805,8 +926,13 @@ class AppointmentInfoCard extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(label, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
-              Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E293B))),
+              Text(label,
+                  style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+              Text(value,
+                  style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1E293B))),
             ],
           ),
         ),
@@ -824,17 +950,17 @@ class AppointmentInfoCard extends StatelessWidget {
         return Flex(
           direction: Axis.horizontal,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: List.generate(dashCount, (_) => Container(
-            width: dashWidth, height: 1,
-            color: Colors.grey.shade200,
-          )),
+          children: List.generate(
+              dashCount,
+              (_) => Container(
+                    width: dashWidth,
+                    height: 1,
+                    color: Colors.grey.shade200,
+                  )),
         );
       },
     );
   }
-
-
-
 
   Widget _buildMedicineItem(
       String name, String qty, String instructions, String duration) {
@@ -885,7 +1011,8 @@ class AppointmentInfoCard extends StatelessWidget {
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
                               color: const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(12),
@@ -907,7 +1034,8 @@ class AppointmentInfoCard extends StatelessWidget {
                               color: AppColors.primary.withOpacity(0.08),
                               shape: BoxShape.circle,
                             ),
-                            child: Icon(Icons.timer_rounded, size: 14, color: AppColors.primary),
+                            child: Icon(Icons.timer_rounded,
+                                size: 14, color: AppColors.primary),
                           ),
                           const SizedBox(width: 8),
                           Text(
@@ -970,8 +1098,10 @@ class AppointmentInfoCard extends StatelessWidget {
                         letterSpacing: -0.3)),
                 const SizedBox(height: 4),
                 Text(reason,
-                    style:
-                        TextStyle(color: const Color(0xFF64748B), fontSize: 13, fontWeight: FontWeight.w600)),
+                    style: TextStyle(
+                        color: const Color(0xFF64748B),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600)),
               ],
             ),
           ),
@@ -1154,9 +1284,11 @@ class AppointmentInfoCard extends StatelessWidget {
                 // Status Badge or 3-dots
                 if (isDone || isCancelled)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: (isDone ? Colors.green : Colors.red).withOpacity(0.1),
+                      color:
+                          (isDone ? Colors.green : Colors.red).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(

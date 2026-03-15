@@ -1,15 +1,24 @@
+import 'dart:async';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/widgets/prescription_bottom_sheet.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class VideoCallView extends StatefulWidget {
   final bool isDoctor;
   final String? appointmentId;
+  final bool initialMicOn;
+  final bool initialCameraOn;
 
-  const VideoCallView({super.key, this.isDoctor = false, this.appointmentId});
+  const VideoCallView({
+    super.key,
+    this.isDoctor = false,
+    this.appointmentId,
+    this.initialMicOn = true,
+    this.initialCameraOn = true,
+  });
 
   @override
   State<VideoCallView> createState() => _VideoCallViewState();
@@ -20,77 +29,183 @@ class _VideoCallViewState extends State<VideoCallView> {
   int? _remoteUid;
   bool _localUserJoined = false;
   late RtcEngine _engine;
+  bool _isLoading = true;
+  String? _error;
+
+  // Remote State
+  bool _remoteVideoMuted = false;
 
   // Local UI State
-  bool isMicOn = true;
-  bool isCameraOn = true;
+  late bool isMicOn;
+  late bool isCameraOn;
 
-  // CREDENTIALS (PROVIDED)
-  static const String appId = "cf69cfdd7e3e47e19486c765003b36ac";
-  static const String token =
-      "007eJxTYFgZE7573poEjTaHWZcdN68utz1kGSod8m0zz42F72cmHXNVYEhOM7NMTktJMU81TjUxTzW0NLEwSzY3MzUwME4yNktMLknIzmwIZGRQ1ZNmZmSAQBCfhaEktbiEgQEAczQfFw==";
-  static const String channel = "test"; // Default channel name for testing
+  // Timer State
+  int _seconds = 0;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
+    isMicOn = widget.initialMicOn;
+    isCameraOn = widget.initialCameraOn;
     _initAgora();
+    // Timer will start only when remote user joins
+  }
+
+  void _startTimer() {
+    _timer?.cancel(); // Cancel any existing timer
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          _seconds++;
+        });
+      }
+    });
+  }
+
+  void _stopTimer() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  String get _formattedTime {
+    final minutes = (_seconds ~/ 60).toString().padLeft(2, '0');
+    final seconds = (_seconds % 60).toString().padLeft(2, '0');
+    return "$minutes:$seconds";
   }
 
   Future<void> _initAgora() async {
     // 1. Request Permissions
     await [Permission.microphone, Permission.camera].request();
 
-    // 2. Create Engine
-    _engine = createAgoraRtcEngine();
-    await _engine.initialize(const RtcEngineContext(
-      appId: appId,
-      channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
-    ));
+    try {
+      if (widget.appointmentId == null) {
+        throw Exception("Appointment ID is missing");
+      }
 
-    // 3. Event Handling
-    _engine.registerEventHandler(
-      RtcEngineEventHandler(
-        onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
-          debugPrint("Local user ${connection.localUid} joined");
-          setState(() {
-            _localUserJoined = true;
-          });
-        },
-        onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
-          debugPrint("Remote user $remoteUid joined");
-          setState(() {
-            _remoteUid = remoteUid;
-          });
-        },
-        onUserOffline: (RtcConnection connection, int remoteUid, UserOfflineReasonType reason) {
-          debugPrint("Remote user $remoteUid left channel");
-          setState(() {
-            _remoteUid = null;
-          });
-        },
-      ),
-    );
+      // 2. Fetch Token
+      final apiService = ApiServices();
+      final response =
+          await apiService.getAgoraToken(widget.appointmentId!, 'publisher');
 
-    // 4. Enable Video
-    await _engine.setClientRole(role: ClientRoleType.clientRoleBroadcaster);
-    await _engine.enableVideo();
-    await _engine.startPreview();
+      if (response == null || response['data'] == null) {
+        throw Exception("Failed to get token data");
+      }
 
-    // 5. Join Channel
-    await _engine.joinChannel(
-      token: token,
-      channelId: channel,
-      uid: 0,
-      options: const ChannelMediaOptions(),
-    );
+      final data = response['data'];
+      if (data['token'] == null || data['appId'] == null) {
+        throw Exception("Token or AppId missing in response");
+      }
+
+      final String token = data['token'];
+      final String appId = data['appId'];
+
+      // 3. Create Engine
+      _engine = createAgoraRtcEngine();
+      await _engine.initialize(RtcEngineContext(
+        appId: appId,
+        channelProfile: ChannelProfileType.channelProfileLiveBroadcasting,
+      ));
+
+      // 4. Event Handling
+      _engine.registerEventHandler(
+        RtcEngineEventHandler(
+          onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
+            debugPrint("Local user ${connection.localUid} joined");
+            if (mounted) {
+              setState(() {
+                _localUserJoined = true;
+              });
+            }
+          },
+          onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
+            debugPrint("Remote user $remoteUid joined");
+            if (mounted) {
+              setState(() {
+                _remoteUid = remoteUid;
+                _remoteVideoMuted = false;
+              });
+              _startTimer(); // Start timer when remote user joins
+            }
+          },
+          onUserOffline: (RtcConnection connection, int remoteUid,
+              UserOfflineReasonType reason) {
+            debugPrint("Remote user $remoteUid left channel");
+            if (mounted) {
+              setState(() {
+                _remoteUid = null;
+                _remoteVideoMuted = false;
+              });
+              _stopTimer(); // Stop timer when remote user leaves
+            }
+          },
+          onUserMuteVideo:
+              (RtcConnection connection, int remoteUid, bool muted) {
+            debugPrint("Remote user $remoteUid muted video: $muted");
+            if (mounted) {
+              setState(() {
+                _remoteVideoMuted = muted;
+              });
+            }
+          },
+        ),
+      );
+
+      // 5. Enable Video/Audio based on initial state
+      await _engine.setClientRole(role: ClientRoleType.clientRoleBroadcaster);
+
+      // ALWAYS enable video module, even if camera is initially off.
+      // If we disableVideo(), we can't receive remote video stream.
+      await _engine.enableVideo();
+
+      if (widget.initialCameraOn) {
+        await _engine.startPreview();
+      } else {
+        // Just mute local stream, don't disable the entire video module
+        // await _engine.disableVideo();
+      }
+
+      await _engine.muteLocalAudioStream(!widget.initialMicOn);
+      await _engine.muteLocalVideoStream(!widget.initialCameraOn);
+
+      // 6. Join Channel
+      await _engine.joinChannel(
+        token: token,
+        channelId: widget.appointmentId!,
+        uid: 0,
+        options: const ChannelMediaOptions(),
+      );
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error init agora: $e");
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
-    _engine.leaveChannel();
-    _engine.release();
+    _dispose();
     super.dispose();
+  }
+
+  Future<void> _dispose() async {
+    _timer?.cancel();
+    try {
+      await _engine.leaveChannel();
+      await _engine.release();
+    } catch (e) {
+      debugPrint("Error disposing agora: $e");
+    }
   }
 
   // --- ACTIONS ---
@@ -102,11 +217,19 @@ class _VideoCallViewState extends State<VideoCallView> {
     _engine.muteLocalAudioStream(!isMicOn);
   }
 
-  void _onToggleCamera() {
+  void _onToggleCamera() async {
     setState(() {
       isCameraOn = !isCameraOn;
     });
-    _engine.muteLocalVideoStream(!isCameraOn);
+
+    if (isCameraOn) {
+      await _engine.enableVideo();
+      await _engine.startPreview();
+      await _engine.muteLocalVideoStream(false);
+    } else {
+      await _engine.muteLocalVideoStream(true);
+      await _engine.stopPreview();
+    }
   }
 
   void _onEndCall() {
@@ -117,6 +240,25 @@ class _VideoCallViewState extends State<VideoCallView> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_error != null) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Text(
+            "Error: $_error",
+            style: const TextStyle(color: Colors.white),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.black, // Immersive background
       body: Stack(
@@ -138,9 +280,12 @@ class _VideoCallViewState extends State<VideoCallView> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.circle, color: Colors.red, size: 12), // Recording dot status
+                  const Icon(Icons.circle,
+                      color: Colors.red, size: 12), // Recording dot status
                   const SizedBox(width: 8),
-                  Text("04:21", style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold)),
+                  Text(_formattedTime,
+                      style: GoogleFonts.inter(
+                          color: Colors.white, fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
@@ -158,7 +303,10 @@ class _VideoCallViewState extends State<VideoCallView> {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.white38),
                 boxShadow: const [
-                  BoxShadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 4))
+                  BoxShadow(
+                      color: Colors.black45,
+                      blurRadius: 10,
+                      offset: Offset(0, 4))
                 ],
               ),
               clipBehavior: Clip.antiAlias,
@@ -198,7 +346,8 @@ class _VideoCallViewState extends State<VideoCallView> {
                         color: Colors.red,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.call_end, color: Colors.white, size: 24),
+                      child: const Icon(Icons.call_end,
+                          color: Colors.white, size: 24),
                     ),
                   ),
 
@@ -247,40 +396,62 @@ class _VideoCallViewState extends State<VideoCallView> {
         ),
       );
     } else {
-      return const Center(child: Icon(Icons.videocam_off, color: Colors.white54, size: 30));
+      return const Center(
+          child: Icon(Icons.videocam_off, color: Colors.white54, size: 30));
     }
   }
 
   Widget _remoteVideo() {
     if (_remoteUid != null) {
+      if (_remoteVideoMuted) {
+        return Container(
+          color: Colors.grey[900],
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.videocam_off, size: 80, color: Colors.white24),
+                const SizedBox(height: 16),
+                Text(
+                  "Camera is off",
+                  style: GoogleFonts.inter(color: Colors.white54, fontSize: 16),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
       return AgoraVideoView(
         controller: VideoViewController.remote(
           rtcEngine: _engine,
           canvas: VideoCanvas(uid: _remoteUid),
-          connection: const RtcConnection(channelId: channel),
+          connection: RtcConnection(channelId: widget.appointmentId!),
         ),
       );
     } else {
       return Container(
         color: Colors.grey[900],
         child: Center(
-           child: Column(
-             mainAxisAlignment: MainAxisAlignment.center,
-             children: [
-               const Icon(Icons.person, size: 100, color: Colors.white24),
-               const SizedBox(height: 16),
-               Text(
-                 "Waiting for remote user...",
-                 style: GoogleFonts.inter(color: Colors.white54, fontSize: 16),
-               ),
-             ],
-           ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.person, size: 100, color: Colors.white24),
+              const SizedBox(height: 16),
+              Text(
+                widget.isDoctor
+                    ? "Waiting for patient..."
+                    : "Waiting for doctor...",
+                style: GoogleFonts.inter(color: Colors.white54, fontSize: 16),
+              ),
+            ],
+          ),
         ),
       );
     }
   }
 
-  Widget _buildControlBtn(IconData icon, Color iconColor, Color bgColor, VoidCallback onTap) {
+  Widget _buildControlBtn(
+      IconData icon, Color iconColor, Color bgColor, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(50),
