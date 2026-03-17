@@ -5,10 +5,24 @@ import 'package:medlink/views/Ambulance/history/ambulance_history_view.dart';
 import 'package:medlink/views/Ambulance/profile/ambulance_profile_view.dart';
 import 'package:medlink/views/Ambulance/profile/ambulance_earnings_view.dart';
 import 'package:medlink/views/Ambulance/Ambulance%20main/ambulance_main_view_model.dart';
+import 'package:medlink/views/call/call_view_model.dart';
 import 'package:provider/provider.dart';
 
-class AmbulanceMainView extends StatelessWidget {
+class AmbulanceMainView extends StatefulWidget {
   const AmbulanceMainView({super.key});
+
+  @override
+  State<AmbulanceMainView> createState() => _AmbulanceMainViewState();
+}
+
+class _AmbulanceMainViewState extends State<AmbulanceMainView> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<CallViewModel>(context, listen: false).startPolling(context);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,10 +66,34 @@ class AmbulanceMainView extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        _buildNavItem(context, viewModel, 0, Icons.grid_view_rounded, Icons.grid_view_outlined, "Home"),
-                        _buildNavItem(context, viewModel, 1, Icons.account_balance_wallet_rounded, Icons.account_balance_wallet_outlined, "Earnings"),
-                        _buildNavItem(context, viewModel, 2, Icons.history_rounded, Icons.history_outlined, "History"),
-                        _buildNavItem(context, viewModel, 3, Icons.person_rounded, Icons.person_outline, "Profile"),
+                        _buildNavItem(
+                            context,
+                            viewModel,
+                            0,
+                            Icons.grid_view_rounded,
+                            Icons.grid_view_outlined,
+                            "Home"),
+                        _buildNavItem(
+                            context,
+                            viewModel,
+                            1,
+                            Icons.account_balance_wallet_rounded,
+                            Icons.account_balance_wallet_outlined,
+                            "Earnings"),
+                        _buildNavItem(
+                            context,
+                            viewModel,
+                            2,
+                            Icons.history_rounded,
+                            Icons.history_outlined,
+                            "History"),
+                        _buildNavItem(
+                            context,
+                            viewModel,
+                            3,
+                            Icons.person_rounded,
+                            Icons.person_outline,
+                            "Profile"),
                       ],
                     ),
                   ),
@@ -68,7 +106,8 @@ class AmbulanceMainView extends StatelessWidget {
     );
   }
 
-  Widget _buildNavItem(BuildContext context, AmbulanceMainViewModel viewModel, int index, IconData activeIcon, IconData inactiveIcon, String label) {
+  Widget _buildNavItem(BuildContext context, AmbulanceMainViewModel viewModel,
+      int index, IconData activeIcon, IconData inactiveIcon, String label) {
     final isSelected = viewModel.currentIndex == index;
     return GestureDetector(
       onTap: () {
@@ -95,17 +134,17 @@ class AmbulanceMainView extends StatelessWidget {
               color: isSelected ? Colors.white : Colors.grey,
               size: 26,
             ),
-              if (isSelected) ...[
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 13,
-                  ),
+            if (isSelected) ...[
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
                 ),
-              ],
+              ),
+            ],
           ],
         ),
       ),

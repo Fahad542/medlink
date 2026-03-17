@@ -49,5 +49,9 @@
 	<string>We need access to your microphone for video calling with doctors.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>We need access to your camera for video calling with doctors.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We need access to your location to find nearby emergency requests and navigate to patients.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>We need access to your location to track your trip status even when the app is in background.</string>
 </dict>
 </plist>

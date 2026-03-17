@@ -186,6 +186,7 @@ class _RegisterViewState extends State<RegisterView> {
                   return EmailVerificationSheet(
                     emailController: model.emailController,
                     isLoading: model.emailLoading,
+                    debugOtp: model.emailDebugOtp,
                     onRequestOtp: (email) =>
                         model.requestEmailOtp(email, context),
                     onVerifyOtp: (email, otp) =>
@@ -328,13 +329,15 @@ class _RegisterViewState extends State<RegisterView> {
             onImageSelected: (path) => authViewModel.setProfileImage(path),
           ),
           DriverStep6Setup(
-            onFinished: () {
-              authViewModel.finishDriverSetup(context);
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (_) => const AmbulanceMainView()),
-                (route) => false,
-              );
+            onFinished: () async {
+              await authViewModel.finishDriverSetup(context);
+              if (context.mounted) {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AmbulanceMainView()),
+                  (route) => false,
+                );
+              }
             },
           ),
         ];

@@ -1,24 +1,72 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/core/constants/app_url.dart';
+import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 
 class AmbulanceEditProfileView extends StatefulWidget {
-  const AmbulanceEditProfileView({super.key});
+  /// Initial values from driver profile (passed from profile screen).
+  final String? initialFullName;
+  final String? initialEmail;
+  final String? initialPhone;
+  final String? initialProfilePhoto;
+  final String? initialVehiclePlate;
+  final String? initialVehicleType;
+  final String? initialLicenseNo;
+
+  const AmbulanceEditProfileView({
+    super.key,
+    this.initialFullName,
+    this.initialEmail,
+    this.initialPhone,
+    this.initialProfilePhoto,
+    this.initialVehiclePlate,
+    this.initialVehicleType,
+    this.initialLicenseNo,
+  });
 
   @override
-  State<AmbulanceEditProfileView> createState() => _AmbulanceEditProfileViewState();
+  State<AmbulanceEditProfileView> createState() =>
+      _AmbulanceEditProfileViewState();
 }
 
 class _AmbulanceEditProfileViewState extends State<AmbulanceEditProfileView> {
-  // Controllers
-  final _nameController = TextEditingController(text: "John Doe");
-  final _phoneController = TextEditingController(text: "+1 234 567 8900");
-  final _emailController = TextEditingController(text: "john.driver@medlink.com");
-  final _vehicleNumberController = TextEditingController(text: "KYC 1234");
-  final _vehicleModelController = TextEditingController(text: "Toyota HiAce Ambulance");
-  final _licenseNumberController = TextEditingController(text: "DL-987654321");
+  late final TextEditingController _nameController;
+  late final TextEditingController _phoneController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _vehicleNumberController;
+  late final TextEditingController _vehicleModelController;
+  late final TextEditingController _licenseNumberController;
+
+  File? _selectedImage;
+  final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.initialFullName ?? '');
+    _phoneController = TextEditingController(text: widget.initialPhone ?? '');
+    _emailController = TextEditingController(text: widget.initialEmail ?? '');
+    _vehicleNumberController =
+        TextEditingController(text: widget.initialVehiclePlate ?? '');
+    _vehicleModelController =
+        TextEditingController(text: widget.initialVehicleType ?? '');
+    _licenseNumberController =
+        TextEditingController(text: widget.initialLicenseNo ?? '');
+  }
+
+  Future<void> _pickImage() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      setState(() {
+        _selectedImage = File(image.path);
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -31,90 +79,152 @@ class _AmbulanceEditProfileViewState extends State<AmbulanceEditProfileView> {
     super.dispose();
   }
 
+  bool _isLoading = false;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: const CustomAppBar(title: "Edit Profile"),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            // Profile Image Edit
-            Center(
-              child: Stack(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
                 children: [
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 4),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
+                  // Profile Image Edit
+                  Center(
+                    child: Stack(
+                      children: [
+                        GestureDetector(
+                          onTap: _pickImage,
+                          child: Container(
+                            width: 100,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 4),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 5),
+                                ),
+                              ],
+                              color: Colors.grey[200],
+                              image: _selectedImage != null
+                                  ? DecorationImage(
+                                      image: FileImage(_selectedImage!),
+                                      fit: BoxFit.cover)
+                                  : (widget.initialProfilePhoto != null &&
+                                          widget.initialProfilePhoto!.isNotEmpty
+                                      ? DecorationImage(
+                                          image: NetworkImage(AppUrl.getFullUrl(
+                                              widget.initialProfilePhoto)),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : null),
+                            ),
+                            child: _selectedImage == null &&
+                                    (widget.initialProfilePhoto == null ||
+                                        widget.initialProfilePhoto!.isEmpty)
+                                ? const Icon(Icons.person,
+                                    color: Colors.grey, size: 50)
+                                : null,
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: GestureDetector(
+                            onTap: _pickImage,
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                                border:
+                                    Border.all(color: Colors.white, width: 2),
+                              ),
+                              child: const Icon(Icons.camera_alt_rounded,
+                                  color: Colors.white, size: 16),
+                            ),
+                          ),
                         ),
                       ],
-                      color: Colors.grey[200],
-                    ),
-                    child: const Icon(Icons.person, color: Colors.grey, size: 50),
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                      child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 16),
                     ),
                   ),
+                  const SizedBox(height: 32),
+
+                  // Form Fields
+
+                  _buildTextField(
+                      "Full Name", _nameController, Icons.person_outline),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                      "Phone Number", _phoneController, Icons.phone_outlined,
+                      keyboardType: TextInputType.phone),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                      "Email", _emailController, Icons.email_outlined,
+                      keyboardType: TextInputType.emailAddress),
+
+                  const SizedBox(height: 32),
+                  _buildTextField("Vehicle Number", _vehicleNumberController,
+                      Icons.directions_car_outlined),
+                  const SizedBox(height: 16),
+                  _buildTextField("Vehicle Model", _vehicleModelController,
+                      Icons.local_shipping_outlined),
+                  const SizedBox(height: 16),
+                  _buildTextField("License Number", _licenseNumberController,
+                      Icons.badge_outlined),
+
+                  const SizedBox(height: 40),
+                  CustomButton(
+                    text: "Save Changes",
+                    onPressed: _updateProfile,
+                  ),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
-            const SizedBox(height: 32),
-
-            // Form Fields
-
-            _buildTextField("Full Name", _nameController, Icons.person_outline),
-            const SizedBox(height: 16),
-            _buildTextField("Phone Number", _phoneController, Icons.phone_outlined, keyboardType: TextInputType.phone),
-             const SizedBox(height: 16),
-            _buildTextField("Email", _emailController, Icons.email_outlined, keyboardType: TextInputType.emailAddress),
-
-            const SizedBox(height: 32),
-            _buildTextField("Vehicle Number", _vehicleNumberController, Icons.directions_car_outlined),
-             const SizedBox(height: 16),
-            _buildTextField("Vehicle Model", _vehicleModelController, Icons.local_shipping_outlined),
-             const SizedBox(height: 16),
-            _buildTextField("License Number", _licenseNumberController, Icons.badge_outlined),
-
-
-            const SizedBox(height: 40),
-            CustomButton(
-              text: "Save Changes",
-              onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Profile updated successfully!")),
-                );
-              },
-            ),
-            const SizedBox(height: 20),
-          ],
-        ),
-      ),
     );
   }
 
+  Future<void> _updateProfile() async {
+    setState(() => _isLoading = true);
+    try {
+      final apiServices = ApiServices();
+      await apiServices.updateDriverProfile(
+        fullName: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        phone: _phoneController.text.trim(),
+        vehiclePlate: _vehicleNumberController.text.trim(),
+        vehicleType: _vehicleModelController.text.trim(),
+        licenseNo: _licenseNumberController.text.trim(),
+        profilePhoto: _selectedImage,
+      );
 
+      if (mounted) {
+        Navigator.pop(context, true); // Return true to refresh
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Profile updated successfully!")),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Update failed: $e")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
-  Widget _buildTextField(String label, TextEditingController controller, IconData icon, {TextInputType? keyboardType}) {
+  Widget _buildTextField(
+      String label, TextEditingController controller, IconData icon,
+      {TextInputType? keyboardType}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -147,7 +257,10 @@ class _AmbulanceEditProfileViewState extends State<AmbulanceEditProfileView> {
               filled: true,
               fillColor: Colors.white,
               hintText: "Enter $label",
-              hintStyle: GoogleFonts.inter(color: Colors.grey[400], fontWeight: FontWeight.w500, fontSize: 14),
+              hintStyle: GoogleFonts.inter(
+                  color: Colors.grey[400],
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14),
               prefixIcon: Padding(
                 padding: const EdgeInsets.all(10),
                 child: Container(
@@ -171,7 +284,8 @@ class _AmbulanceEditProfileViewState extends State<AmbulanceEditProfileView> {
                 borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide.none,
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
             ),
           ),
         ),

@@ -19,6 +19,7 @@ import 'package:medlink/views/doctor/doctor_appointments_view_model.dart';
 import 'package:medlink/views/doctor/Doctor%20patients/doctor_patients_view_model.dart';
 import 'package:medlink/views/doctor/Dashboard/doctor_dashboard_view_model.dart';
 import 'package:medlink/views/Patient App/prescriptions/prescription_view_model.dart';
+import 'package:medlink/views/call/call_view_model.dart';
 // import 'package:medlink/views/home/home_view.dart'; // Removed direct access
 
 import 'package:flutter/services.dart';
@@ -37,7 +38,7 @@ void main() async {
   try {
     await Firebase.initializeApp();
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-    
+
     NotificationServices notificationServices = NotificationServices();
     notificationServices.requestNotificationPermission();
     notificationServices.firebaseInit();
@@ -49,7 +50,7 @@ void main() async {
   } catch (e) {
     debugPrint("Firebase initialization failed: $e");
   }
-  
+
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
@@ -78,6 +79,7 @@ class MedLinkApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => DoctorPatientsViewModel()),
         ChangeNotifierProvider(create: (_) => PrescriptionViewModel()),
         ChangeNotifierProvider(create: (_) => DoctorDashboardViewModel()),
+        ChangeNotifierProvider(create: (_) => CallViewModel()),
       ],
       child: MaterialApp(
         title: 'MedLink Africa',

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/widgets/custom_button.dart';
@@ -8,6 +9,7 @@ class EmailVerificationSheet extends StatefulWidget {
   final Future<bool> Function(String) onRequestOtp;
   final Future<bool> Function(String, String) onVerifyOtp;
   final bool isLoading;
+  final String? debugOtp;
 
   const EmailVerificationSheet({
     super.key,
@@ -15,6 +17,7 @@ class EmailVerificationSheet extends StatefulWidget {
     required this.onRequestOtp,
     required this.onVerifyOtp,
     this.isLoading = false,
+    this.debugOtp,
   });
 
   @override
@@ -23,18 +26,16 @@ class EmailVerificationSheet extends StatefulWidget {
 
 class _EmailVerificationSheetState extends State<EmailVerificationSheet> {
   final _formKey = GlobalKey<FormState>();
-  final List<TextEditingController> _otpControllers = List.generate(
-      6, (_) => TextEditingController());
+  final List<TextEditingController> _otpControllers =
+      List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
   bool _isOtpSent = false;
   String? _otpError;
 
   @override
   void dispose() {
-    for (var c in _otpControllers)
-      c.dispose();
-    for (var f in _focusNodes)
-      f.dispose();
+    for (var c in _otpControllers) c.dispose();
+    for (var f in _focusNodes) f.dispose();
     super.dispose();
   }
 
@@ -106,7 +107,6 @@ class _EmailVerificationSheetState extends State<EmailVerificationSheet> {
               ),
             ),
             const SizedBox(height: 24),
-
             if (!_isOtpSent)
               _buildTextField(
                 label: "Email Address",
@@ -115,7 +115,8 @@ class _EmailVerificationSheetState extends State<EmailVerificationSheet> {
                 controller: widget.emailController,
                 validator: (v) {
                   if (v == null || v.isEmpty) return "Required";
-                  if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(v)) {
+                  if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                      .hasMatch(v)) {
                     return "Invalid email address";
                   }
                   return null;
@@ -124,6 +125,35 @@ class _EmailVerificationSheetState extends State<EmailVerificationSheet> {
             else
               Column(
                 children: [
+                  if (kDebugMode)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.amber.shade200),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.bug_report_outlined,
+                                size: 16, color: Colors.amber.shade800),
+                            const SizedBox(width: 8),
+                            Text(
+                              "Debug OTP: ${widget.debugOtp ?? 'Checking console...'}",
+                              style: TextStyle(
+                                color: Colors.amber.shade900,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -143,9 +173,7 @@ class _EmailVerificationSheetState extends State<EmailVerificationSheet> {
                     ),
                 ],
               ),
-
             const SizedBox(height: 32),
-
             Row(
               children: [
                 Expanded(
@@ -155,7 +183,8 @@ class _EmailVerificationSheetState extends State<EmailVerificationSheet> {
                     onPressed: () async {
                       if (!_isOtpSent) {
                         if (_formKey.currentState!.validate()) {
-                          final success = await widget.onRequestOtp(widget.emailController.text);
+                          final success = await widget
+                              .onRequestOtp(widget.emailController.text);
                           if (success && mounted) {
                             setState(() => _isOtpSent = true);
                           }
@@ -163,15 +192,14 @@ class _EmailVerificationSheetState extends State<EmailVerificationSheet> {
                       } else {
                         String otp = _otpControllers.map((c) => c.text).join();
                         if (otp.length < 6) {
-                          setState(() => _otpError = "Please enter full 6-digit code");
+                          setState(() =>
+                              _otpError = "Please enter full 6-digit code");
                           return;
                         }
                         setState(() => _otpError = null);
 
                         final success = await widget.onVerifyOtp(
-                            widget.emailController.text,
-                            otp
-                        );
+                            widget.emailController.text, otp);
                         if (success && mounted) {
                           Navigator.pop(context, true);
                         }
@@ -254,7 +282,6 @@ class _EmailVerificationSheetState extends State<EmailVerificationSheet> {
     );
   }
 
-
   Widget _buildTextField({
     required String label,
     required String hint,
@@ -318,7 +345,7 @@ class _EmailVerificationSheetState extends State<EmailVerificationSheet> {
                 borderSide: BorderSide.none,
               ),
               contentPadding:
-              const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
+                  const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
             ),
           ),
         ),

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/models/ambulance_model.dart';
 import 'package:medlink/views/Patient App/consultation/chat_view.dart';
-
+import 'package:medlink/views/call/call_view_model.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:provider/provider.dart';
 
@@ -312,9 +313,12 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                         offset: const Offset(0, 4),
                                       )
                                     ],
-                                    image: const DecorationImage(
-                                      image: NetworkImage(
-                                          'https://img.freepik.com/free-photo/portrait-smiling-male-doctor_171337-1532.jpg'),
+                                    image: DecorationImage(
+                                      image: NetworkImage(widget.ambulance
+                                              .profilePhotoUrl.isNotEmpty
+                                          ? AppUrl.getFullUrl(
+                                              widget.ambulance.profilePhotoUrl)
+                                          : 'https://img.freepik.com/free-photo/portrait-smiling-male-doctor_171337-1532.jpg'),
                                       fit: BoxFit.cover,
                                     ),
                                   ),
@@ -393,13 +397,13 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                              builder: (context) => ChatView(
-                                              recipientName:
-                                                  widget.ambulance.driverName,
-                                              appointmentId: widget.ambulance.id,
-                                              doctorId: widget.ambulance.id,
-                                              patientId: currentUserId.toString(),
-                                            ),
+                                          builder: (context) => ChatView(
+                                            recipientName:
+                                                widget.ambulance.driverName,
+                                            appointmentId: widget.ambulance.id,
+                                            doctorId: widget.ambulance.id,
+                                            patientId: currentUserId.toString(),
+                                          ),
                                         ),
                                       );
                                     },
@@ -423,7 +427,25 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                 Expanded(
                                   child: ElevatedButton.icon(
                                     onPressed: () {
-                                      _showCallDriverBottomSheet(context);
+                                      final driverId =
+                                          int.tryParse(widget.ambulance.id);
+                                      if (driverId != null) {
+                                        Provider.of<CallViewModel>(context,
+                                                listen: false)
+                                            .initiateCall(
+                                                context,
+                                                driverId,
+                                                widget.ambulance.driverName,
+                                                widget
+                                                    .ambulance.profilePhotoUrl);
+                                      } else {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                              content: Text(
+                                                  "Driver contact not available")),
+                                        );
+                                      }
                                     },
                                     icon: const Icon(Icons.phone_rounded,
                                         size: 22),
@@ -495,9 +517,11 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(color: AppColors.primary, width: 3),
-                  image: const DecorationImage(
-                    image: NetworkImage(
-                        'https://img.freepik.com/free-photo/portrait-smiling-male-doctor_171337-1532.jpg'),
+                  image: DecorationImage(
+                    image: NetworkImage(widget
+                            .ambulance.profilePhotoUrl.isNotEmpty
+                        ? AppUrl.getFullUrl(widget.ambulance.profilePhotoUrl)
+                        : 'https://img.freepik.com/free-photo/portrait-smiling-male-doctor_171337-1532.jpg'),
                     fit: BoxFit.cover,
                   ),
                   boxShadow: [
@@ -521,9 +545,9 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                "Calling...",
-                style: TextStyle(
+              Text(
+                "Calling ${widget.ambulance.phoneNumber}...",
+                style: const TextStyle(
                   color: AppColors.primary,
                   fontSize: 18,
                   fontWeight: FontWeight.w500,

@@ -43,22 +43,25 @@ class DoctorPersonalInfoView extends StatelessWidget {
                                     shape: BoxShape.circle,
                                     border: Border.all(
                                         color: Colors.white, width: 4),
-                                    image: (viewModel.imageFile != null || (viewModel.profileImage != null && viewModel.profileImage!.isNotEmpty))
-                                      ? DecorationImage(
-                                          image: viewModel.imageFile != null
-                                              ? FileImage(viewModel.imageFile!)
-                                                  as ImageProvider
-                                              : (viewModel.profileImage!
-                                                      .startsWith('http')
-                                                  ? NetworkImage(
-                                                      viewModel.profileImage!)
-                                                  : FileImage(File(viewModel
-                                                          .profileImage!))
-                                                      as ImageProvider),
-                                          fit: BoxFit.cover,
-                                        )
-                                      : null,
-
+                                    image: (viewModel.imageFile != null ||
+                                            (viewModel.profileImage != null &&
+                                                viewModel
+                                                    .profileImage!.isNotEmpty))
+                                        ? DecorationImage(
+                                            image: viewModel.imageFile != null
+                                                ? FileImage(
+                                                        viewModel.imageFile!)
+                                                    as ImageProvider
+                                                : (viewModel.profileImage!
+                                                        .startsWith('http')
+                                                    ? NetworkImage(
+                                                        viewModel.profileImage!)
+                                                    : FileImage(File(viewModel
+                                                            .profileImage!))
+                                                        as ImageProvider),
+                                            fit: BoxFit.cover,
+                                          )
+                                        : null,
                                     boxShadow: [
                                       BoxShadow(
                                         color: Colors.black.withOpacity(0.1),
@@ -112,8 +115,10 @@ class DoctorPersonalInfoView extends StatelessWidget {
                             Icons.timeline_rounded,
                             keyboardType: TextInputType.number),
                         const SizedBox(height: 16),
-                        _buildModernTextField("Clinic Name",
-                            viewModel.clinicNameController, Icons.business_rounded),
+                        _buildModernTextField(
+                            "Clinic Name",
+                            viewModel.clinicNameController,
+                            Icons.business_rounded),
                         const SizedBox(height: 16),
                         _buildModernTextField(
                             "Clinic Address",
@@ -160,9 +165,7 @@ class DoctorPersonalInfoView extends StatelessWidget {
 
   Widget _buildModernTextField(
       String label, TextEditingController controller, IconData icon,
-      {bool readOnly = false,
-      int maxLines = 1,
-      TextInputType? keyboardType}) {
+      {bool readOnly = false, int maxLines = 1, TextInputType? keyboardType}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

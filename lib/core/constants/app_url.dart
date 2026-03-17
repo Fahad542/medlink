@@ -99,6 +99,31 @@ class AppUrl {
       '${baseUrl}/doctor/appointments-history'; // ?patientId={id}
   static const String getPrescriptionDetails =
       '${baseUrl}/doctor/appointments'; // /{id}/prescription-
+  /// Driver App Endpoints
+  static const String getDriverProfile = '${baseUrl}/driver/profile';
+  static const String updateDriverStatus = '${baseUrl}/driver/status';
+  static const String getDriverDashboard = '${baseUrl}/driver/dashboard';
+  static const String getDriverEmergencyRequests =
+      '${baseUrl}/driver/emergency-requests';
+  static const String driverTrips = '${baseUrl}/driver/trips';
+  static const String driverEarnings = '${baseUrl}/driver/earnings';
+
   /// Agora Token
   static const String getAgoraToken = '${baseUrl}/agora/token';
+  static const String initiateCall = '${baseUrl}/agora/initiate-call';
+  static const String checkIncomingCall = '${baseUrl}/agora/incoming-call';
+  static const String callStatus = '${baseUrl}/agora/status';
+  static const String updateCallStatus = '${baseUrl}/agora/update-status';
+
+  static const String driverRegisterStep1 = '${baseUrl}/auth/driver/send-otp';
+  static const String driverRegisterStep2 = '${baseUrl}/auth/driver/verify-otp';
+  static const String driverRegisterStep3 = '${baseUrl}/auth/driver/register';
+  // Note: Some driver endpoints were duplicated below, removing them to fix conflicts
+  static const String getDriverEarningsSummary =
+      '${baseUrl}/driver/earnings/summary';
+  static const String getDriverEarningsTransactions =
+      '${baseUrl}/driver/earnings/transactions';
+
+  /// Patient App Endpoints
+  static const String createSos = '${baseUrl}/patient/sos';
 }

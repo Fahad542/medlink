@@ -1,0 +1,89 @@
+import 'package:flutter/material.dart';
+import 'package:medlink/data/network/api_services.dart';
+
+class AmbulanceEarningsViewModel extends ChangeNotifier {
+  final ApiServices _apiServices = ApiServices();
+
+  num _totalBalance = 0;
+  num _earningsToday = 0;
+  num _earningsThisWeek = 0;
+
+  List<Map<String, dynamic>> _transactions = [];
+  bool _isLoading = true;
+  bool _isLoadingTransactions = false;
+
+  bool get isLoading => _isLoading;
+  bool get isLoadingTransactions => _isLoadingTransactions;
+  List<Map<String, dynamic>> get transactions => List.unmodifiable(_transactions);
+
+  String get totalBalanceFormatted => _formatAmount(_totalBalance);
+  String get earningsTodayFormatted => _formatAmount(_earningsToday);
+  String get earningsThisWeekFormatted => _formatAmount(_earningsThisWeek);
+
+  AmbulanceEarningsViewModel() {
+    fetchEarningsSummary();
+  }
+
+  String _formatAmount(num value) {
+    if (value == value.roundToDouble()) {
+      return value.toInt().toString();
+    }
+    return value.toStringAsFixed(2);
+  }
+
+  Future<void> fetchEarningsSummary() async {
+    _isLoading = true;
+    _isLoadingTransactions = true;
+    notifyListeners();
+    try {
+      await Future.wait([
+        _fetchSummary(),
+        _fetchTransactions(),
+      ]);
+    } finally {
+      _isLoading = false;
+      _isLoadingTransactions = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _fetchSummary() async {
+    try {
+      final response = await _apiServices.getDriverEarningsSummary();
+      if (response != null && response['success'] == true) {
+        final data = response['data'];
+        if (data is Map) {
+          final balance = data['totalBalance'];
+          _totalBalance = balance is num ? balance : (num.tryParse(balance?.toString() ?? '0') ?? 0);
+          final today = data['earningsToday'];
+          _earningsToday = today is num ? today : (num.tryParse(today?.toString() ?? '0') ?? 0);
+          final week = data['earningsThisWeek'];
+          _earningsThisWeek = week is num ? week : (num.tryParse(week?.toString() ?? '0') ?? 0);
+        }
+      }
+    } catch (e) {
+      debugPrint('AmbulanceEarningsViewModel _fetchSummary error: $e');
+    }
+  }
+
+  Future<void> _fetchTransactions() async {
+    try {
+      final response = await _apiServices.getDriverEarningsTransactions(limit: 20, offset: 0);
+      if (response != null && response['success'] == true) {
+        final data = response['data'];
+        if (data is List) {
+          _transactions = data
+              .map((e) => e is Map<String, dynamic> ? e : Map<String, dynamic>.from(e as Map))
+              .toList();
+        } else {
+          _transactions = [];
+        }
+      } else {
+        _transactions = [];
+      }
+    } catch (e) {
+      debugPrint('AmbulanceEarningsViewModel _fetchTransactions error: $e');
+      _transactions = [];
+    }
+  }
+}

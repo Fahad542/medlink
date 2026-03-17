@@ -21,7 +21,8 @@ class DoctorProfileView extends StatelessWidget {
   Widget build(BuildContext context) {
     print("DEBUG: BUILDING REDESIGNED DOCTOR PROFILE VIEW");
     return ChangeNotifierProvider(
-      create: (context) => DoctorProfileViewModel(Provider.of<AppointmentViewModel>(context, listen: false)),
+      create: (context) => DoctorProfileViewModel(
+          Provider.of<AppointmentViewModel>(context, listen: false)),
       child: _DoctorProfileContent(doctor: doctor),
     );
   }
@@ -29,16 +30,16 @@ class DoctorProfileView extends StatelessWidget {
 
 class _DoctorProfileContent extends StatelessWidget {
   final DoctorModel doctor;
-  
+
   const _DoctorProfileContent({required this.doctor});
 
   @override
   Widget build(BuildContext context) {
     final viewModel = Provider.of<DoctorProfileViewModel>(context);
     final hasBooking = viewModel.hasBooking(doctor.id);
-    
+
     // Total height of the fixed header area (280 bg + 60 overlap + 20 buffer)
-    const double fixedHeaderHeight = 360; 
+    const double fixedHeaderHeight = 360;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -49,7 +50,7 @@ class _DoctorProfileContent extends StatelessWidget {
           children: [
             // 1. Scrollable Header
             SizedBox(
-              height: fixedHeaderHeight, 
+              height: fixedHeaderHeight,
               child: Stack(
                 clipBehavior: Clip.none,
                 alignment: Alignment.center,
@@ -85,7 +86,10 @@ class _DoctorProfileContent extends StatelessWidget {
                             Container(
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
-                                  colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
+                                  colors: [
+                                    AppColors.primary,
+                                    AppColors.primary.withOpacity(0.8)
+                                  ],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
@@ -122,7 +126,7 @@ class _DoctorProfileContent extends StatelessWidget {
                       ),
                     ),
                   ),
-                  
+
                   // Profile Image & Name
                   Positioned(
                     top: 60,
@@ -164,11 +168,13 @@ class _DoctorProfileContent extends StatelessWidget {
 
                   // Stats Card (KPIs) - Adjusted positioning relative to fixed container
                   Positioned(
-                    top: 280 - 40, // 280 (bg height) - 40 (overlap) -> Starts at 240
+                    top: 280 -
+                        40, // 280 (bg height) - 40 (overlap) -> Starts at 240
                     left: 20,
                     right: 20,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 20),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(20),
@@ -183,9 +189,10 @@ class _DoctorProfileContent extends StatelessWidget {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                           _buildStatItem("Patients", "1.5K+"),
-                           _buildStatItem("Experience", "${doctor.experience} Yrs"),
-                           _buildStatItem("Rating", doctor.rating.toString()),
+                          _buildStatItem("Patients", "1.5K+"),
+                          _buildStatItem(
+                              "Experience", "${doctor.experience} Yrs"),
+                          _buildStatItem("Rating", doctor.rating.toString()),
                         ],
                       ),
                     ),
@@ -206,7 +213,8 @@ class _DoctorProfileContent extends StatelessWidget {
                               color: Colors.white.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
+                            child: const Icon(Icons.arrow_back_ios_new,
+                                color: Colors.white, size: 18),
                           ),
                         ),
                         const Spacer(),
@@ -221,7 +229,8 @@ class _DoctorProfileContent extends StatelessWidget {
                                 color: Colors.white.withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Image.asset("assets/Icons/chat.png", width: 16, height: 16, color: Colors.white),
+                              child: Image.asset("assets/Icons/chat.png",
+                                  width: 16, height: 16, color: Colors.white),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -233,9 +242,8 @@ class _DoctorProfileContent extends StatelessWidget {
                                     builder: (_) => WaitingRoomView(
                                           callTargetName: doctor.name,
                                           isDoctor: false,
-                                          appointmentId:
-                                              viewModel.getAppointmentId(
-                                                  doctor.id),
+                                          appointmentId: viewModel
+                                              .getAppointmentId(doctor.id),
                                         )),
                               );
                             },
@@ -247,7 +255,8 @@ class _DoctorProfileContent extends StatelessWidget {
                                 color: Colors.white.withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Image.asset("assets/Icons/video.png", width: 20, height: 20, color: Colors.white),
+                              child: Image.asset("assets/Icons/video.png",
+                                  width: 20, height: 20, color: Colors.white),
                             ),
                           ),
                         ],
@@ -257,7 +266,7 @@ class _DoctorProfileContent extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
@@ -268,21 +277,29 @@ class _DoctorProfileContent extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     doctor.about,
-                    style: GoogleFonts.inter(color: Colors.grey[600], height: 1.5),
+                    style:
+                        GoogleFonts.inter(color: Colors.grey[600], height: 1.5),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Details (Hospital & Fee)
                   Row(
                     children: [
-                      Expanded(child: _buildInfoCard(Icons.local_hospital_rounded, "Hospital", doctor.hospital, AppColors.primary)),
+                      Expanded(
+                          child: _buildInfoCard(Icons.local_hospital_rounded,
+                              "Hospital", doctor.hospital, AppColors.primary)),
                       const SizedBox(width: 16),
-                      Expanded(child: _buildInfoCard(Icons.attach_money_rounded, "Consultation", "KES ${doctor.consultationFee}", AppColors.primary)),
+                      Expanded(
+                          child: _buildInfoCard(
+                              Icons.attach_money_rounded,
+                              "Consultation",
+                              "KES ${doctor.consultationFee}",
+                              AppColors.primary)),
                     ],
                   ),
-    
+
                   const SizedBox(height: 24),
-    
+
                   // Ratings & Reviews Section
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -292,7 +309,9 @@ class _DoctorProfileContent extends StatelessWidget {
                         onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => DoctorReviewsView(doctor: doctor)),
+                            MaterialPageRoute(
+                                builder: (_) =>
+                                    DoctorReviewsView(doctor: doctor)),
                           );
                         },
                         child: const Text("See All"),
@@ -300,10 +319,11 @@ class _DoctorProfileContent extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  _buildReviewItem("John Doe", 4.5, "Great experience, very professional.", "2 days ago"),
-    
+                  _buildReviewItem("John Doe", 4.5,
+                      "Great experience, very professional.", "2 days ago"),
+
                   const SizedBox(height: 12),
-    
+
                   const SizedBox(height: 100), // Spacing for bottom button
                 ],
               ),
@@ -321,24 +341,23 @@ class _DoctorProfileContent extends StatelessWidget {
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0,-5)
-              )
-            ]
-        ),
-        child: SafeArea( // Ensure button is safe from bottom gestures
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -5))
+            ]),
+        child: SafeArea(
+          // Ensure button is safe from bottom gestures
           child: SizedBox(
-              width: double.infinity,
-              child: CustomButton(
-                  text: "Book Appointment",
-                  onPressed: () {
-                     Navigator.push(
-                       context,
-                       MaterialPageRoute(builder: (_) => BookAppointmentView(doctor: doctor)),
-                     );
-                  }
-              ),
+            width: double.infinity,
+            child: CustomButton(
+                text: "Book Appointment",
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => BookAppointmentView(doctor: doctor)),
+                  );
+                }),
           ),
         ),
       ),
@@ -369,21 +388,21 @@ class _DoctorProfileContent extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoCard(IconData icon, String title, String value, Color color) {
+  Widget _buildInfoCard(
+      IconData icon, String title, String value, Color color) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.08)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ]
-      ),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.withOpacity(0.08)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            )
+          ]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -396,22 +415,30 @@ class _DoctorProfileContent extends StatelessWidget {
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(height: 12),
-          Text(title, style: GoogleFonts.inter(color: Colors.grey[500], fontSize: 12)),
+          Text(title,
+              style: GoogleFonts.inter(color: Colors.grey[500], fontSize: 12)),
           const SizedBox(height: 4),
-          Text(value, style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14, color: const Color(0xFF1E293B)), maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text(value,
+              style: GoogleFonts.inter(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: const Color(0xFF1E293B)),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
         ],
       ),
     );
   }
 
-  Widget _buildReviewItem(String name, double rating, String comment, String date) {
+  Widget _buildReviewItem(
+      String name, double rating, String comment, String date) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12), // Reduced padding
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16), // Slightly less rounded
-         boxShadow: [
+        boxShadow: [
           BoxShadow(
             color: const Color(0xff1D1617).withOpacity(0.04),
             offset: const Offset(0, 3),
@@ -428,7 +455,7 @@ class _DoctorProfileContent extends StatelessWidget {
             children: [
               Row(
                 children: [
-                   Container(
+                  Container(
                     width: 32, // Smaller avatar
                     height: 32,
                     decoration: BoxDecoration(
@@ -438,7 +465,10 @@ class _DoctorProfileContent extends StatelessWidget {
                     alignment: Alignment.center,
                     child: Text(
                       name[0],
-                      style: GoogleFonts.inter(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14),
+                      style: GoogleFonts.inter(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -447,11 +477,15 @@ class _DoctorProfileContent extends StatelessWidget {
                     children: [
                       Text(
                         name,
-                        style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14, color: const Color(0xFF1E293B)),
+                        style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: const Color(0xFF1E293B)),
                       ),
                       Text(
                         date,
-                        style: GoogleFonts.inter(color: Colors.grey[500], fontSize: 10),
+                        style: GoogleFonts.inter(
+                            color: Colors.grey[500], fontSize: 10),
                       ),
                     ],
                   ),
@@ -465,11 +499,15 @@ class _DoctorProfileContent extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.star_rounded, size: 14, color: Colors.amber),
+                    const Icon(Icons.star_rounded,
+                        size: 14, color: Colors.amber),
                     const SizedBox(width: 4),
                     Text(
                       rating.toString(),
-                      style: GoogleFonts.inter(color: const Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 11),
+                      style: GoogleFonts.inter(
+                          color: const Color(0xFF1E293B),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11),
                     ),
                   ],
                 ),
@@ -479,7 +517,8 @@ class _DoctorProfileContent extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             comment,
-            style: GoogleFonts.inter(color: const Color(0xFF64748B), height: 1.4, fontSize: 12.5),
+            style: GoogleFonts.inter(
+                color: const Color(0xFF64748B), height: 1.4, fontSize: 12.5),
           ),
         ],
       ),
@@ -487,14 +526,14 @@ class _DoctorProfileContent extends StatelessWidget {
   }
 
   TextStyle get _sectionTitleStyle => GoogleFonts.inter(
-    fontSize: 20,
-    fontWeight: FontWeight.bold,
-    color: AppColors.textPrimary,
-  );
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+        color: AppColors.textPrimary,
+      );
 
   TextStyle get _subTitleStyle => GoogleFonts.inter(
-    fontSize: 16,
-    fontWeight: FontWeight.bold,
-    color: Colors.black87,
-  );
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+        color: Colors.black87,
+      );
 }

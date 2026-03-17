@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/models/ambulance_model.dart';
 import 'package:medlink/views/Patient App/home/home_view.dart';
 import 'package:medlink/views/Patient%20App/Find%20a%20doctor/doctor_list_view.dart';
 import 'package:medlink/views/Patient App/appointment/appointment_list_view.dart';
@@ -9,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:medlink/views/Patient%20App/emergency/emergency_viewmodel.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/views/Patient App/emergency/ambulance_tracking_view.dart';
+import 'package:medlink/views/call/call_view_model.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -17,7 +19,8 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateMixin {
+class _MainScreenState extends State<MainScreen>
+    with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
 
   @override
@@ -27,6 +30,12 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
+
+    // Check for active SOS session on startup
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<EmergencyViewModel>(context, listen: false).checkActiveSos();
+      Provider.of<CallViewModel>(context, listen: false).startPolling(context);
+    });
   }
 
   @override
@@ -39,14 +48,14 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   final List<Widget> _pages = [
     const HomeView(),
     const AppointmentListView(), // Swapped to index 1
-    const HealthHubView(),       // Swapped to index 2
+    const HealthHubView(), // Swapped to index 2
     const ProfileView(),
   ];
   final List<Widget?> _loadedPages = List.filled(4, null);
 
   @override
   Widget build(BuildContext context) {
-    // Check if provider exists above, if not, consuming might fail if MainScreen is root. 
+    // Check if provider exists above, if not, consuming might fail if MainScreen is root.
     // Assuming MultiProvider is at app root.
     final emergencyVM = Provider.of<EmergencyViewModel>(context);
 
@@ -62,12 +71,14 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
           // 1. Main Content (Lazy loaded IndexedStack)
           IndexedStack(
             index: _selectedIndex,
-            children: _loadedPages.map((page) => page ?? const SizedBox.shrink()).toList(),
+            children: _loadedPages
+                .map((page) => page ?? const SizedBox.shrink())
+                .toList(),
           ),
 
           // 3. Floating SOS Status (Fixed Position above Navbar)
           if (emergencyVM.isSosActive)
-             Positioned(
+            Positioned(
               left: 16,
               right: 16,
               bottom: 115,
@@ -84,11 +95,33 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                                 ambulance: emergencyVM.assignedAmbulance!),
                           ),
                         );
+                      } else {
+                        // Show "Searching" view with placeholder data
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => AmbulanceTrackingView(
+                              ambulance: AmbulanceModel(
+                                id: "0",
+                                driverName: "Searching...",
+                                plateNumber: "---",
+                                currentLat: 0.0,
+                                currentLng: 0.0,
+                                vehicleType: "---",
+                                status: "Searching",
+                                estimatedArrival: "--",
+                                profilePhotoUrl: "",
+                                phoneNumber: "",
+                              ),
+                            ),
+                          ),
+                        );
                       }
                     },
                     child: Container(
                       // height: 100, // Removed fixed height
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 24, vertical: 20),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: const BorderRadius.only(
@@ -118,8 +151,9 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                                 // Time Headline
                                 Text(
                                   emergencyVM.assignedAmbulance != null
-                                      ? emergencyVM.assignedAmbulance!.estimatedArrival
-                                      : "Calculating...",
+                                      ? emergencyVM
+                                          .assignedAmbulance!.estimatedArrival
+                                      : "Searching...",
                                   style: GoogleFonts.inter(
                                     fontWeight: FontWeight.w900,
                                     fontSize: 22, // Big & Bold
@@ -130,7 +164,9 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                                 const SizedBox(height: 4),
                                 // Status Title
                                 Text(
-                                  "Ambulance Dispatched",
+                                  emergencyVM.assignedAmbulance != null
+                                      ? "Ambulance Dispatched"
+                                      : "Finding Driver",
                                   style: GoogleFonts.inter(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,
@@ -150,7 +186,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                               ],
                             ),
                           ),
-                          
+
                           // RIGHT: Circular Graphic (Progress Ring + Icon)
                           SizedBox(
                             width: 60,
@@ -158,9 +194,10 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                             child: Stack(
                               alignment: Alignment.center,
                               children: [
-                                 // Background Circle
+                                // Background Circle
                                 Container(
-                                  width: 60, height: 60,
+                                  width: 60,
+                                  height: 60,
                                   decoration: const BoxDecoration(
                                     shape: BoxShape.circle,
                                     color: Color(0xFFFEF2F2), // Very Light Red
@@ -168,25 +205,37 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                                 ),
                                 // Spinning/Static Partial Ring
                                 Transform.rotate(
-                                  angle: -1.5, // Rotate to start from top/right roughly
+                                  angle:
+                                      -1.5, // Rotate to start from top/right roughly
                                   child: SizedBox(
-                                    width: 50, height: 50,
+                                    width: 50,
+                                    height: 50,
                                     child: CircularProgressIndicator(
                                       value: 0.75, // 75% circle like image
                                       strokeWidth: 6,
                                       backgroundColor: Colors.transparent,
-                                      valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFEF4444)), // Red
+                                      valueColor:
+                                          const AlwaysStoppedAnimation<Color>(
+                                              Color(0xFFEF4444)), // Red
                                       strokeCap: StrokeCap.round,
                                     ),
                                   ),
                                 ),
                                 // Center Icon
-                                 AnimatedBuilder(
+                                AnimatedBuilder(
                                   animation: _pulseController,
                                   builder: (context, child) {
                                     return Transform.scale(
-                                      scale: 0.9 + (_pulseController.value * 0.1),
-                                      child: Image.asset("assets/ambulance_marker.png", width: 28, height: 28, errorBuilder: (c,e,s) => const Icon(Icons.medical_services_rounded, color: Color(0xFFEF4444), size: 24)), 
+                                      scale:
+                                          0.9 + (_pulseController.value * 0.1),
+                                      child: Image.asset(
+                                          "assets/ambulance_marker.png",
+                                          width: 28,
+                                          height: 28,
+                                          errorBuilder: (c, e, s) => const Icon(
+                                              Icons.medical_services_rounded,
+                                              color: Color(0xFFEF4444),
+                                              size: 24)),
                                     );
                                   },
                                 ),
@@ -197,7 +246,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                       ),
                     ),
                   ),
-                  
+
                   // Close Button
                   Positioned(
                     top: -16,
@@ -211,7 +260,8 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                         decoration: BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.grey.shade300, width: 1.5),
+                          border: Border.all(
+                              color: Colors.grey.shade300, width: 1.5),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.1),
@@ -220,13 +270,14 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
                             ),
                           ],
                         ),
-                        child: const Icon(Icons.close, size: 16, color: Colors.grey),
+                        child: const Icon(Icons.close,
+                            size: 16, color: Colors.grey),
                       ),
                     ),
                   ),
                 ],
               ),
-             ),
+            ),
 
           // 2. Floating Custom Navigation Bar
           Positioned(
@@ -249,10 +300,14 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _buildNavItem(0, Icons.grid_view_rounded, Icons.grid_view_outlined, "Home"),
-                  _buildNavItem(1, Icons.calendar_month_rounded, Icons.calendar_today_outlined, "Appointments"), // Index 1
-                  _buildNavItem(2, Icons.health_and_safety_rounded, Icons.health_and_safety_outlined, "Health"), // Index 2
-                  _buildNavItem(3, Icons.person_rounded, Icons.person_outline, "Profile"),
+                  _buildNavItem(0, Icons.grid_view_rounded,
+                      Icons.grid_view_outlined, "Home"),
+                  _buildNavItem(1, Icons.calendar_month_rounded,
+                      Icons.calendar_today_outlined, "Appointments"), // Index 1
+                  _buildNavItem(2, Icons.health_and_safety_rounded,
+                      Icons.health_and_safety_outlined, "Health"), // Index 2
+                  _buildNavItem(
+                      3, Icons.person_rounded, Icons.person_outline, "Profile"),
                 ],
               ),
             ),
@@ -262,7 +317,8 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildNavItem(int index, IconData activeIcon, IconData inactiveIcon, String label) {
+  Widget _buildNavItem(
+      int index, IconData activeIcon, IconData inactiveIcon, String label) {
     final isSelected = _selectedIndex == index;
     return GestureDetector(
       onTap: () {

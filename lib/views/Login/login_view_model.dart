@@ -87,10 +87,11 @@ class LoginViewModel with ChangeNotifier {
           final userVM = Provider.of<UserViewModel>(context, listen: false);
           await userVM.saveUserLoginSession(loginModel);
 
-          // Get the role from the API response, or fallback to selected role
+          // Get the role from the API response (API may return DRIVER/driver/ambulance), or fallback to selected role
           String roleToSave =
-              loginModel.data?.user?.role?.toLowerCase() ?? _selectedRole;
-          // if (roleToSave == 'ambulance') roleToSave = 'driver'; // standardize
+              loginModel.data?.user?.role?.toString().toLowerCase() ??
+                  _selectedRole;
+          if (roleToSave == 'ambulance') roleToSave = 'driver';
 
           // Navigation logic based on role
           if (context.mounted) {
@@ -99,9 +100,12 @@ class LoginViewModel with ChangeNotifier {
               MaterialPageRoute(builder: (_) {
                 if (roleToSave == 'doctor') {
                   return const DoctorMainScreen();
-                } else if (roleToSave == 'patient') {
-                  // return const AmbulanceMainView();
+                }
+                if (roleToSave == 'patient') {
                   return const MainScreen();
+                }
+                if (roleToSave == 'driver') {
+                  return const AmbulanceMainView();
                 }
                 return const MainScreen();
               }),

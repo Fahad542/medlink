@@ -116,6 +116,33 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  // SOS Action
+  Future<void> triggerSOS(BuildContext context) async {
+    try {
+      // Hardcoded coordinates for demo - in real app use Geolocator
+      const latitude = 37.7749;
+      const longitude = -122.4194;
+      
+      final response = await _apiServices.createSos(latitude, longitude);
+      print("response $response");
+      if (response != null && response['success'] == true) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('SOS Alert Sent Successfully! Help is on the way.')),
+          );
+        }
+      } else {
+        throw Exception(response['message'] ?? 'Failed to send SOS');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error sending SOS: $e')),
+        );
+      }
+    }
+  }
+
   void setBannerIndex(int index) {
     _currentBannerIndex = index;
     notifyListeners();

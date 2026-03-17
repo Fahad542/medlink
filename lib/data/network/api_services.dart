@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// SharedPreferences keys for temporary register tokens (Step 2 verify-otp response).
 const String _kPatientRegisterToken = 'patient_register_token';
 const String _kDoctorRegisterToken = 'doctor_register_token';
+const String _kDriverRegisterToken = 'driver_register_token';
 
 class ApiServices {
   final _apiServices = NetworkApiService();
@@ -70,6 +71,32 @@ class ApiServices {
     }
   }
 
+  Future<dynamic> createSos(double latitude, double longitude,
+      {String incidentType = "Medical Emergency",
+      String severity = "High"}) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        AppUrl.createSos,
+        jsonEncode({
+          "lat": latitude,
+          "lng": longitude,
+          "emergencyType": incidentType,
+          "severity": severity
+        }),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getMySos() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.createSos);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // --- Doctor registration (3 steps: send-otp, verify-otp, register) ---
 
   /// Doctor registration Step 1: send OTP. Body: {"phone": "+..."}
@@ -126,6 +153,154 @@ class ApiServices {
       );
       await sp.remove(_kDoctorRegisterToken);
       return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // --- Driver registration (3 steps: send-otp, verify-otp, register) ---
+
+  /// Driver registration Step 1: send OTP. Body: {"phone": "+..."}
+  Future<dynamic> driverSendOtp(String phone) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        AppUrl.driverRegisterStep1,
+        jsonEncode({'phone': phone}),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Driver registration Step 2: verify OTP. Saves register_token to SharedPreferences.
+  Future<dynamic> driverVerifyOtp(String phone, String otp) async {
+    try {
+      final response = await _apiServices.getPostApiResponse(
+        AppUrl.driverRegisterStep2,
+        jsonEncode({'phone': phone, 'otp': otp}),
+      );
+      final data = response is Map ? response['data'] : null;
+      final token = data is Map ? data['register_token']?.toString() : null;
+      if (token != null && token.isNotEmpty) {
+        final sp = await SharedPreferences.getInstance();
+        await sp.setString(_kDriverRegisterToken, token);
+      }
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Driver registration Step 3: register with form-data + profilePic + driverLicenseDocument. Uses Bearer register_token.
+  Future<dynamic> driverRegister(
+    Map<String, String> formData,
+    File? profilePicFile,
+    File? driverLicenseFile,
+  ) async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final registerToken = sp.getString(_kDriverRegisterToken);
+      if (registerToken == null || registerToken.isEmpty) {
+        throw Exception('Register token expired. Please restart registration.');
+      }
+      final response = await _apiServices.getPostMultipartWithBearerTwoFiles(
+        AppUrl.driverRegisterStep3,
+        formData,
+        profilePicFile,
+        fileKey1: 'profilePic',
+        file2: driverLicenseFile,
+        fileKey2: 'driverLicenseDocument',
+        bearerToken: registerToken,
+      );
+      await sp.remove(_kDriverRegisterToken);
+      return response;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// GET driver profile. Returns { success, data: { user, driverProfile } }.
+  Future<dynamic> getDriverProfile() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.getDriverProfile);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// GET driver dashboard summary. Returns { success, data: { totalTrips, totalEarnings } }.
+  Future<dynamic> getDriverDashboard() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.getDriverDashboard);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// GET driver emergency requests. Returns { success, data: [ ... ] }.
+  Future<dynamic> getDriverEmergencyRequests() async {
+    try {
+      return await _apiServices
+          .getGetApiResponse(AppUrl.getDriverEmergencyRequests);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// POST accept emergency request. Returns { success, ... }.
+  Future<dynamic> acceptEmergencyRequest(String id) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        '${AppUrl.getDriverEmergencyRequests}/$id/accept',
+        {},
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// POST decline emergency request. Returns { success, ... }.
+  Future<dynamic> declineEmergencyRequest(String id) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        '${AppUrl.getDriverEmergencyRequests}/$id/decline',
+        {},
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// PATCH driver online/offline status. Body: {"isAvailable": true|false}. Returns { success, data: { isAvailable } }.
+  Future<dynamic> updateDriverStatus(bool isAvailable) async {
+    try {
+      return await _apiServices.getPatchApiResponse(
+        AppUrl.updateDriverStatus,
+        {'isAvailable': isAvailable},
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// GET driver earnings summary. Returns { success, data: { totalBalance, earningsToday, earningsThisWeek } }.
+  Future<dynamic> getDriverEarningsSummary() async {
+    try {
+      return await _apiServices
+          .getGetApiResponse(AppUrl.getDriverEarningsSummary);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// GET driver earnings transactions (recent trip earnings). Query: limit, offset. Returns { success, data: [] }.
+  /// Each item: id, tripNumber, amount, currency, transactionDate, type, source.
+  Future<dynamic> getDriverEarningsTransactions(
+      {int limit = 20, int offset = 0}) async {
+    try {
+      final url =
+          '${AppUrl.getDriverEarningsTransactions}?limit=$limit&offset=$offset';
+      return await _apiServices.getGetApiResponse(url);
     } catch (e) {
       rethrow;
     }
@@ -671,6 +846,64 @@ class ApiServices {
     }
   }
 
+  /// GET current active trip. Returns { success, data: { ... } } or null.
+  Future<dynamic> getCurrentTrip() async {
+    try {
+      return await _apiServices
+          .getGetApiResponse('${AppUrl.driverTrips}/current');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// POST mark arrival at pickup. Returns { success, status: 'ARRIVED' }.
+  Future<dynamic> arriveAtPickup(String tripId) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        '${AppUrl.driverTrips}/$tripId/arrive',
+        {},
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// POST start route (transport). Returns { success, status: 'IN_PROGRESS' }.
+  Future<dynamic> startRoute(String tripId) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        '${AppUrl.driverTrips}/$tripId/start-route',
+        {},
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// POST complete trip. Returns { success, status: 'COMPLETED' }.
+  Future<dynamic> completeTrip(String tripId) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        '${AppUrl.driverTrips}/$tripId/complete',
+        {},
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// GET driver trip history. Returns { success, data: [ ... ] }.
+  Future<dynamic> getDriverTripHistory({int limit = 20, int offset = 0}) async {
+    try {
+      return await _apiServices.getGetApiResponse(
+        '${AppUrl.driverTrips}?limit=$limit&offset=$offset',
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Agora Token
   Future<dynamic> getAgoraToken(String channelName, String role) async {
     try {
       final url = '${AppUrl.getAgoraToken}?channelName=$channelName&role=$role';
@@ -679,4 +912,73 @@ class ApiServices {
       rethrow;
     }
   }
+
+  // --- Agora / Calling ---
+
+  Future<dynamic> initiateCall(int recipientId) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        AppUrl.initiateCall,
+        {'recipientId': recipientId},
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> checkIncomingCall() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.checkIncomingCall);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getCallStatus(String channelName) async {
+    try {
+      final url = '${AppUrl.callStatus}?channelName=$channelName';
+      return await _apiServices.getGetApiResponse(url);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> updateCallStatus(String channelName, String status) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        AppUrl.updateCallStatus,
+        {'channelName': channelName, 'status': status},
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> updateDriverProfile({
+    String? fullName,
+    String? email,
+    String? phone,
+    String? vehiclePlate,
+    String? vehicleType,
+    String? licenseNo,
+    File? profilePhoto,
+  }) async {
+    try {
+      final Map<String, String> data = {};
+      if (fullName != null) data['fullName'] = fullName;
+      if (email != null) data['email'] = email;
+      if (phone != null) data['phone'] = phone;
+      if (vehiclePlate != null) data['vehiclePlate'] = vehiclePlate;
+      if (vehicleType != null) data['vehicleType'] = vehicleType;
+      if (licenseNo != null) data['licenseNo'] = licenseNo;
+
+      return await _apiServices.getPatchMultipartApiResponse(
+        '${AppUrl.baseUrl}/driver/profile',
+        data,
+        profilePhoto,
+        fileKey: 'profilePhoto',
+      );
+    } catch (e) {
+      rethrow;
+    }}
 }

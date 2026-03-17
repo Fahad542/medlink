@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/views/Ambulance/Mission/ambulance_mission_view_model.dart';
+import 'package:medlink/views/call/call_view_model.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:provider/provider.dart';
 
@@ -49,7 +50,8 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
               children: [
                 // 1. Google Map Layer
                 SizedBox(
-                  height: MediaQuery.of(context).size.height * 0.7, // Map takes 70% height initially
+                  height: MediaQuery.of(context).size.height *
+                      0.7, // Map takes 70% height initially
                   child: GoogleMap(
                     initialCameraPosition: const CameraPosition(
                       target: _pickupLocation,
@@ -69,7 +71,8 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
                   right: 0,
                   child: SafeArea(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 10),
                       child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -91,7 +94,8 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
                                 color: AppColors.primary.withOpacity(0.1),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.navigation, color: AppColors.primary, size: 24),
+                              child: const Icon(Icons.navigation,
+                                  color: AppColors.primary, size: 24),
                             ),
                             const SizedBox(width: 16),
                             Column(
@@ -117,7 +121,8 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
                             ),
                             const Spacer(),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
                               decoration: BoxDecoration(
                                 color: Colors.green.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(20),
@@ -144,7 +149,8 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
                   child: Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(32)),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.15),
@@ -179,21 +185,27 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
                                   Container(
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.white, width: 2),
+                                      border: Border.all(
+                                          color: Colors.white, width: 2),
                                       boxShadow: [
-                                        BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10),
+                                        BoxShadow(
+                                            color:
+                                                Colors.black.withOpacity(0.1),
+                                            blurRadius: 10),
                                       ],
                                     ),
                                     child: CircleAvatar(
                                       radius: 28,
                                       backgroundColor: Colors.grey[200],
-                                      child: const Icon(Icons.person, color: Colors.grey, size: 30),
+                                      child: const Icon(Icons.person,
+                                          color: Colors.grey, size: 30),
                                     ),
                                   ),
                                   const SizedBox(width: 16),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           viewModel.missionData['patientName'],
@@ -206,11 +218,13 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
                                         const SizedBox(height: 4),
                                         Row(
                                           children: [
-                                            const Icon(Icons.location_on, size: 14, color: Colors.grey),
+                                            const Icon(Icons.location_on,
+                                                size: 14, color: Colors.grey),
                                             const SizedBox(width: 4),
                                             Expanded(
                                               child: Text(
-                                                viewModel.missionData['location'],
+                                                viewModel
+                                                    .missionData['location'],
                                                 style: GoogleFonts.inter(
                                                   color: Colors.grey[600],
                                                   fontSize: 13,
@@ -225,19 +239,68 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
                                     ),
                                   ),
                                   // Call Button
-                                  Container(
-                                    decoration: BoxDecoration(
-                                      color: Colors.green.withOpacity(0.1),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: IconButton(
-                                      icon: const Icon(Icons.call, color: Colors.green),
-                                      onPressed: () {}, // Mock call
-                                    ),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.withOpacity(0.1),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: IconButton(
+                                          icon: const Icon(Icons.message,
+                                              color: Colors.green),
+                                          onPressed: () {
+                                            // TODO: Navigate to chat screen with patient
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                  content: Text(
+                                                      "Chat feature coming soon!")),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.withOpacity(0.1),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: IconButton(
+                                          icon: const Icon(Icons.call,
+                                              color: Colors.green),
+                                          onPressed: () {
+                                            final patientId = viewModel
+                                                .missionData['patientId'];
+                                            final patientName = viewModel
+                                                .missionData['patientName'];
+                                            // We don't have patient photo in missionData yet, maybe update ViewModel?
+                                            // For now pass null
+                                            if (patientId != null) {
+                                              Provider.of<CallViewModel>(
+                                                      context,
+                                                      listen: false)
+                                                  .initiateCall(
+                                                      context,
+                                                      patientId,
+                                                      patientName,
+                                                      null);
+                                            } else {
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                const SnackBar(
+                                                    content: Text(
+                                                        "Patient contact not available")),
+                                              );
+                                            }
+                                          },
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
-                              
+
                               const SizedBox(height: 24),
                               const Divider(height: 1),
                               const SizedBox(height: 24),
@@ -250,13 +313,15 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
                               // Main Action Button
                               if (viewModel.status != MissionStatus.completed)
                                 CustomButton(
-                                  text: _getNextStatusButtonText(viewModel.status),
+                                  text: _getNextStatusButtonText(
+                                      viewModel.status),
                                   backgroundColor: AppColors.primary,
                                   onPressed: () {
                                     _showConfirmationDialog(
-                                      context, 
-                                      viewModel, 
-                                      _getNextStatusActionName(viewModel.status),
+                                      context,
+                                      viewModel,
+                                      _getNextStatusActionName(
+                                          viewModel.status),
                                     );
                                   },
                                 )
@@ -292,7 +357,8 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
       children: [
         _buildTimelineStep(0, currentStep, "Start"),
         _buildTimelineLine(0, currentStep),
-        _buildTimelineStep(2, currentStep, "Pickup"), // skipping 1 visual for simplicity or mapping slightly differently
+        _buildTimelineStep(2, currentStep,
+            "Pickup"), // skipping 1 visual for simplicity or mapping slightly differently
         _buildTimelineLine(2, currentStep),
         _buildTimelineStep(3, currentStep, "Route"),
         _buildTimelineLine(3, currentStep),
@@ -313,9 +379,11 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: isCompleted ? AppColors.primary : Colors.grey[200],
-            border: isCurrent ? Border.all(color: AppColors.primary, width: 2) : null,
+            border: isCurrent
+                ? Border.all(color: AppColors.primary, width: 2)
+                : null,
           ),
-          child: isCompleted 
+          child: isCompleted
               ? const Icon(Icons.check, size: 14, color: Colors.white)
               : null,
         ),
@@ -345,35 +413,44 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
 
   String _getNextStatusButtonText(MissionStatus status) {
     switch (status) {
-      case MissionStatus.dispatched: return "Start Route";
-      case MissionStatus.onRoute: return "Arrived at Location";
-      case MissionStatus.arrived: return "Start Transport";
-      case MissionStatus.transporting: return "Complete Mission";
-      case MissionStatus.completed: return "Done";
+      case MissionStatus.dispatched:
+        return "Start Route";
+      case MissionStatus.onRoute:
+        return "Arrived at Location";
+      case MissionStatus.arrived:
+        return "Start Transport";
+      case MissionStatus.transporting:
+        return "Complete Mission";
+      case MissionStatus.completed:
+        return "Done";
     }
   }
 
   String _getNextStatusActionName(MissionStatus status) {
     switch (status) {
-      case MissionStatus.dispatched: return "Start the Route";
-      case MissionStatus.onRoute: return "Confirm Arrival";
-      case MissionStatus.arrived: return "Start Transportation";
-      case MissionStatus.transporting: return "Complete the Mission";
-      case MissionStatus.completed: return "Finish";
+      case MissionStatus.dispatched:
+        return "Start the Route";
+      case MissionStatus.onRoute:
+        return "Confirm Arrival";
+      case MissionStatus.arrived:
+        return "Start Transportation";
+      case MissionStatus.transporting:
+        return "Complete the Mission";
+      case MissionStatus.completed:
+        return "Finish";
     }
   }
 
-  void _showConfirmationDialog(BuildContext context, AmbulanceMissionViewModel viewModel, String action) {
+  void _showConfirmationDialog(BuildContext context,
+      AmbulanceMissionViewModel viewModel, String action) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          "Confirmation", 
-          style: GoogleFonts.inter(fontWeight: FontWeight.bold)
-        ),
+        title: Text("Confirmation",
+            style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
         content: Text(
           "Are you sure you want to $action?",
           style: GoogleFonts.inter(color: Colors.grey[700]),
@@ -381,20 +458,18 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(
-              "Cancel", 
-              style: GoogleFonts.inter(color: Colors.grey[500], fontWeight: FontWeight.w600)
-            ),
+            child: Text("Cancel",
+                style: GoogleFonts.inter(
+                    color: Colors.grey[500], fontWeight: FontWeight.w600)),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(ctx); // Close dialog
               viewModel.updateStatus(); // Perform action
             },
-            child: Text(
-              "Confirm", 
-              style: GoogleFonts.inter(color: AppColors.primary, fontWeight: FontWeight.bold)
-            ),
+            child: Text("Confirm",
+                style: GoogleFonts.inter(
+                    color: AppColors.primary, fontWeight: FontWeight.bold)),
           ),
         ],
       ),

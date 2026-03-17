@@ -1,73 +1,173 @@
 import 'package:flutter/material.dart';
+import 'package:medlink/data/network/api_services.dart';
 
 class AmbulanceDashboardViewModel extends ChangeNotifier {
+  final ApiServices _apiServices = ApiServices();
+
   bool _isOnline = true;
   List<Map<String, dynamic>> _activeRequests = [];
 
-  // Stats
-  final int _completedTrips = 5;
-  final String _earnings = "150.00";
-  final double _rating = 4.8;
+  // Stats from API
+  int _totalTrips = 0;
+  num _totalEarnings = 0;
+  String _profilePhotoUrl = '';
+
+  bool _isLoadingDashboard = true;
+  bool get isLoadingDashboard => _isLoadingDashboard;
 
   AmbulanceDashboardViewModel() {
+    _loadDashboard();
     _loadActiveRequests();
+    _loadProfile();
   }
 
   bool get isOnline => _isOnline;
   List<Map<String, dynamic>> get activeRequests => _activeRequests;
-  int get completedTrips => _completedTrips;
-  String get earnings => _earnings;
-  double get rating => _rating;
+  int get completedTrips => _totalTrips;
+  String get earnings => _totalEarnings
+      .toStringAsFixed(_totalEarnings == _totalEarnings.round() ? 0 : 2);
+  double get rating => 4.8;
+  String get profilePhotoUrl => _profilePhotoUrl;
 
-  void toggleOnlineStatus(bool value) {
-    _isOnline = value;
-    notifyListeners();
+  Future<void> _loadProfile() async {
+    try {
+      final response = await _apiServices.getDriverProfile();
+      if (response != null && response['success'] == true) {
+        final data = response['data'];
+        if (data is Map && data['user'] is Map) {
+          _profilePhotoUrl = data['user']['profilePhotoUrl']?.toString() ?? '';
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading profile photo: $e');
+    }
   }
 
-  void _loadActiveRequests() {
-    // Initial mock data load - No auto-recurring popup
-    if (_isOnline) {
-      _activeRequests = [
-        {
-          'id': 'REQ_123',
-          'patientName': 'Michael Brown',
-          'severity': 'Critical',
-          'distance': '2.5 km',
-          'location': '123 Main St, Central Park',
-          'incident': 'Cardiac Arrest',
-          'time': '2 mins ago',
-        },
-        {
-          'id': 'REQ_124',
-          'patientName': 'Sarah Jones',
-          'severity': 'Moderate',
-          'distance': '4.1 km',
-          'location': '456 Elm St, Downtown',
-          'incident': 'Road Accident',
-          'time': '5 mins ago',
-        },
-        {
-           'id': 'REQ_125',
-           'patientName': 'David Wilson',
-           'severity': 'High',
-           'distance': '1.2 km',
-           'location': '789 Oak Ave, Westside',
-           'incident': 'Respiratory Failure',
-           'time': '8 mins ago',
-         },
-      ];
+  Future<void> _loadDashboard() async {
+    _isLoadingDashboard = true;
+    notifyListeners();
+    try {
+      final response = await _apiServices.getDriverDashboard();
+      if (response != null && response['success'] == true) {
+        final data = response['data'];
+        if (data is Map) {
+          _totalTrips = (data['totalTrips'] is int)
+              ? data['totalTrips'] as int
+              : int.tryParse(data['totalTrips']?.toString() ?? '0') ?? 0;
+          final earningsRaw = data['totalEarnings'];
+          if (earningsRaw is num) {
+            _totalEarnings = earningsRaw;
+          } else {
+            _totalEarnings = num.tryParse(earningsRaw?.toString() ?? '0') ?? 0;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('AmbulanceDashboardViewModel _loadDashboard error: $e');
+    } finally {
+      _isLoadingDashboard = false;
       notifyListeners();
     }
   }
 
-  void acceptRequest(String requestId) {
-    // Remove request from list after acceptance and navigate
-    _activeRequests.removeWhere((req) => req['id'] == requestId);
+  Future<void> refreshDashboard() async {
+    await Future.wait([
+      _loadDashboard(),
+      _loadActiveRequests(),
+      _loadProfile(), // Reload profile on pull-to-refresh
+    ]);
+  }
+
+  Future<void> toggleOnlineStatus(bool value) async {
+    final previousStatus = _isOnline;
+    _isOnline = value;
+    notifyListeners();
+
+    try {
+      final response = await _apiServices.updateDriverStatus(value);
+      if (response == null || response['success'] != true) {
+        _isOnline = previousStatus;
+        notifyListeners();
+        debugPrint(
+            'AmbulanceDashboardViewModel: failed to update driver status on server');
+      }
+    } catch (e) {
+      _isOnline = previousStatus;
+      notifyListeners();
+      debugPrint('AmbulanceDashboardViewModel toggleOnlineStatus error: $e');
+    }
+  }
+
+  Future<void> _loadActiveRequests() async {
+    if (!_isOnline) return;
+
+    try {
+      final response = await _apiServices.getDriverEmergencyRequests();
+      if (response != null && response['success'] == true) {
+        final data = response['data'];
+        if (data is List) {
+          _activeRequests = List<Map<String, dynamic>>.from(data.map((item) {
+            return {
+              'id': item['id'].toString(),
+              'patientName': item['patient']?['fullName'] ?? 'Unknown',
+              'severity': item['severity'] ?? 'High',
+              'distance':
+                  'Calculating...', // You can calculate distance if user location is available
+              'location': item['addressText'] ??
+                  'Lat: ${item['lat']}, Lng: ${item['lng']}',
+              'incident': item['emergencyType'] ?? 'Emergency',
+              'time': _formatTime(item['createdAt']),
+            };
+          }));
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading active requests: $e');
+    }
     notifyListeners();
   }
 
-  void declineRequest(String requestId) {
-    _activeRequests.removeWhere((req) => req['id'] == requestId);
-    notifyListeners();
+  String _formatTime(String? createdAt) {
+    if (createdAt == null) return 'Just now';
+    try {
+      final date = DateTime.parse(createdAt);
+      final diff = DateTime.now().difference(date);
+      if (diff.inMinutes < 1) return 'Just now';
+      if (diff.inMinutes < 60) return '${diff.inMinutes} mins ago';
+      if (diff.inHours < 24) return '${diff.inHours} hours ago';
+      return '${diff.inDays} days ago';
+    } catch (e) {
+      return 'Just now';
+    }
+  }
+
+  Future<bool> acceptRequest(String requestId) async {
+    try {
+      final response = await _apiServices.acceptEmergencyRequest(requestId);
+      if (response != null && response['success'] == true) {
+        _activeRequests.removeWhere((req) => req['id'] == requestId);
+        notifyListeners();
+        return true;
+      } else {
+        debugPrint("Failed to accept request");
+        return false;
+      }
+    } catch (e) {
+      debugPrint("Error accepting request: $e");
+      return false;
+    }
+  }
+
+  Future<void> declineRequest(String requestId) async {
+    try {
+      final response = await _apiServices.declineEmergencyRequest(requestId);
+      if (response != null && response['success'] == true) {
+        _activeRequests.removeWhere((req) => req['id'] == requestId);
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint("Error declining request: $e");
+    }
   }
 }

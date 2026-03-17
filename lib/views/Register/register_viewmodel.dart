@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:medlink/models/user_login_model.dart';
-import 'package:medlink/models/ambulance_model.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/utils/utils.dart';
 import 'package:medlink/views/services/session_view_model.dart';
@@ -31,6 +30,9 @@ class RegisterViewModel extends ChangeNotifier {
 
   String? _debugOtp;
   String? get debugOtp => _debugOtp;
+
+  String? _emailDebugOtp;
+  String? get emailDebugOtp => _emailDebugOtp;
 
   int _currentStep = 0;
   int get currentStep => _currentStep;
@@ -159,6 +161,7 @@ class RegisterViewModel extends ChangeNotifier {
 
     _tempUserId = null;
     _debugOtp = null;
+    _emailDebugOtp = null;
     notifyListeners();
   }
 
@@ -323,10 +326,26 @@ class RegisterViewModel extends ChangeNotifier {
         Utils.toastMessage(context, error.toString(), isError: true);
       }
     } else {
-      // Driver
-      final step2Data = {"phone_number": phoneController.text};
-      if (await registerStep2(step2Data, context)) {
+      // Driver 3-step API: Step 1 send OTP (phone only)
+      setLoading(true);
+      try {
+        final phone = phoneController.text.trim();
+        final value = await _apiServices.driverSendOtp(phone);
+        setLoading(false);
+        final data = value is Map ? value['data'] : null;
+        if (data is Map && data.containsKey('otp')) {
+          _debugOtp = data['otp'].toString();
+          notifyListeners();
+        }
+        final message = (data is Map ? data['message'] : null) ??
+            value['message'] ??
+            'OTP sent to your phone';
+        Utils.toastMessage(context, message.toString());
         nextStep();
+      } catch (error, stack) {
+        setLoading(false);
+        if (kDebugMode) print("driverSendOtp error: $stack");
+        Utils.toastMessage(context, error.toString(), isError: true);
       }
     }
   }
@@ -371,6 +390,25 @@ class RegisterViewModel extends ChangeNotifier {
         return false;
       }
     }
+    if (_role == UserRole.driver) {
+      setLoading(true);
+      try {
+        final phone = phoneController.text.trim();
+        final value = await _apiServices.driverVerifyOtp(phone, otp);
+        setLoading(false);
+        final data = value is Map ? value['data'] : null;
+        final message = (data is Map ? data['message'] : null) ??
+            value['message'] ??
+            'OTP verified';
+        Utils.toastMessage(context, message.toString());
+        return true;
+      } catch (error, stack) {
+        setLoading(false);
+        if (kDebugMode) print("driverVerifyOtp error: $stack");
+        Utils.toastMessage(context, error.toString(), isError: true);
+        return false;
+      }
+    }
     final data = {
       "phoneNumber": phoneController.text,
       "otp": otp,
@@ -401,6 +439,18 @@ class RegisterViewModel extends ChangeNotifier {
       } catch (error, stack) {
         setResendLoading(false);
         if (kDebugMode) print("doctorSendOtp resend error: $stack");
+        Utils.toastMessage(context, error.toString(), isError: true);
+      }
+    } else if (_role == UserRole.driver) {
+      setResendLoading(true);
+      try {
+        final phone = phoneController.text.trim();
+        await _apiServices.driverSendOtp(phone);
+        setResendLoading(false);
+        Utils.toastMessage(context, 'OTP sent to your phone');
+      } catch (error, stack) {
+        setResendLoading(false);
+        if (kDebugMode) print("driverSendOtp resend error: $stack");
         Utils.toastMessage(context, error.toString(), isError: true);
       }
     } else {
@@ -703,6 +753,15 @@ class RegisterViewModel extends ChangeNotifier {
       final data = {'email': email};
       final value = await _apiServices.checkEmail(data);
       setEmailLoading(false);
+
+      if (kDebugMode) print("checkEmail response: $value");
+
+      final responseData = value is Map ? value['data'] : null;
+      if (responseData is Map && responseData.containsKey('otp')) {
+        _emailDebugOtp = responseData['otp'].toString();
+        notifyListeners();
+      }
+
       Utils.toastMessage(context, value['message'] ?? 'OTP sent to email');
       return true;
     } catch (e) {
@@ -759,7 +818,7 @@ class RegisterViewModel extends ChangeNotifier {
           .toList();
       final availabilityJson = jsonEncode(availabilityList);
 
-      final formData = <String, String> {
+      final formData = <String, String>{
         'fullName': nameController.text.trim(),
         'email': emailController.text.trim(),
         'password': passwordController.text,
@@ -834,18 +893,58 @@ class RegisterViewModel extends ChangeNotifier {
     // No need to overwrite here; navigation is handled by the View's Setup Step.
   }
 
-  void finishDriverSetup(BuildContext context) {
+  /// Calls driver register API, saves session on success. Call from Step 6 onFinished.
+  Future<void> finishDriverSetup(BuildContext context) async {
     final userVM = Provider.of<UserViewModel>(context, listen: false);
-    final newDriver = AmbulanceModel(
-      id: _tempUserId ?? 'new_driver',
-      driverName: nameController.text,
-      plateNumber: carNumberController.text,
-      currentLat: 0.0,
-      currentLng: 0.0,
-      vehicleType: carNameController.text,
-      status: "Idle",
-      estimatedArrival: "20 min",
-    );
-    userVM.saveUser(newDriver, 'driver');
+    setLoading(true);
+    try {
+      final formData = <String, String>{
+        'fullName': nameController.text.trim(),
+        'email': emailController.text.trim(),
+        'password': passwordController.text,
+        'phone': phoneController.text.trim(),
+        'vehiclePlate': carNumberController.text.trim(),
+        'licenseNo': '', // No UI field; backend may accept empty
+        'vehicleType': carNameController.text.trim(),
+      };
+      File? profileFile;
+      if (profileImagePath != null) {
+        final f = File(profileImagePath!);
+        if (f.existsSync()) profileFile = f;
+      }
+      File? licenseFile;
+      if (driverLicensePath != null) {
+        final f = File(driverLicensePath!);
+        if (f.existsSync()) licenseFile = f;
+      }
+      final value = await _apiServices.driverRegister(
+        formData,
+        profileFile,
+        licenseFile,
+      );
+      setLoading(false);
+      final data = value is Map ? value['data'] : null;
+      final accessToken = data is Map ? data['access_token']?.toString() : null;
+      final userData = data is Map ? data['user'] : null;
+      if (accessToken != null && userData is Map<String, dynamic>) {
+        final loginModel = UserLoginModel(
+          success: true,
+          data: Data(
+            user: User.fromJson(userData),
+            accessToken: accessToken,
+          ),
+        );
+        await userVM.saveUserLoginSession(loginModel);
+        if (context.mounted) {
+          Utils.toastMessage(context, 'Registration completed successfully');
+        }
+      }
+    } catch (error, stack) {
+      setLoading(false);
+      if (kDebugMode) print("driverRegister error: $stack");
+      if (context.mounted) {
+        Utils.toastMessage(context, error.toString(), isError: true);
+      }
+    }
   }
 }

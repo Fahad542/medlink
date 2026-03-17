@@ -245,18 +245,18 @@ class NetworkApiService extends BaseApiServices {
     try {
       var request = http.MultipartRequest(method, Uri.parse(url));
 
-      // Add headers
+      // Add headers (Authorization)
       final headers = await _getHeaders();
-      headers.remove('Content-Type'); 
-      headers.remove('Accept'); 
-      request.headers.addAll(headers);
+      // We don't need Content-Type: application/json for multipart
+      if (headers.containsKey('Authorization')) {
+        request.headers['Authorization'] = headers['Authorization']!;
+      }
       request.headers['Accept'] = '*/*';
 
       if (kDebugMode) {
         print("Req Method: $method");
         print("Req URL: $url");
-        print("Req Data Type: ${data.runtimeType}");
-        print("Req Data Value: $data");
+        print("Req Data: $data");
       }
 
       if (data != null && data is Map) {
@@ -265,10 +265,6 @@ class NetworkApiService extends BaseApiServices {
             request.fields[key.toString()] = value.toString();
           }
         });
-        if (kDebugMode) {
-          print("Final Multipart Headers: ${request.headers}");
-          print("Final Multipart Fields Sent: ${request.fields}");
-        }
       }
 
       // Add file if provided
@@ -281,9 +277,6 @@ class NetworkApiService extends BaseApiServices {
           filename: filename,
           contentType: contentType,
         ));
-        if (kDebugMode) {
-          print("Multipart request file: $filename contentType: $contentType");
-        }
       }
 
       final streamedResponse =

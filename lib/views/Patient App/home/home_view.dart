@@ -453,7 +453,7 @@ class _HomeViewState extends State<HomeView> {
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.pop(context);
-                        emergencyVM.triggerSos();
+                        emergencyVM.triggerSos(context);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
@@ -829,7 +829,7 @@ class _HomeViewState extends State<HomeView> {
                             builder: (_) => const DoctorListView()));
                   } else if (banner.type == 'emergency') {
                     Provider.of<EmergencyViewModel>(context, listen: false)
-                        .triggerSos();
+                        .triggerSos(context);
                   } else if (banner.type == 'health') {
                     Navigator.push(
                         context,

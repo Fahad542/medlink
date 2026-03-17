@@ -4,19 +4,43 @@ import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/views/Ambulance/Dashboard/ambulance_dashboard_view_model.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:medlink/widgets/emergency_action_dialog.dart';
-import 'package:medlink/views/Ambulance/Mission/ambulance_mission_view.dart' as medlink_app;
+import 'package:medlink/views/Ambulance/Mission/ambulance_mission_view.dart'
+    as medlink_app;
+import 'package:medlink/views/services/session_view_model.dart';
 import 'package:provider/provider.dart';
+import 'package:shimmer/shimmer.dart';
 
-class AmbulanceDashboardView extends StatelessWidget {
+import 'package:medlink/core/constants/app_url.dart';
+
+class AmbulanceDashboardView extends StatefulWidget {
   const AmbulanceDashboardView({super.key});
 
   @override
+  State<AmbulanceDashboardView> createState() => _AmbulanceDashboardViewState();
+}
+
+class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView> {
+  @override
+  void initState() {
+    super.initState();
+    // Re-fetch profile when this view is initialized
+    // But since we use Provider(create:...), the ViewModel init calls it.
+    // However, if we navigate back to this tab in a persistent BottomNav,
+    // initState might not run again if the widget is kept alive.
+    // For standard navigation, it works.
+  }
+
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => AmbulanceDashboardViewModel(),
       child: Consumer<AmbulanceDashboardViewModel>(
         builder: (context, viewModel, child) {
+          // Listen for route pop results if we navigate to profile and back?
+          // Since Profile is in another tab, this view might not know.
+          // But if we use a shared UserViewModel or similar, it would update.
+          // Currently using local VM.
+          // Let's add a visibility detector or just rely on init.
           return Scaffold(
             backgroundColor: const Color(0xFFF8FAFC),
             body: Column(
@@ -43,11 +67,21 @@ class AmbulanceDashboardView extends StatelessWidget {
 
                 const SizedBox(height: 20), // Spacing after overlap
 
-                // 2. Main Content Area (List or Empty State)
+                // 2. Main Content Area (List or Empty State) with pull-to-refresh
                 Expanded(
-                  child: viewModel.isOnline
-                      ? _buildRequestListOrScanning(context, viewModel)
-                      : _buildOfflineState(),
+                  child: RefreshIndicator(
+                    onRefresh: () => viewModel.refreshDashboard(),
+                    color: AppColors.primary,
+                    child: viewModel.isOnline
+                        ? _buildRequestListOrScanning(context, viewModel)
+                        : SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            child: SizedBox(
+                              height: MediaQuery.of(context).size.height - 270,
+                              child: _buildOfflineState(),
+                            ),
+                          ),
+                  ),
                 ),
               ],
             ),
@@ -57,7 +91,12 @@ class AmbulanceDashboardView extends StatelessWidget {
     );
   }
 
-  Widget _buildPremiumHeader(BuildContext context, AmbulanceDashboardViewModel viewModel) {
+  Widget _buildPremiumHeader(
+      BuildContext context, AmbulanceDashboardViewModel viewModel) {
+    final driverName = Provider.of<UserViewModel>(context).driver?.driverName;
+    final displayName = (driverName != null && driverName.trim().isNotEmpty)
+        ? driverName.trim()
+        : 'Driver';
     return Container(
       height: 200, // Reduced height
       padding: const EdgeInsets.only(top: 60, left: 24, right: 24),
@@ -77,15 +116,27 @@ class AmbulanceDashboardView extends StatelessWidget {
               Row(
                 children: [
                   Container(
+                    width: 56, // Adjusted size
+                    height: 56,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 2),
+                      image: viewModel.profilePhotoUrl.isNotEmpty
+                          ? DecorationImage(
+                              image: NetworkImage(
+                                  AppUrl.getFullUrl(viewModel.profilePhotoUrl)),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
                     ),
-                    child: const CircleAvatar(
-                      radius: 24,
-                      backgroundColor: Colors.white24,
-                      child: Icon(Icons.person, color: Colors.white, size: 28),
-                    ),
+                    child: viewModel.profilePhotoUrl.isEmpty
+                        ? const CircleAvatar(
+                            radius: 24,
+                            backgroundColor: Colors.white24,
+                            child: Icon(Icons.person,
+                                color: Colors.white, size: 28),
+                          )
+                        : null,
                   ),
                   const SizedBox(width: 12),
                   Column(
@@ -98,9 +149,9 @@ class AmbulanceDashboardView extends StatelessWidget {
                           fontSize: 14,
                         ),
                       ),
-                      const Text(
-                        "John Doe",
-                        style: TextStyle(
+                      Text(
+                        displayName,
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -131,6 +182,31 @@ class AmbulanceDashboardView extends StatelessWidget {
   }
 
   Widget _buildOverlappingKPIs(AmbulanceDashboardViewModel viewModel) {
+    if (viewModel.isLoadingDashboard) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        child: IntrinsicHeight(
+          child: Row(
+            children: [
+              Expanded(child: _buildKPIShimmer()),
+              VerticalDivider(color: Colors.grey[200], thickness: 1, width: 24),
+              Expanded(child: _buildKPIShimmer()),
+            ],
+          ),
+        ),
+      );
+    }
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -143,7 +219,8 @@ class AmbulanceDashboardView extends StatelessWidget {
           ),
         ],
       ),
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20), // Increased vertical padding slightly
+      padding: const EdgeInsets.symmetric(
+          vertical: 16, horizontal: 20), // Increased vertical padding slightly
       child: IntrinsicHeight(
         child: Row(
           children: [
@@ -162,6 +239,41 @@ class AmbulanceDashboardView extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildKPIShimmer() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: Column(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+                color: Colors.white, shape: BoxShape.circle),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: 60,
+            height: 18,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(6),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Container(
+            width: 80,
+            height: 12,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -201,14 +313,22 @@ class AmbulanceDashboardView extends StatelessWidget {
     );
   }
 
-  Widget _buildRequestListOrScanning(BuildContext context, AmbulanceDashboardViewModel viewModel) {
+  Widget _buildRequestListOrScanning(
+      BuildContext context, AmbulanceDashboardViewModel viewModel) {
     if (viewModel.activeRequests.isEmpty) {
-      return _buildScanningState();
+      return SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height - 270,
+          child: _buildScanningState(),
+        ),
+      );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 100), // Added bottom padding for full scrolling
-      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+      physics:
+          const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
       itemCount: viewModel.activeRequests.length,
       itemBuilder: (context, index) {
         final request = viewModel.activeRequests[index];
@@ -217,7 +337,8 @@ class AmbulanceDashboardView extends StatelessWidget {
     );
   }
 
-  Widget _buildRequestCard(BuildContext context, AmbulanceDashboardViewModel viewModel, Map<String, dynamic> request) {
+  Widget _buildRequestCard(BuildContext context,
+      AmbulanceDashboardViewModel viewModel, Map<String, dynamic> request) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16), // Increased padding
@@ -269,14 +390,16 @@ class AmbulanceDashboardView extends StatelessWidget {
           const SizedBox(height: 8), // Reduced spacing
           Text(
             request['incident'],
-            style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.bold), // Smaller Title
+            style: GoogleFonts.inter(
+                fontSize: 15, fontWeight: FontWeight.bold), // Smaller Title
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 2),
           Text(
             request['location'],
-            style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 11), // Smaller Subtitle
+            style: GoogleFonts.inter(
+                color: Colors.grey[600], fontSize: 11), // Smaller Subtitle
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -293,8 +416,8 @@ class AmbulanceDashboardView extends StatelessWidget {
             children: [
               Expanded(
                 child: SizedBox(
-                   height: 32,
-                   child: ElevatedButton(
+                  height: 32,
+                  child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       elevation: 0,
                       backgroundColor: Colors.grey[200],
@@ -313,7 +436,8 @@ class AmbulanceDashboardView extends StatelessWidget {
                         context: context,
                         builder: (context) => EmergencyActionDialog(
                           title: "Decline Request",
-                          message: "Are you sure you want to decline this emergency request? This action cannot be undone.",
+                          message:
+                              "Are you sure you want to decline this emergency request? This action cannot be undone.",
                           actionText: "Decline",
                           actionColor: Colors.grey[700]!,
                           onConfirm: () {
@@ -340,18 +464,35 @@ class AmbulanceDashboardView extends StatelessWidget {
                       context: context,
                       builder: (context) => EmergencyActionDialog(
                         title: "Accept Request",
-                        message: "Are you sure you want to accept this emergency request? Verify your readiness before proceeding.",
+                        message:
+                            "Are you sure you want to accept this emergency request? Verify your readiness before proceeding.",
                         actionText: "Accept",
                         actionColor: AppColors.success,
-                        onConfirm: () {
-                          viewModel.acceptRequest(request['id']);
-                          Navigator.pop(context); // Close dialog
-                          
-                          // Proceed to mission view
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const medlink_app.AmbulanceMissionView()),
-                          );
+                        onConfirm: () async {
+                          // Close dialog first to avoid blocking UI or multiple clicks
+                          Navigator.pop(context);
+
+                          // Show loading indicator or handle state if needed
+                          final success =
+                              await viewModel.acceptRequest(request['id']);
+
+                          if (success && context.mounted) {
+                            // Proceed to mission view
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) =>
+                                      const medlink_app.AmbulanceMissionView()),
+                            );
+                          } else if (!success && context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    "Failed to accept request. It may have been taken."),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
                         },
                       ),
                     );
@@ -372,7 +513,8 @@ class AmbulanceDashboardView extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           text,
-          style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+          style: const TextStyle(
+              fontWeight: FontWeight.w600, color: AppColors.textPrimary),
         ),
       ],
     );
@@ -404,7 +546,8 @@ class AmbulanceDashboardView extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Icon(Icons.radar_rounded, size: 40, color: AppColors.primary),
+                child: const Icon(Icons.radar_rounded,
+                    size: 40, color: AppColors.primary),
               ),
             ],
           ),
@@ -454,10 +597,11 @@ class AmbulanceDashboardView extends StatelessWidget {
               color: Colors.grey[100],
               shape: BoxShape.circle,
             ),
-            child: Icon(Icons.location_off_rounded, size: 60, color: Colors.grey[400]),
+            child: Icon(Icons.location_off_rounded,
+                size: 60, color: Colors.grey[400]),
           ),
           const SizedBox(height: 24),
-           const Text(
+          const Text(
             "You are currently Offline",
             style: TextStyle(
               fontSize: 18,
