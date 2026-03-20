@@ -751,7 +751,15 @@ class RegisterViewModel extends ChangeNotifier {
     setEmailLoading(true);
     try {
       final data = {'email': email};
-      final value = await _apiServices.checkEmail(data);
+      dynamic value;
+      if (_role == UserRole.doctor) {
+        value = await _apiServices.doctorCheckEmail(data);
+      } else if (_role == UserRole.driver) {
+        value = await _apiServices.driverCheckEmail(data);
+      } else {
+        value = await _apiServices.checkEmail(data);
+      }
+
       setEmailLoading(false);
 
       if (kDebugMode) print("checkEmail response: $value");
@@ -775,9 +783,17 @@ class RegisterViewModel extends ChangeNotifier {
       String email, String otp, BuildContext context) async {
     setEmailLoading(true);
     try {
+      String purpose = 'REGISTER';
+      if (_role == UserRole.doctor) {
+        purpose = 'DOCTOR_REGISTER';
+      } else if (_role == UserRole.driver) {
+        purpose = 'DRIVER_REGISTER';
+      }
+
       final data = {
         'email': email,
         'otp': otp,
+        'purpose': purpose,
       };
 
       final value = await _apiServices.verifyEmailOtp(data);
@@ -827,14 +843,16 @@ class RegisterViewModel extends ChangeNotifier {
             ? aboutController.text.trim()
             : 'Medical professional',
         'specialtyIds': selectedSpecialtyId ?? "",
-        'experienceInYears': experienceController.text.trim().isNotEmpty
-            ? experienceController.text.trim()
-            : '5',
+        'experienceInYears':
+            double.tryParse(experienceController.text.trim()) != null
+                ? experienceController.text.trim()
+                : '5',
         'clinicName': clinicNameController.text.trim(),
         'clinicAddress': clinicAddressController.text.trim(),
-        'perSessionRate': consultationFeeController.text.trim().isNotEmpty
-            ? consultationFeeController.text.trim()
-            : '0',
+        'perSessionRate':
+            double.tryParse(consultationFeeController.text.trim()) != null
+                ? consultationFeeController.text.trim()
+                : '0',
         'availability': availabilityJson,
       };
 

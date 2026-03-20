@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 class Utils {
   static void toastMessage(BuildContext context, String message, {bool isError = false}) {
-    final overlay = Overlay.of(context);
+    final overlay = Overlay.of(context, rootOverlay: true);
     final overlayEntry = OverlayEntry(
       builder: (context) => Positioned(
         top: 50,

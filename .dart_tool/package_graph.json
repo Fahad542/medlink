@@ -12,6 +12,7 @@
         "firebase_core",
         "firebase_messaging",
         "flutter",
+        "geolocator",
         "google_fonts",
         "google_maps_flutter",
         "http",
@@ -23,6 +24,7 @@
         "share_plus",
         "shared_preferences",
         "shimmer",
+        "socket_io_client",
         "url_launcher"
       ],
       "devDependencies": [
@@ -83,6 +85,15 @@
       ]
     },
     {
+      "name": "socket_io_client",
+      "version": "3.1.4",
+      "dependencies": [
+        "logging",
+        "socket_io_common",
+        "web"
+      ]
+    },
+    {
       "name": "shared_preferences",
       "version": "2.3.3",
       "dependencies": [
@@ -103,6 +114,18 @@
         "http_parser",
         "meta",
         "web"
+      ]
+    },
+    {
+      "name": "geolocator",
+      "version": "13.0.4",
+      "dependencies": [
+        "flutter",
+        "geolocator_android",
+        "geolocator_apple",
+        "geolocator_platform_interface",
+        "geolocator_web",
+        "geolocator_windows"
       ]
     },
     {
@@ -431,6 +454,18 @@
       ]
     },
     {
+      "name": "socket_io_common",
+      "version": "3.1.1",
+      "dependencies": [
+        "logging"
+      ]
+    },
+    {
+      "name": "logging",
+      "version": "1.3.0",
+      "dependencies": []
+    },
+    {
       "name": "shared_preferences_windows",
       "version": "2.4.1",
       "dependencies": [
@@ -507,6 +542,52 @@
       ]
     },
     {
+      "name": "geolocator_windows",
+      "version": "0.2.5",
+      "dependencies": [
+        "flutter",
+        "geolocator_platform_interface"
+      ]
+    },
+    {
+      "name": "geolocator_web",
+      "version": "4.1.3",
+      "dependencies": [
+        "flutter",
+        "flutter_web_plugins",
+        "geolocator_platform_interface",
+        "web"
+      ]
+    },
+    {
+      "name": "geolocator_apple",
+      "version": "2.3.13",
+      "dependencies": [
+        "flutter",
+        "geolocator_platform_interface"
+      ]
+    },
+    {
+      "name": "geolocator_android",
+      "version": "4.6.2",
+      "dependencies": [
+        "flutter",
+        "geolocator_platform_interface",
+        "meta",
+        "uuid"
+      ]
+    },
+    {
+      "name": "geolocator_platform_interface",
+      "version": "4.2.6",
+      "dependencies": [
+        "flutter",
+        "meta",
+        "plugin_platform_interface",
+        "vector_math"
+      ]
+    },
+    {
       "name": "permission_handler_platform_interface",
       "version": "4.2.3",
       "dependencies": [
@@ -551,8 +632,10 @@
     },
     {
       "name": "js",
-      "version": "0.7.1",
-      "dependencies": []
+      "version": "0.6.7",
+      "dependencies": [
+        "meta"
+      ]
     },
     {
       "name": "iris_method_channel",

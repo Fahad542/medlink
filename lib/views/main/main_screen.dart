@@ -11,6 +11,7 @@ import 'package:medlink/views/Patient%20App/emergency/emergency_viewmodel.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/views/Patient App/emergency/ambulance_tracking_view.dart';
 import 'package:medlink/views/call/call_view_model.dart';
+import 'package:medlink/views/services/session_view_model.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -33,7 +34,16 @@ class _MainScreenState extends State<MainScreen>
 
     // Check for active SOS session on startup
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<EmergencyViewModel>(context, listen: false).checkActiveSos();
+      final emergencyVM =
+          Provider.of<EmergencyViewModel>(context, listen: false);
+      final userVM = Provider.of<UserViewModel>(context, listen: false);
+
+      emergencyVM.checkActiveSos();
+      final token = userVM.accessToken;
+      final patientId = int.tryParse(userVM.patient?.id ?? '');
+      if (token != null && token.isNotEmpty && patientId != null) {
+        emergencyVM.startRealtime(userId: patientId, token: token);
+      }
       Provider.of<CallViewModel>(context, listen: false).startPolling(context);
     });
   }
@@ -150,10 +160,7 @@ class _MainScreenState extends State<MainScreen>
                               children: [
                                 // Time Headline
                                 Text(
-                                  emergencyVM.assignedAmbulance != null
-                                      ? emergencyVM
-                                          .assignedAmbulance!.estimatedArrival
-                                      : "Searching...",
+                                  emergencyVM.sosEtaText,
                                   style: GoogleFonts.inter(
                                     fontWeight: FontWeight.w900,
                                     fontSize: 22, // Big & Bold
@@ -164,9 +171,7 @@ class _MainScreenState extends State<MainScreen>
                                 const SizedBox(height: 4),
                                 // Status Title
                                 Text(
-                                  emergencyVM.assignedAmbulance != null
-                                      ? "Ambulance Dispatched"
-                                      : "Finding Driver",
+                                  emergencyVM.sosTitle,
                                   style: GoogleFonts.inter(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13,

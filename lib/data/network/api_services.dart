@@ -33,7 +33,7 @@ class ApiServices {
     try {
       final response = await _apiServices.getPostApiResponse(
         AppUrl.patientRegisterStep2,
-        jsonEncode({'phone': phone, 'otp': otp}),
+        jsonEncode({'phone': phone, 'otp': otp, 'purpose': 'REGISTER'}),
       );
       final data = response is Map ? response['data'] : null;
       final token = data is Map ? data['register_token']?.toString() : null;
@@ -97,6 +97,64 @@ class ApiServices {
     }
   }
 
+  // --- Emergency Contacts ---
+  Future<dynamic> getEmergencyContacts() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.emergencyContacts);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> createEmergencyContact({
+    required String fullName,
+    required String phone,
+    String? relation,
+    bool isPrimary = false,
+  }) async {
+    try {
+      final body = jsonEncode({
+        'fullName': fullName,
+        'phone': phone,
+        if (relation != null && relation.isNotEmpty) 'relation': relation,
+        'isPrimary': isPrimary,
+      });
+      return await _apiServices.getPostApiResponse(AppUrl.emergencyContacts, body);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> updateEmergencyContact(
+    String contactId, {
+    String? fullName,
+    String? phone,
+    String? relation,
+    bool? isPrimary,
+  }) async {
+    try {
+      final body = jsonEncode({
+        if (fullName != null) 'fullName': fullName,
+        if (phone != null) 'phone': phone,
+        if (relation != null) 'relation': relation,
+        if (isPrimary != null) 'isPrimary': isPrimary,
+      });
+      return await _apiServices.getPatchApiResponse(
+          '${AppUrl.emergencyContacts}/$contactId', body);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> deleteEmergencyContact(String contactId) async {
+    try {
+      return await _apiServices.getDeleteApiResponse(
+          '${AppUrl.emergencyContacts}/$contactId');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // --- Doctor registration (3 steps: send-otp, verify-otp, register) ---
 
   /// Doctor registration Step 1: send OTP. Body: {"phone": "+..."}
@@ -116,7 +174,7 @@ class ApiServices {
     try {
       final response = await _apiServices.getPostApiResponse(
         AppUrl.doctorRegisterStep2,
-        jsonEncode({'phone': phone, 'otp': otp}),
+        jsonEncode({'phone': phone, 'otp': otp, 'purpose': 'DOCTOR_REGISTER'}),
       );
       final data = response is Map ? response['data'] : null;
       final token = data is Map ? data['register_token']?.toString() : null;
@@ -177,7 +235,7 @@ class ApiServices {
     try {
       final response = await _apiServices.getPostApiResponse(
         AppUrl.driverRegisterStep2,
-        jsonEncode({'phone': phone, 'otp': otp}),
+        jsonEncode({'phone': phone, 'otp': otp, 'purpose': 'DRIVER_REGISTER'}),
       );
       final data = response is Map ? response['data'] : null;
       final token = data is Map ? data['register_token']?.toString() : null;
@@ -379,6 +437,24 @@ class ApiServices {
     try {
       return await _apiServices.getPostApiResponse(
           AppUrl.patientRegisterStep1, jsonEncode(data));
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> doctorCheckEmail(dynamic data) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+          AppUrl.doctorRegisterStep1, jsonEncode(data));
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> driverCheckEmail(dynamic data) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+          AppUrl.driverRegisterStep1, jsonEncode(data));
     } catch (e) {
       rethrow;
     }
@@ -981,4 +1057,71 @@ class ApiServices {
     } catch (e) {
       rethrow;
     }}
+
+  // --- Password Reset ---
+  Future<dynamic> forgotPassword(String identifier) async {
+    try {
+      final Map<String, dynamic> body = {};
+      if (identifier.contains('@')) {
+        body['email'] = identifier;
+      } else {
+        body['phone'] = identifier;
+      }
+      return await _apiServices.getPostApiResponse(
+          AppUrl.forgotPassword, jsonEncode(body));
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> verifyResetOtp(
+      String identifier, String otp) async {
+    try {
+      final Map<String, dynamic> body = {
+        'otp': otp,
+        'purpose': 'RESET_PASSWORD'
+      };
+      if (identifier.contains('@')) {
+        body['email'] = identifier;
+      } else {
+        body['phone'] = identifier;
+      }
+      return await _apiServices.getPostApiResponse(
+          AppUrl.verifyOtp, jsonEncode(body));
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> resetPassword(String resetToken, String newPassword) async {
+    try {
+      final Map<String, dynamic> body = {
+        'resetToken': resetToken,
+        'newPassword': newPassword,
+      };
+      return await _apiServices.getPostApiResponse(
+          AppUrl.resetPassword, jsonEncode(body));
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // --- Delete Account ---
+  Future<dynamic> sendDeleteAccountOtp() async {
+    try {
+      return await _apiServices.getPostApiResponse(
+          AppUrl.deleteAccountSendOtp, "{}");
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> verifyDeleteAccountOtp(String otp) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+          AppUrl.deleteAccountVerifyOtp, jsonEncode({'otp': otp}));
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

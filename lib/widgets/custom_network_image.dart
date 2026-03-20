@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/core/constants/app_url.dart';
 import 'package:shimmer/shimmer.dart';
 
 class CustomNetworkImage extends StatelessWidget {
@@ -41,7 +42,7 @@ class CustomNetworkImage extends StatelessWidget {
         borderRadius: shape == BoxShape.circle ? null : BorderRadius.circular(borderRadius),
       ),
       child: Image.network(
-        imageUrl!,
+        AppUrl.getFullUrl(imageUrl!),
         width: width,
         height: height,
         fit: fit,

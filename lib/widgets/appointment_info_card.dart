@@ -109,7 +109,12 @@ class AppointmentInfoCard extends StatelessWidget {
               onTap: () {
                 final userVM =
                     Provider.of<UserViewModel>(context, listen: false);
-                final currentUserId = userVM.loginSession?.data?.user?.id ?? 0;
+                final uId = userVM.loginSession?.data?.user?.id?.toString();
+                final pId = userVM.patient?.id;
+                final dId = userVM.doctor?.id;
+                final currentUserId = (uId != null && uId.isNotEmpty) ? uId :
+                                      (pId != null && pId.isNotEmpty) ? pId :
+                                      (dId != null && dId.isNotEmpty) ? dId : "0";
                 Navigator.pop(context);
                 Navigator.push(
                     context,
@@ -117,6 +122,7 @@ class AppointmentInfoCard extends StatelessWidget {
                         builder: (_) => ChatView(
                               recipientName:
                                   appointment.doctor?.name ?? "Doctor",
+                              profileImage: appointment.doctor?.imageUrl ?? "",
                               appointmentId: appointment.id,
                               doctorId: appointment.doctorId,
                               patientId: currentUserId.toString(),

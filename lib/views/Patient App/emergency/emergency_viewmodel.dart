@@ -2,20 +2,103 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/models/ambulance_model.dart';
+import 'package:medlink/core/constants/app_url.dart';
+import 'package:medlink/services/sos_socket_service.dart';
 
 class EmergencyViewModel extends ChangeNotifier {
   final ApiServices _apiServices = ApiServices();
+  final SosSocketService _socket = SosSocketService.instance;
   bool _isSosActive = false;
   AmbulanceModel? _assignedAmbulance;
+  String? _sosStatus;
+  Map<String, dynamic>? _activeTrip;
   Timer? _pollingTimer;
+  bool _realtimeEnabled = false;
+  StreamSubscription<Map<String, dynamic>>? _sosSub;
+  StreamSubscription<Map<String, dynamic>>? _tripSub;
+  StreamSubscription<Map<String, dynamic>>? _locSub;
+
+  int? _currentUserId;
 
   bool get isSosActive => _isSosActive;
   AmbulanceModel? get assignedAmbulance => _assignedAmbulance;
+  String? get sosStatus => _sosStatus;
+  Map<String, dynamic>? get activeTrip => _activeTrip;
+  String? get tripStatus => _activeTrip?['status']?.toString();
 
   @override
   void dispose() {
     _pollingTimer?.cancel();
+    _sosSub?.cancel();
+    _tripSub?.cancel();
+    _locSub?.cancel();
     super.dispose();
+  }
+
+  void startRealtime({required int userId, required String token}) {
+    _currentUserId = userId;
+    _realtimeEnabled = true;
+    _pollingTimer?.cancel();
+    _socket.connect(url: '${AppUrl.baseUrl}/sos', token: token);
+    _socket.joinUser();
+
+    _sosSub ??= _socket.sosUpdatedStream.listen((payload) {
+      final patientId = payload['patientId'];
+      if (patientId == null || patientId != _currentUserId) return;
+
+      _sosStatus = payload['status']?.toString();
+      final assigned = payload['assignedDriver'];
+      if (assigned is Map) {
+        _assignedAmbulance = AmbulanceModel.fromJson(
+          Map<String, dynamic>.from(assigned),
+        );
+      }
+
+      if (_sosStatus == 'RESOLVED' || _sosStatus == 'CANCELLED') {
+        cancelSos();
+        return;
+      }
+
+      _isSosActive = true;
+      notifyListeners();
+    });
+
+    _tripSub ??= _socket.tripUpdatedStream.listen((payload) {
+      final patientId = payload['patientId'];
+      if (patientId == null || patientId != _currentUserId) return;
+
+      _activeTrip = Map<String, dynamic>.from(payload);
+      final tripId = _activeTrip?['id'];
+      if (tripId is int) {
+        _socket.joinTrip(tripId);
+      } else if (tripId is String) {
+        final parsed = int.tryParse(tripId);
+        if (parsed != null) _socket.joinTrip(parsed);
+      }
+      notifyListeners();
+    });
+
+    _locSub ??= _socket.tripLocationUpdatedStream.listen((payload) {
+      final tripId = payload['tripId'];
+      final currentTripId = _activeTrip?['id'];
+      if (tripId == null || currentTripId == null) return;
+      if (tripId.toString() != currentTripId.toString()) return;
+
+      final latest = {
+        'lat': payload['lat'],
+        'lng': payload['lng'],
+        'speed': payload['speed'],
+        'heading': payload['heading'],
+        'createdAt': payload['createdAt'],
+      };
+      _activeTrip = {
+        ...(_activeTrip ?? {}),
+        if (payload['distanceKm'] != null) 'distanceKm': payload['distanceKm'],
+        if (payload['etaMinutes'] != null) 'timeMinutes': payload['etaMinutes'],
+        'latestLocation': latest,
+      };
+      notifyListeners();
+    });
   }
 
   Future<void> checkActiveSos() async {
@@ -28,12 +111,25 @@ class EmergencyViewModel extends ChangeNotifier {
           // Check if the latest SOS is still active
           if (sos['status'] == 'OPEN' || sos['status'] == 'ASSIGNED') {
             _isSosActive = true;
+            _sosStatus = sos['status']?.toString();
+            _activeTrip = sos['trip'] is Map
+                ? Map<String, dynamic>.from(sos['trip'])
+                : null;
+            final tripId = _activeTrip?['id'];
+            if (tripId is int) {
+              _socket.joinTrip(tripId);
+            } else if (tripId is String) {
+              final parsed = int.tryParse(tripId);
+              if (parsed != null) _socket.joinTrip(parsed);
+            }
             if (sos['status'] == 'ASSIGNED' && sos['assignedDriver'] != null) {
               _assignedAmbulance =
                   AmbulanceModel.fromJson(sos['assignedDriver']);
             }
             notifyListeners();
-            _startPollingForDriver();
+            if (!_realtimeEnabled) {
+              _startPollingForDriver();
+            }
             debugPrint("Restored active SOS session: ${sos['id']}");
           }
         }
@@ -55,8 +151,11 @@ class EmergencyViewModel extends ChangeNotifier {
       final response = await _apiServices.createSos(latitude, longitude);
 
       if (response != null) {
-        // Start polling for driver assignment
-        _startPollingForDriver();
+        if (!_realtimeEnabled) {
+          _startPollingForDriver();
+        } else {
+          await checkActiveSos();
+        }
 
         debugPrint("SOS Created: ${response['data']}");
         if (context.mounted) {
@@ -91,8 +190,7 @@ class EmergencyViewModel extends ChangeNotifier {
 
   void _startPollingForDriver() {
     _pollingTimer?.cancel();
-    // Poll every 10 seconds instead of 5 to reduce server load
-    _pollingTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
       try {
         final response = await _apiServices.getMySos();
         if (response != null && response['data'] is List) {
@@ -100,6 +198,10 @@ class EmergencyViewModel extends ChangeNotifier {
           if (list.isNotEmpty) {
             // Check the most recent SOS
             final sos = list.first;
+            _sosStatus = sos['status']?.toString();
+            _activeTrip = sos['trip'] is Map
+                ? Map<String, dynamic>.from(sos['trip'])
+                : null;
             if (sos['status'] == 'ASSIGNED' && sos['assignedDriver'] != null) {
               _assignedAmbulance =
                   AmbulanceModel.fromJson(sos['assignedDriver']);
@@ -118,9 +220,36 @@ class EmergencyViewModel extends ChangeNotifier {
     });
   }
 
+  String get sosTitle {
+    if (!_isSosActive) return '';
+    final trip = tripStatus;
+    if (trip == 'ARRIVED') return 'Ambulance Arrived';
+    if (trip == 'IN_PROGRESS') return 'Trip In Progress';
+    if (_sosStatus == 'OPEN') return 'Finding Driver';
+    return 'Ambulance Dispatched';
+  }
+
+  String get sosEtaText {
+    final trip = _activeTrip;
+    if (trip == null) return _assignedAmbulance?.estimatedArrival ?? '...';
+    final timeMinutes = trip['timeMinutes'];
+    final distanceKm = trip['distanceKm'];
+    if (timeMinutes != null) {
+      final mins = int.tryParse(timeMinutes.toString());
+      if (mins != null && mins > 0) return '$mins min';
+    }
+    if (distanceKm != null) {
+      final km = double.tryParse(distanceKm.toString());
+      if (km != null && km > 0) return '${km.toStringAsFixed(1)} km';
+    }
+    return _assignedAmbulance?.estimatedArrival ?? '...';
+  }
+
   void cancelSos() {
     _isSosActive = false;
     _assignedAmbulance = null;
+    _sosStatus = null;
+    _activeTrip = null;
     _pollingTimer?.cancel();
     notifyListeners();
   }

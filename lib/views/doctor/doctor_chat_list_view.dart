@@ -166,8 +166,14 @@ class _DoctorChatListViewState extends State<DoctorChatListView> {
                               final userVM = Provider.of<UserViewModel>(
                                   context,
                                   listen: false);
-                              final currentUserId =
-                                  userVM.loginSession?.data?.user?.id ?? 0;
+                              print('=== DEBUG CHAT VIEWW ===');
+                              print('loginSession user id: ${userVM.loginSession?.data?.user?.id}');
+                              print('doctor id: ${userVM.doctor?.id}');
+                              print('patient id: ${userVM.patient?.id}');
+                              final uId = userVM.loginSession?.data?.user?.id?.toString();
+                              final dId = userVM.doctor?.id;
+                              final currentUserId = (uId != null && uId.isNotEmpty) ? uId :
+                                                    (dId != null && dId.isNotEmpty) ? dId : "0";
                               Navigator.push(
                                   context,
                                   MaterialPageRoute(

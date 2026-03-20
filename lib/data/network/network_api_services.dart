@@ -117,6 +117,23 @@ class NetworkApiService extends BaseApiServices {
     return responseJson;
   }
 
+  @override
+  Future getDeleteApiResponse(String url) async {
+    print(url);
+    dynamic responseJson;
+    try {
+      final headers = await _getHeaders();
+      final response = await http
+          .delete(Uri.parse(url), headers: headers)
+          .timeout(const Duration(seconds: 30));
+      responseJson = returnResponse(response);
+    } on SocketException catch (e) {
+      if (kDebugMode) print("SocketException for $url: $e");
+      throw FetchDataException('No Internet Connection or Server Unreachable');
+    }
+    return responseJson;
+  }
+
   /// POST multipart with optional Bearer token (e.g. register_token from verify-otp for patient register).
   /// When [bearerToken] is set, sends Authorization: Bearer <token> so register API returns access_token.
   Future getPostMultipartWithOptionalBearer(

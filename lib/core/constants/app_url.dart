@@ -4,12 +4,17 @@ class AppUrl {
   //static const String baseUrl = 'https://medlink-be-production.up.railway.app';
 
   static const String baseUrl =
-      'http://192.168.100.78:3000'; // Real IP (for physical devices)
+      'http://192.168.100.24:3000'; // Real IP (for physical devices)
   // static const String baseUrl =
   //     'http://10.0.2.2:3000'; // Emulator Magic IP (points to your machine)
 
   /// Common Auth Endpoints
   static const String loginEndPoint = '${baseUrl}/auth/login';
+  static const String verifyOtp = '${baseUrl}/auth/verify-otp';
+  static const String forgotPassword = '${baseUrl}/auth/password/forgot';
+  static const String resetPassword = '${baseUrl}/auth/password/reset';
+  static const String deleteAccountSendOtp = '${baseUrl}/auth/account/delete/send-otp';
+  static const String deleteAccountVerifyOtp = '${baseUrl}/auth/account/delete/verify-otp';
   static const String getAppointments = '${baseUrl}/appointments/patient';
   static const String getChatMessages =
       '${baseUrl}/chat/user'; // /{recipientId}/messages
@@ -32,8 +37,7 @@ class AppUrl {
 
   /// Patient App Endpoints
   static const String patientRegisterStep1 = '${baseUrl}/auth/patient/send-otp';
-  static const String patientRegisterStep2 =
-      '${baseUrl}/auth/patient/verify-otp';
+  static const String patientRegisterStep2 = verifyOtp;
   static const String patientRegisterStep3 = '${baseUrl}/auth/patient/register';
   static const String getPatientProfile = '${baseUrl}/patient/profile';
   static const String updatePatientProfile = '${baseUrl}/patient/profile';
@@ -71,7 +75,7 @@ class AppUrl {
 
   /// Doctor App Endpoints
   static const String doctorRegisterStep1 = '${baseUrl}/auth/doctor/send-otp';
-  static const String doctorRegisterStep2 = '${baseUrl}/auth/doctor/verify-otp';
+  static const String doctorRegisterStep2 = verifyOtp;
   static const String doctorRegisterStep3 = '${baseUrl}/auth/doctor/register';
   static const String getDoctorProfile = '${baseUrl}/doctor/profile-details';
   static const String updateDoctorProfile = '${baseUrl}/doctor/profile-details';
@@ -116,7 +120,7 @@ class AppUrl {
   static const String updateCallStatus = '${baseUrl}/agora/update-status';
 
   static const String driverRegisterStep1 = '${baseUrl}/auth/driver/send-otp';
-  static const String driverRegisterStep2 = '${baseUrl}/auth/driver/verify-otp';
+  static const String driverRegisterStep2 = verifyOtp;
   static const String driverRegisterStep3 = '${baseUrl}/auth/driver/register';
   // Note: Some driver endpoints were duplicated below, removing them to fix conflicts
   static const String getDriverEarningsSummary =
@@ -126,4 +130,5 @@ class AppUrl {
 
   /// Patient App Endpoints
   static const String createSos = '${baseUrl}/patient/sos';
+  static const String emergencyContacts = '${baseUrl}/patient/emergency-contacts';
 }

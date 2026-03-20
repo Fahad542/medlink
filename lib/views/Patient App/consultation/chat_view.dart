@@ -39,6 +39,8 @@ class _ChatViewState extends State<ChatView> {
       create: (context) => ChatViewModel(
         doctorId: widget.doctorId,
         patientId: widget.patientId,
+        token: Provider.of<UserViewModel>(context, listen: false).accessToken ??
+            '',
         appointmentId: widget.appointmentId,
       )..fetchMessages(),
       child: Consumer<ChatViewModel>(
@@ -69,38 +71,38 @@ class _ChatViewState extends State<ChatView> {
                   ),
                 ],
               ),
-              actions: [
-                Container(
-                  height: 32,
-                  width: 32,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.videocam_rounded,
-                        color: Colors.white, size: 18),
-                    padding: EdgeInsets.zero,
-                    onPressed: () {},
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  height: 32,
-                  width: 32,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.call_rounded,
-                        color: Colors.white, size: 18),
-                    padding: EdgeInsets.zero,
-                    onPressed: () {},
-                  ),
-                ),
-                const SizedBox(width: 16),
-              ],
+              // actions: [
+              //   Container(
+              //     height: 32,
+              //     width: 32,
+              //     decoration: BoxDecoration(
+              //       color: Colors.white.withOpacity(0.15),
+              //       shape: BoxShape.circle,
+              //     ),
+              //     child: IconButton(
+              //       icon: const Icon(Icons.videocam_rounded,
+              //           color: Colors.white, size: 18),
+              //       padding: EdgeInsets.zero,
+              //       onPressed: () {},
+              //     ),
+              //   ),
+              //   const SizedBox(width: 8),
+              //   Container(
+              //     height: 32,
+              //     width: 32,
+              //     decoration: BoxDecoration(
+              //       color: Colors.white.withOpacity(0.15),
+              //       shape: BoxShape.circle,
+              //     ),
+              //     child: IconButton(
+              //       icon: const Icon(Icons.call_rounded,
+              //           color: Colors.white, size: 18),
+              //       padding: EdgeInsets.zero,
+              //       onPressed: () {},
+              //     ),
+              //   ),
+              //   const SizedBox(width: 16),
+              // ],
             ),
             body: Column(
               children: [
@@ -119,11 +121,21 @@ class _ChatViewState extends State<ChatView> {
                             itemBuilder: (context, index) {
                               final userVM = Provider.of<UserViewModel>(context,
                                   listen: false);
-                              final currentUserId = int.tryParse(userVM
-                                      .loginSession?.data?.user?.id
-                                      ?.toString() ??
-                                  "") ??
-                                  0;
+                              final uId = userVM.loginSession?.data?.user?.id
+                                  ?.toString();
+                              final dId = userVM.doctor?.id;
+                              final pId = userVM.patient?.id;
+
+                              final currentUserIdStr =
+                                  (uId != null && uId.isNotEmpty)
+                                      ? uId
+                                      : (dId != null && dId.isNotEmpty)
+                                          ? dId
+                                          : (pId != null && pId.isNotEmpty)
+                                              ? pId
+                                              : "0";
+                              final currentUserId =
+                                  int.tryParse(currentUserIdStr) ?? 0;
 
                               final message = viewModel.messages[index];
                               final isMe = message.senderId == currentUserId;
@@ -272,9 +284,23 @@ class _ChatViewState extends State<ChatView> {
                               color: Colors.white, size: 18),
                           onPressed: () {
                             if (_msgController.text.isNotEmpty) {
-                              final userVM = Provider.of<UserViewModel>(context, listen: false);
-                               final currentUserId = userVM.loginSession?.data?.user?.id?.toString() ?? "";
-                              viewModel.sendMessage(_msgController.text, currentUserId);
+                              final userVM = Provider.of<UserViewModel>(context,
+                                  listen: false);
+                              final uId = userVM.loginSession?.data?.user?.id
+                                  ?.toString();
+                              final dId = userVM.doctor?.id;
+                              final pId = userVM.patient?.id;
+
+                              final currentUserId =
+                                  (uId != null && uId.isNotEmpty)
+                                      ? uId
+                                      : (dId != null && dId.isNotEmpty)
+                                          ? dId
+                                          : (pId != null && pId.isNotEmpty)
+                                              ? pId
+                                              : "0";
+                              viewModel.sendMessage(
+                                  _msgController.text, currentUserId);
                               _msgController.clear();
                             }
                           },

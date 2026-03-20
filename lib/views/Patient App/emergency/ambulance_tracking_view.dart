@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/models/ambulance_model.dart';
 import 'package:medlink/views/Patient App/consultation/chat_view.dart';
 import 'package:medlink/views/call/call_view_model.dart';
 import 'package:medlink/views/services/session_view_model.dart';
+import 'package:medlink/views/Patient App/emergency/emergency_viewmodel.dart';
 import 'package:provider/provider.dart';
 
 class AmbulanceTrackingView extends StatefulWidget {
@@ -21,6 +25,8 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
   bool _isExpanded = true;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+  final Completer<GoogleMapController> _mapController = Completer();
+  bool hasInitialFit = false;
 
   @override
   void initState() {
@@ -41,8 +47,131 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
     super.dispose();
   }
 
+  double? _toDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString());
+  }
+
+  Future<void> _fitCamera(List<LatLng> points) async {
+    if (!_mapController.isCompleted || points.isEmpty) return;
+    final controller = await _mapController.future;
+    if (points.length == 1) {
+      await controller.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(target: points.first, zoom: 15),
+        ),
+      );
+      return;
+    }
+
+    double minLat = points.first.latitude;
+    double maxLat = points.first.latitude;
+    double minLng = points.first.longitude;
+    double maxLng = points.first.longitude;
+    for (final p in points.skip(1)) {
+      minLat = p.latitude < minLat ? p.latitude : minLat;
+      maxLat = p.latitude > maxLat ? p.latitude : maxLat;
+      minLng = p.longitude < minLng ? p.longitude : minLng;
+      maxLng = p.longitude > maxLng ? p.longitude : maxLng;
+    }
+    await controller.animateCamera(
+      CameraUpdate.newLatLngBounds(
+        LatLngBounds(
+          southwest: LatLng(minLat, minLng),
+          northeast: LatLng(maxLat, maxLng),
+        ),
+        80,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final emergencyVM = Provider.of<EmergencyViewModel>(context);
+    final ambulance = emergencyVM.assignedAmbulance ?? widget.ambulance;
+    final etaText = emergencyVM.sosEtaText.isNotEmpty
+        ? emergencyVM.sosEtaText
+        : ambulance.estimatedArrival;
+
+    final trip = emergencyVM.activeTrip;
+    final latestLocation = trip?['latestLocation'] is Map
+        ? Map<String, dynamic>.from(trip?['latestLocation'])
+        : null;
+    final driverLat = _toDouble(latestLocation?['lat']);
+    final driverLng = _toDouble(latestLocation?['lng']);
+
+    final pickupLat = _toDouble(trip?['pickupLat']);
+    final pickupLng = _toDouble(trip?['pickupLng']);
+    final dropoffLat = _toDouble(trip?['dropoffLat']);
+    final dropoffLng = _toDouble(trip?['dropoffLng']);
+
+    final driverHeading = _toDouble(latestLocation?['heading']) ?? 0.0;
+
+    LatLng? driverPos = (driverLat != null && driverLng != null)
+        ? LatLng(driverLat, driverLng)
+        : null;
+    LatLng? pickupPos = (pickupLat != null && pickupLng != null)
+        ? LatLng(pickupLat, pickupLng)
+        : null;
+    LatLng? dropoffPos = (dropoffLat != null && dropoffLng != null)
+        ? LatLng(dropoffLat, dropoffLng)
+        : null;
+
+    final targetPos = pickupPos;
+    final markers = <Marker>{
+      if (driverPos != null)
+        Marker(
+          markerId: const MarkerId('driver'),
+          position: driverPos,
+          icon:
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+        ),
+      if (pickupPos != null)
+        Marker(
+          markerId: const MarkerId('pickup'),
+          position: pickupPos,
+          icon:
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+        ),
+      if (dropoffPos != null)
+        Marker(
+          markerId: const MarkerId('dropoff'),
+          position: dropoffPos,
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+        ),
+    };
+
+    final polylines = <Polyline>{
+      if (driverPos != null && targetPos != null)
+        Polyline(
+          polylineId: const PolylineId('route'),
+          points: [driverPos, targetPos],
+          color: AppColors.primary,
+          width: 6,
+        ),
+    };
+
+    final cameraTarget =
+        driverPos ?? pickupPos ?? dropoffPos ?? const LatLng(0, 0);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!_mapController.isCompleted) return;
+      final controller = await _mapController.future;
+      final points = <LatLng>[
+        if (driverPos != null) driverPos,
+        if (targetPos != null) targetPos,
+      ];
+      if (points.isEmpty) return;
+
+      if (!hasInitialFit) {
+        _fitCamera(points);
+        hasInitialFit = true;
+      } else if (driverPos != null) {
+        controller.animateCamera(CameraUpdate.newLatLng(driverPos));
+      }
+    });
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       backgroundColor:
@@ -54,133 +183,16 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
       ),
       body: Stack(
         children: [
-          // 1. Premium Dark Map Background
-          Listener(
-            onPointerDown: (_) {
-              setState(() {
-                _isExpanded = false;
-              });
+          GoogleMap(
+            initialCameraPosition:
+                CameraPosition(target: cameraTarget, zoom: 14),
+            onMapCreated: (c) {
+              if (!_mapController.isCompleted) _mapController.complete(c);
             },
-            onPointerUp: (_) {
-              setState(() {
-                _isExpanded = true;
-              });
-            },
-            onPointerCancel: (_) {
-              setState(() {
-                _isExpanded = true;
-              });
-            },
-            child: Container(
-              color: const Color(0xFF242f3e), // Dark Blue-Grey Map
-              width: double.infinity,
-              height: double.infinity,
-              child: Stack(
-                children: [
-                  // Simulated Map Grid/Streets (Subtle)
-                  Positioned(
-                    top: -100,
-                    bottom: -100,
-                    left: MediaQuery.of(context).size.width * 0.4,
-                    child: Container(
-                      width: 40,
-                      decoration: BoxDecoration(
-                        border: Border.symmetric(
-                          vertical: BorderSide(
-                              color: Colors.white.withOpacity(0.05), width: 2),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    top: 200,
-                    left: -50,
-                    right: -50,
-                    child: Container(
-                      height: 50,
-                      decoration: BoxDecoration(
-                        border: Border.symmetric(
-                          horizontal: BorderSide(
-                              color: Colors.white.withOpacity(0.05), width: 2),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // Route Path (Neon Glow)
-                  CustomPaint(
-                    size: Size.infinite,
-                    painter: _RoutePainter(),
-                  ),
-
-                  // Hospital Marker
-                  const Positioned(
-                    top: 150,
-                    left: 60,
-                    child: Column(
-                      children: [
-                        Icon(Icons.monitor_heart_outlined,
-                            size: 32, color: Color(0xFFFF5252)),
-                        SizedBox(height: 4),
-                        Text(
-                          "Hospital",
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Pulsing Ambulance Marker
-                  Positioned(
-                    top: 300,
-                    left: MediaQuery.of(context).size.width * 0.4 - 20,
-                    child: AnimatedBuilder(
-                      animation: _pulseAnimation,
-                      builder: (context, child) {
-                        return Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            // Pulse Ring
-                            Container(
-                              width: 60 + (40 * _pulseAnimation.value),
-                              height: 60 + (40 * _pulseAnimation.value),
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: AppColors.primary.withOpacity(
-                                    0.3 * (1 - _pulseAnimation.value)),
-                              ),
-                            ),
-                            // Core Marker
-                            child!,
-                          ],
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 3),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primary.withOpacity(0.5),
-                              blurRadius: 15,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: const Icon(Icons.directions_car_rounded,
-                            color: Colors.white, size: 28),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            myLocationButtonEnabled: false,
+            zoomControlsEnabled: false,
+            markers: markers,
+            polylines: polylines,
           ),
 
           // 2. Premium Bottom Sheet
@@ -248,7 +260,7 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                               ),
                               const SizedBox(height: 2), // Tighter spacing
                               Text(
-                                widget.ambulance.estimatedArrival,
+                                etaText,
                                 style: const TextStyle(
                                   fontSize: 24, // Reduced from 32
                                   fontWeight: FontWeight.w800,
@@ -317,7 +329,7 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                       image: NetworkImage(widget.ambulance
                                               .profilePhotoUrl.isNotEmpty
                                           ? AppUrl.getFullUrl(
-                                              widget.ambulance.profilePhotoUrl)
+                                              ambulance.profilePhotoUrl)
                                           : 'https://img.freepik.com/free-photo/portrait-smiling-male-doctor_171337-1532.jpg'),
                                       fit: BoxFit.cover,
                                     ),
@@ -332,7 +344,7 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                       Row(
                                         children: [
                                           Text(
-                                            widget.ambulance.driverName,
+                                            ambulance.driverName,
                                             style: const TextStyle(
                                               fontSize: 16, // Reduced from 18
                                               fontWeight: FontWeight.bold,
@@ -347,7 +359,7 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        "Paramedic • ${widget.ambulance.plateNumber}",
+                                        "Paramedic • ${ambulance.plateNumber}",
                                         style: TextStyle(
                                             color: Colors.grey[500],
                                             fontSize: 13,

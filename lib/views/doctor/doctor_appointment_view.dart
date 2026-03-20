@@ -395,7 +395,10 @@ class DoctorAppointmentCard extends StatelessWidget {
   void _showAppointmentActions(
       BuildContext context, AppointmentModel appointment, String patientName) {
     final userVM = Provider.of<UserViewModel>(context, listen: false);
-    final currentUserId = userVM.loginSession?.data?.user?.id ?? 0;
+    final uId = userVM.loginSession?.data?.user?.id?.toString();
+    final dId = userVM.doctor?.id;
+    final currentUserId = (uId != null && uId.isNotEmpty) ? uId :
+                          (dId != null && dId.isNotEmpty) ? dId : "0";
 
     showModalBottomSheet(
       context: context,
@@ -470,9 +473,10 @@ class DoctorAppointmentCard extends StatelessWidget {
                     MaterialPageRoute(
                         builder: (_) => ChatView(
                               recipientName: patientName,
+                              profileImage: appointment.user?.profileImage ?? "",
                               appointmentId: appointment.id,
                               doctorId: currentUserId.toString(),
-                              patientId: appointment.userId,
+                              patientId: appointment.userId.toString(),
                             )));
               },
             ),

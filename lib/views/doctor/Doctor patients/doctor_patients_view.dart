@@ -65,7 +65,8 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
                                 alignment: Alignment(0, -0.25),
                                 child: NoDataWidget(
                                   title: "No patients found.",
-                                  subTitle: "You don't have any patients in this category yet.",
+                                  subTitle:
+                                      "You don't have any patients in this category yet.",
                                 ),
                               ),
                             ],
@@ -225,7 +226,8 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
               context,
               MaterialPageRoute(
                 builder: (_) => ChangeNotifierProvider(
-                  create: (_) => DoctorPatientDashboardViewModel(patient)..fetchPatientProfile(),
+                  create: (_) => DoctorPatientDashboardViewModel(patient)
+                    ..fetchPatientProfile(),
                   child: const PatientDashboardView(),
                 ),
               ),
@@ -397,17 +399,23 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
                   onTap: () {
                     final userVM =
                         Provider.of<UserViewModel>(context, listen: false);
-                    final currentUserId =
-                        userVM.loginSession?.data?.user?.id ?? 0;
+                    final uId = userVM.loginSession?.data?.user?.id?.toString();
+                    final dId = userVM.doctor?.id;
+                    final currentUserId = (uId != null && uId.isNotEmpty)
+                        ? uId
+                        : (dId != null && dId.isNotEmpty)
+                            ? dId
+                            : "0";
                     Navigator.pop(context);
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                           builder: (_) => ChatView(
                                 recipientName: patient.name ?? "Patient",
+                                profileImage: patient.profileImage ?? "",
                                 appointmentId: patient.lastAppointmentId ?? "0",
                                 doctorId: currentUserId.toString(),
-                                patientId: patient.id,
+                                patientId: patient.id.toString(),
                               )),
                     );
                   },

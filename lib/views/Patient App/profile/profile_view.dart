@@ -11,6 +11,7 @@ import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/models/user_model.dart';
 
 import 'package:medlink/widgets/logout_confirmation_dialog.dart';
+import 'package:medlink/widgets/delete_account_sheet.dart';
 import 'package:medlink/views/Login/login_view.dart';
 import 'package:provider/provider.dart';
 
@@ -233,6 +234,42 @@ class _ProfileViewState extends State<ProfileView> {
                               "Log Out",
                               style: GoogleFonts.inter(
                                 color: Colors.red,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Delete Account Action
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: TextButton(
+                        onPressed: () {
+                          DeleteAccountSheet.show(context);
+                        },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          backgroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.person_remove_rounded,
+                                color: AppColors.error, size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              "Delete Account",
+                              style: GoogleFonts.inter(
+                                color: AppColors.error,
                                 fontWeight: FontWeight.w500,
                                 fontSize: 15,
                               ),

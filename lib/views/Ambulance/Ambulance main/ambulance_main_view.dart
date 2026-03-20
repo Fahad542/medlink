@@ -6,7 +6,10 @@ import 'package:medlink/views/Ambulance/profile/ambulance_profile_view.dart';
 import 'package:medlink/views/Ambulance/profile/ambulance_earnings_view.dart';
 import 'package:medlink/views/Ambulance/Ambulance%20main/ambulance_main_view_model.dart';
 import 'package:medlink/views/call/call_view_model.dart';
+import 'package:medlink/views/Ambulance/Mission/ambulance_mission_view.dart';
+import 'package:medlink/views/services/session_view_model.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AmbulanceMainView extends StatefulWidget {
   const AmbulanceMainView({super.key});
@@ -15,19 +18,35 @@ class AmbulanceMainView extends StatefulWidget {
   State<AmbulanceMainView> createState() => _AmbulanceMainViewState();
 }
 
-class _AmbulanceMainViewState extends State<AmbulanceMainView> {
+class _AmbulanceMainViewState extends State<AmbulanceMainView>
+    with SingleTickerProviderStateMixin {
+  late final AmbulanceMainViewModel _viewModel;
+  late AnimationController _pulseController;
+
   @override
   void initState() {
     super.initState();
+    _viewModel = AmbulanceMainViewModel();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<CallViewModel>(context, listen: false).startPolling(context);
+      _viewModel.checkActiveTrip();
+      final userVM = Provider.of<UserViewModel>(context, listen: false);
+      final token = userVM.accessToken;
+      final driverId = int.tryParse(userVM.driver?.id ?? '');
+      if (token != null && token.isNotEmpty && driverId != null) {
+        _viewModel.startRealtime(userId: driverId, token: token);
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AmbulanceMainViewModel(),
+    return ChangeNotifierProvider.value(
+      value: _viewModel,
       child: Consumer<AmbulanceMainViewModel>(
         builder: (context, viewModel, child) {
           return Scaffold(
@@ -44,6 +63,134 @@ class _AmbulanceMainViewState extends State<AmbulanceMainView> {
                     AmbulanceProfileView(),
                   ],
                 ),
+
+                if (viewModel.hasActiveTrip)
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    bottom: 115,
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AmbulanceMissionView(),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 20,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: const BorderRadius.only(
+                            topLeft: Radius.circular(20),
+                            bottomLeft: Radius.circular(20),
+                            topRight: Radius.circular(60),
+                            bottomRight: Radius.circular(60),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 30,
+                              offset: const Offset(0, 15),
+                              spreadRadius: 5,
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    viewModel.activeTripEtaText,
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 22,
+                                      color: const Color(0xFF1E293B),
+                                      height: 1.1,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    viewModel.activeTripTitle,
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                      color: const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'Tap to open mission',
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 11,
+                                      color: const Color(0xFF94A3B8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(
+                              width: 60,
+                              height: 60,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Container(
+                                    width: 60,
+                                    height: 60,
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Color(0xFFFEF2F2),
+                                    ),
+                                  ),
+                                  Transform.rotate(
+                                    angle: -1.5,
+                                    child: const SizedBox(
+                                      width: 50,
+                                      height: 50,
+                                      child: CircularProgressIndicator(
+                                        value: 0.75,
+                                        strokeWidth: 6,
+                                        backgroundColor: Colors.transparent,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                          Color(0xFFEF4444),
+                                        ),
+                                        strokeCap: StrokeCap.round,
+                                      ),
+                                    ),
+                                  ),
+                                  AnimatedBuilder(
+                                    animation: _pulseController,
+                                    builder: (context, child) {
+                                      return Transform.scale(
+                                        scale: 0.9 +
+                                            (_pulseController.value * 0.1),
+                                        child: const Icon(
+                                          Icons.local_hospital_rounded,
+                                          color: Color(0xFFEF4444),
+                                          size: 26,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
 
                 // 2. Floating Custom Navigation Bar
                 Positioned(
@@ -104,6 +251,13 @@ class _AmbulanceMainViewState extends State<AmbulanceMainView> {
         },
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _viewModel.dispose();
+    super.dispose();
   }
 
   Widget _buildNavItem(BuildContext context, AmbulanceMainViewModel viewModel,

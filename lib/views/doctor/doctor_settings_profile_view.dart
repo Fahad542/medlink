@@ -1,12 +1,13 @@
- import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 
 import 'package:medlink/views/doctor/Doctor%20profile/doctor_personal_info_view.dart';
 import 'package:medlink/views/doctor/Doctor%20earnings/doctor_earnings_view.dart';
 import 'package:medlink/views/Login/login_view.dart';
+import 'package:medlink/widgets/custom_button.dart';
+import 'package:medlink/widgets/delete_account_sheet.dart';
 import 'package:medlink/widgets/logout_confirmation_dialog.dart';
-import 'package:medlink/widgets/custom_button.dart'; // Added Import
 import 'package:provider/provider.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/models/doctor_model.dart';
@@ -68,8 +69,8 @@ class DoctorSettingsProfileView extends StatelessWidget {
                         ],
                       ),
                     ),
-                    
-                    const SizedBox(height: 24), 
+
+                    const SizedBox(height: 24),
 
                     // Grouped Settings
                     Column(
@@ -107,7 +108,11 @@ class DoctorSettingsProfileView extends StatelessWidget {
                                 color: AppColors.primary,
                                 title: "Personal Info",
                                 subtitle: "Bio, Specialization & Fee",
-                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const DoctorPersonalInfoView())),
+                                onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (context) =>
+                                            const DoctorPersonalInfoView())),
                               ),
                               _buildDivider(),
                               _buildPremiumTile(
@@ -138,54 +143,97 @@ class DoctorSettingsProfileView extends StatelessWidget {
                                 color: AppColors.primary,
                                 title: "Consultation Earnings",
                                 subtitle: "Check Balance & Transactions",
-                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const DoctorEarningsView(showBackButton: true))),
+                                onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (context) =>
+                                            const DoctorEarningsView(
+                                                showBackButton: true))),
                               ),
-
                             ],
                           ),
                         ),
                       ],
                     ),
 
-                    const SizedBox(height: 30), 
+                    const SizedBox(height: 30),
 
                     // Logout Action
                     Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
-                         borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                       child: TextButton(
                         onPressed: () {
-                           showDialog(
-                             context: context,
-                             builder: (context) => LogoutConfirmationDialog(
-                               onLogout: () {
-                                  userVM.logout();
-                                  Navigator.pushAndRemoveUntil(
-                                      context,
-                                      MaterialPageRoute(builder: (context) => const LoginView()),
-                                      (route) => false,
-                                  );
-                               },
-                             ),
-                           );
+                          showDialog(
+                            context: context,
+                            builder: (context) => LogoutConfirmationDialog(
+                              onLogout: () {
+                                userVM.logout();
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => const LoginView()),
+                                  (route) => false,
+                                );
+                              },
+                            ),
+                          );
                         },
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           backgroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
                           // Border removed
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.logout_rounded, color: Colors.red, size: 20), 
+                            const Icon(Icons.logout_rounded,
+                                color: Colors.red, size: 20),
                             const SizedBox(width: 8),
                             Text(
                               "Log Out",
                               style: GoogleFonts.inter(
                                 color: Colors.red,
+                                fontWeight: FontWeight.w500,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Delete Account Action
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: TextButton(
+                        onPressed: () {
+                          DeleteAccountSheet.show(context);
+                        },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          backgroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.person_remove_rounded,
+                                color: AppColors.error, size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              "Delete Account",
+                              style: GoogleFonts.inter(
+                                color: AppColors.error,
                                 fontWeight: FontWeight.w500,
                                 fontSize: 15,
                               ),
@@ -207,7 +255,7 @@ class DoctorSettingsProfileView extends StatelessWidget {
 
   Widget _buildHeader(DoctorModel? doctor) {
     return Container(
-      height: 260, 
+      height: 260,
       width: double.infinity,
       decoration: const BoxDecoration(
         color: AppColors.primary,
@@ -245,7 +293,7 @@ class DoctorSettingsProfileView extends StatelessWidget {
                 backgroundColor: Colors.white.withOpacity(0.05),
               ),
             ),
-            
+
             // Profile Content
             Align(
               alignment: Alignment.center,
@@ -256,10 +304,11 @@ class DoctorSettingsProfileView extends StatelessWidget {
                   children: [
                     // Profile Image
                     Container(
-                      padding:  EdgeInsets.all(4),
+                      padding: EdgeInsets.all(4),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white.withOpacity(0.6), width: 1.5),
+                        border: Border.all(
+                            color: Colors.white.withOpacity(0.6), width: 1.5),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.1),
@@ -269,21 +318,24 @@ class DoctorSettingsProfileView extends StatelessWidget {
                         ],
                       ),
                       child: CircleAvatar(
-                        radius: 45, 
+                        radius: 45,
                         backgroundColor: Colors.white,
-                        backgroundImage: (doctor?.imageUrl != null && doctor!.imageUrl.isNotEmpty)
-                              ? NetworkImage(doctor.imageUrl)
-                              : null,
-                        child: (doctor?.imageUrl == null || doctor!.imageUrl.isEmpty)
-                              ? const Icon(Icons.person, size: 50, color: Colors.grey)
-                              : null,
+                        backgroundImage: (doctor?.imageUrl != null &&
+                                doctor!.imageUrl.isNotEmpty)
+                            ? NetworkImage(doctor.imageUrl)
+                            : null,
+                        child: (doctor?.imageUrl == null ||
+                                doctor!.imageUrl.isEmpty)
+                            ? const Icon(Icons.person,
+                                size: 50, color: Colors.grey)
+                            : null,
                       ),
                     ),
                     const SizedBox(height: 12),
                     Text(
                       doctor?.name ?? "Dr. Alex Smith",
                       style: GoogleFonts.inter(
-                        fontSize: 22, 
+                        fontSize: 22,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                         letterSpacing: 0.5,
@@ -291,16 +343,21 @@ class DoctorSettingsProfileView extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white.withOpacity(0.1)),
+                        border:
+                            Border.all(color: Colors.white.withOpacity(0.1)),
                       ),
                       child: Text(
-                        (doctor?.specialty != null && doctor!.specialty.isNotEmpty) ? doctor.specialty : "Cardiologist",
+                        (doctor?.specialty != null &&
+                                doctor!.specialty.isNotEmpty)
+                            ? doctor.specialty
+                            : "Cardiologist",
                         style: GoogleFonts.inter(
-                          fontSize: 13, 
+                          fontSize: 13,
                           color: Colors.white,
                           fontWeight: FontWeight.w500,
                         ),
@@ -317,7 +374,8 @@ class DoctorSettingsProfileView extends StatelessWidget {
     );
   }
 
-  Widget _buildPremiumTile(BuildContext context, {
+  Widget _buildPremiumTile(
+    BuildContext context, {
     required IconData icon,
     required Color color,
     required String title,
@@ -334,12 +392,12 @@ class DoctorSettingsProfileView extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8), 
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: color.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: color, size: 20), 
+                child: Icon(icon, color: color, size: 20),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -349,7 +407,7 @@ class DoctorSettingsProfileView extends StatelessWidget {
                     Text(
                       title,
                       style: GoogleFonts.inter(
-                        fontSize: 15, 
+                        fontSize: 15,
                         fontWeight: FontWeight.w600,
                         color: const Color(0xFF1E293B),
                       ),
@@ -358,7 +416,7 @@ class DoctorSettingsProfileView extends StatelessWidget {
                     Text(
                       subtitle,
                       style: GoogleFonts.inter(
-                        fontSize: 11, 
+                        fontSize: 11,
                         color: Colors.grey[500],
                         fontWeight: FontWeight.w500,
                       ),
@@ -366,7 +424,8 @@ class DoctorSettingsProfileView extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey[300]), 
+              Icon(Icons.arrow_forward_ios_rounded,
+                  size: 14, color: Colors.grey[300]),
             ],
           ),
         ),
@@ -378,69 +437,74 @@ class DoctorSettingsProfileView extends StatelessWidget {
     return Divider(
       height: 1,
       thickness: 1,
-      indent: 60, 
+      indent: 60,
       endIndent: 0,
       color: Colors.grey[100],
     );
   }
+
   void _showAvailabilityBottomSheet(BuildContext context) {
     // Get latest doctor data
     final userVM = Provider.of<UserViewModel>(context, listen: false);
     final doctor = userVM.doctor;
 
     double duration = 30; // Parsing from model if added later
-    
+
     // Parse Availability Days
-    Set<String> selectedDays = doctor?.availabilityDays.toSet() ?? {"Mon", "Tue", "Wed", "Thu", "Fri"};
+    Set<String> selectedDays =
+        doctor?.availabilityDays.toSet() ?? {"Mon", "Tue", "Wed", "Thu", "Fri"};
     List<String> allDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-    
+
     // Parse Times (Simple string parsing "09:00 AM")
     TimeOfDay _parseTime(String timeStr) {
-       try {
-         final format = RegExp(r"(\d+):(\d+)\s+(AM|PM)");
-         final match = format.firstMatch(timeStr);
-         if (match != null) {
-           int hour = int.parse(match.group(1)!);
-           int minute = int.parse(match.group(2)!);
-           String period = match.group(3)!;
-           if (period == "PM" && hour != 12) hour += 12;
-           if (period == "AM" && hour == 12) hour = 0;
-           return TimeOfDay(hour: hour, minute: minute);
-         }
-       } catch (e) {
-         print("Error parsing time: $e");
-       }
-       return const TimeOfDay(hour: 9, minute: 0); // Default
+      try {
+        final format = RegExp(r"(\d+):(\d+)\s+(AM|PM)");
+        final match = format.firstMatch(timeStr);
+        if (match != null) {
+          int hour = int.parse(match.group(1)!);
+          int minute = int.parse(match.group(2)!);
+          String period = match.group(3)!;
+          if (period == "PM" && hour != 12) hour += 12;
+          if (period == "AM" && hour == 12) hour = 0;
+          return TimeOfDay(hour: hour, minute: minute);
+        }
+      } catch (e) {
+        print("Error parsing time: $e");
+      }
+      return const TimeOfDay(hour: 9, minute: 0); // Default
     }
 
     TimeOfDay morningStart = _parseTime(doctor?.startTime ?? "09:00 AM");
-    TimeOfDay morningEnd = const TimeOfDay(hour: 13, minute: 0); // Not currently in model, keeping default
-    TimeOfDay eveningStart = const TimeOfDay(hour: 16, minute: 0); // Not in model
+    TimeOfDay morningEnd = const TimeOfDay(
+        hour: 13, minute: 0); // Not currently in model, keeping default
+    TimeOfDay eveningStart =
+        const TimeOfDay(hour: 16, minute: 0); // Not in model
     TimeOfDay eveningEnd = _parseTime(doctor?.endTime ?? "05:00 PM");
 
-    Future<void> selectTime(BuildContext context, bool isStart, bool isMorning, StateSetter setState) async {
+    Future<void> selectTime(BuildContext context, bool isStart, bool isMorning,
+        StateSetter setState) async {
       final TimeOfDay? picked = await showTimePicker(
         context: context,
-        initialTime: isStart 
+        initialTime: isStart
             ? (isMorning ? morningStart : eveningStart)
             : (isMorning ? morningEnd : eveningEnd),
-          builder: (context, child) {
-            return Theme(
-              data: Theme.of(context).copyWith(
-                colorScheme: const ColorScheme.light(
-                  primary: AppColors.primary,
-                  onPrimary: Colors.white,
-                  onSurface: Colors.black,
-                ),
-                textButtonTheme: TextButtonThemeData(
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.primary, 
-                  ),
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.light(
+                primary: AppColors.primary,
+                onPrimary: Colors.white,
+                onSurface: Colors.black,
+              ),
+              textButtonTheme: TextButtonThemeData(
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primary,
                 ),
               ),
-              child: child!,
-            );
-          },
+            ),
+            child: child!,
+          );
+        },
       );
       if (picked != null) {
         setState(() {
@@ -468,27 +532,30 @@ class DoctorSettingsProfileView extends StatelessWidget {
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
           return Container(
-            height: MediaQuery.of(context).size.height * 0.85, 
+            height: MediaQuery.of(context).size.height * 0.85,
             decoration: const BoxDecoration(
-              color: Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 20,
-                  offset: Offset(0, -5),
-                )
-              ]
-            ),
+                color: Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 20,
+                    offset: Offset(0, -5),
+                  )
+                ]),
             child: Column(
               children: [
                 // Handle Bar with Header
                 Container(
-                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                    border: Border(bottom: BorderSide(color: Colors.grey.withOpacity(0.05))),
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(24)),
+                    border: Border(
+                        bottom:
+                            BorderSide(color: Colors.grey.withOpacity(0.05))),
                   ),
                   child: Column(
                     children: [
@@ -510,19 +577,17 @@ class DoctorSettingsProfileView extends StatelessWidget {
                               Text(
                                 "Availability & Rates",
                                 style: GoogleFonts.inter(
-                                  fontSize: 18, 
-                                  fontWeight: FontWeight.bold, 
-                                  color: Colors.black87
-                                ),
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87),
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 "Configure your practice details",
                                 style: GoogleFonts.inter(
-                                  fontSize: 12, 
-                                  color: Colors.grey[500],
-                                  fontWeight: FontWeight.w500
-                                ),
+                                    fontSize: 12,
+                                    color: Colors.grey[500],
+                                    fontWeight: FontWeight.w500),
                               ),
                             ],
                           ),
@@ -535,7 +600,8 @@ class DoctorSettingsProfileView extends StatelessWidget {
                                 color: Colors.grey[100],
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(Icons.close_rounded, color: Colors.grey[600], size: 18),
+                              child: Icon(Icons.close_rounded,
+                                  color: Colors.grey[600], size: 18),
                             ),
                           ),
                         ],
@@ -543,7 +609,7 @@ class DoctorSettingsProfileView extends StatelessWidget {
                     ],
                   ),
                 ),
-                
+
                 Expanded(
                   child: ListView(
                     padding: const EdgeInsets.all(20),
@@ -566,9 +632,12 @@ class DoctorSettingsProfileView extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                             Text(
+                            Text(
                               "Consultation Fee",
-                              style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, color: Colors.grey[600]),
+                              style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                  color: Colors.grey[600]),
                             ),
                             const SizedBox(height: 12),
                             Row(
@@ -585,31 +654,40 @@ class DoctorSettingsProfileView extends StatelessWidget {
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: TextField(
-                                    controller: TextEditingController(text: doctor?.consultationFee.toStringAsFixed(2) ?? "50.00"), 
+                                    controller: TextEditingController(
+                                        text: doctor?.consultationFee
+                                                .toStringAsFixed(2) ??
+                                            "50.00"),
                                     keyboardType: TextInputType.number,
                                     style: GoogleFonts.inter(
-                                      fontWeight: FontWeight.bold, 
-                                      fontSize: 22,
-                                      color: AppColors.textPrimary
-                                    ),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 22,
+                                        color: AppColors.textPrimary),
                                     decoration: InputDecoration(
                                       hintText: "0.00",
-                                      hintStyle: TextStyle(color: Colors.grey[300]),
+                                      hintStyle:
+                                          TextStyle(color: Colors.grey[300]),
                                       border: InputBorder.none,
                                       isDense: true,
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 6),
                                     ),
                                   ),
                                 ),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 6),
                                   decoration: BoxDecoration(
                                     color: AppColors.primary.withOpacity(0.1),
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: Text(
                                     "Per Session",
-                                    style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primary),
+                                    style: GoogleFonts.inter(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.primary),
                                   ),
                                 ),
                               ],
@@ -617,7 +695,7 @@ class DoctorSettingsProfileView extends StatelessWidget {
                           ],
                         ),
                       ),
-                      
+
                       const SizedBox(height: 24),
 
                       _buildSectionHeader("Active Days"),
@@ -646,23 +724,42 @@ class DoctorSettingsProfileView extends StatelessWidget {
                                 decoration: BoxDecoration(
                                   gradient: isSelected
                                       ? const LinearGradient(
-                                          colors: [AppColors.primary, Color(0xFF008985)],
+                                          colors: [
+                                            AppColors.primary,
+                                            Color(0xFF008985)
+                                          ],
                                           begin: Alignment.topLeft,
                                           end: Alignment.bottomRight,
                                         )
                                       : null,
                                   color: isSelected ? null : Colors.white,
                                   shape: BoxShape.circle,
-                                  boxShadow: isSelected 
-                                    ? [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))]
-                                    : [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))],
-                                  border: isSelected ? null : Border.all(color: Colors.grey[200]!),
+                                  boxShadow: isSelected
+                                      ? [
+                                          BoxShadow(
+                                              color: AppColors.primary
+                                                  .withOpacity(0.3),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 4))
+                                        ]
+                                      : [
+                                          BoxShadow(
+                                              color: Colors.black
+                                                  .withOpacity(0.02),
+                                              blurRadius: 4,
+                                              offset: const Offset(0, 2))
+                                        ],
+                                  border: isSelected
+                                      ? null
+                                      : Border.all(color: Colors.grey[200]!),
                                 ),
                                 child: Center(
                                   child: Text(
                                     day.substring(0, 1),
                                     style: GoogleFonts.inter(
-                                      color: isSelected ? Colors.white : Colors.grey[600],
+                                      color: isSelected
+                                          ? Colors.white
+                                          : Colors.grey[600],
                                       fontWeight: FontWeight.bold,
                                       fontSize: 14,
                                     ),
@@ -674,7 +771,7 @@ class DoctorSettingsProfileView extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      
+
                       _buildSectionHeader("Shift Schedule"),
                       const SizedBox(height: 12),
                       Row(
@@ -682,57 +779,66 @@ class DoctorSettingsProfileView extends StatelessWidget {
                           Expanded(
                             child: _buildCompactTimeCard(
                               context,
-                              "Morning", 
+                              "Morning",
                               Icons.wb_sunny_rounded,
                               Colors.orange[400]!,
-                              morningStart, 
+                              morningStart,
                               morningEnd,
-                              () async => await selectTime(context, true, true, setState),
-                              () async => await selectTime(context, false, true, setState),
+                              () async => await selectTime(
+                                  context, true, true, setState),
+                              () async => await selectTime(
+                                  context, false, true, setState),
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: _buildCompactTimeCard(
                               context,
-                              "Evening", 
+                              "Evening",
                               Icons.nights_stay_rounded,
                               Colors.indigo[400]!,
-                              eveningStart, 
+                              eveningStart,
                               eveningEnd,
-                              () async => await selectTime(context, true, false, setState),
-                              () async => await selectTime(context, false, false, setState),
+                              () async => await selectTime(
+                                  context, true, false, setState),
+                              () async => await selectTime(
+                                  context, false, false, setState),
                             ),
                           ),
                         ],
                       ),
-                      
+
                       const SizedBox(height: 24),
-                      
+
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           _buildSectionHeader("Session Duration"),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               color: AppColors.primary.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Text(
-                              "${duration.round()} mins", 
-                              style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 12)
-                            ),
+                            child: Text("${duration.round()} mins",
+                                style: const TextStyle(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12)),
                           ),
                         ],
                       ),
                       SliderTheme(
                         data: SliderTheme.of(context).copyWith(
                           trackHeight: 4,
-                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
-                          overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+                          thumbShape: const RoundSliderThumbShape(
+                              enabledThumbRadius: 8),
+                          overlayShape:
+                              const RoundSliderOverlayShape(overlayRadius: 16),
                           activeTrackColor: AppColors.primary,
-                          inactiveTrackColor: AppColors.primary.withOpacity(0.1),
+                          inactiveTrackColor:
+                              AppColors.primary.withOpacity(0.1),
                           thumbColor: Colors.white,
                           overlayColor: AppColors.primary.withOpacity(0.1),
                         ),
@@ -752,7 +858,7 @@ class DoctorSettingsProfileView extends StatelessWidget {
                     ],
                   ),
                 ),
-                
+
                 // Save Button (Fixed at bottom)
                 Padding(
                   padding: const EdgeInsets.all(20),
@@ -770,15 +876,14 @@ class DoctorSettingsProfileView extends StatelessWidget {
   }
 
   Widget _buildCompactTimeCard(
-    BuildContext context, 
-    String label, 
-    IconData icon, 
-    Color color, 
-    TimeOfDay start, 
-    TimeOfDay end, 
-    VoidCallback onStartTap,
-    VoidCallback onEndTap
-  ) {
+      BuildContext context,
+      String label,
+      IconData icon,
+      Color color,
+      TimeOfDay start,
+      TimeOfDay end,
+      VoidCallback onStartTap,
+      VoidCallback onEndTap) {
     String formatTime(TimeOfDay time) {
       final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
       final minute = time.minute.toString().padLeft(2, '0');
@@ -789,16 +894,15 @@ class DoctorSettingsProfileView extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ]
-      ),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            )
+          ]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -815,12 +919,15 @@ class DoctorSettingsProfileView extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 label,
-                style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.textPrimary),
+                style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: AppColors.textPrimary),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          
+
           // Start Time
           InkWell(
             onTap: onStartTap,
@@ -834,18 +941,25 @@ class DoctorSettingsProfileView extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Text("Start", style: GoogleFonts.inter(color: Colors.grey[500], fontSize: 11, fontWeight: FontWeight.w500)),
+                  Text("Start",
+                      style: GoogleFonts.inter(
+                          color: Colors.grey[500],
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500)),
                   const Spacer(),
                   Text(
                     formatTime(start),
-                    style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
+                    style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87),
                   ),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 8),
-          
+
           // End Time
           InkWell(
             onTap: onEndTap,
@@ -853,17 +967,24 @@ class DoctorSettingsProfileView extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
-                 color: const Color(0xFFF8FAFC),
+                color: const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: Colors.grey[200]!),
               ),
               child: Row(
                 children: [
-                   Text("End", style: GoogleFonts.inter(color: Colors.grey[500], fontSize: 11, fontWeight: FontWeight.w500)),
-                   const Spacer(),
+                  Text("End",
+                      style: GoogleFonts.inter(
+                          color: Colors.grey[500],
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500)),
+                  const Spacer(),
                   Text(
                     formatTime(end),
-                    style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87),
+                    style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87),
                   ),
                 ],
               ),
@@ -891,7 +1012,8 @@ class DoctorSettingsProfileView extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
               decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: Colors.grey.withOpacity(0.1))),
+                border: Border(
+                    bottom: BorderSide(color: Colors.grey.withOpacity(0.1))),
               ),
               child: Column(
                 children: [
@@ -910,17 +1032,17 @@ class DoctorSettingsProfileView extends StatelessWidget {
                       Text(
                         "Clinic Details",
                         style: GoogleFonts.inter(
-                          fontSize: 18, 
-                          fontWeight: FontWeight.bold, 
-                          color: Colors.black87
-                        ),
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87),
                       ),
                       InkWell(
                         onTap: () => Navigator.pop(context),
                         borderRadius: BorderRadius.circular(20),
-                        child:  Padding(
+                        child: Padding(
                           padding: const EdgeInsets.all(4.0),
-                          child: Icon(Icons.close_rounded, color: Colors.grey[400], size: 22),
+                          child: Icon(Icons.close_rounded,
+                              color: Colors.grey[400], size: 22),
                         ),
                       ),
                     ],
@@ -928,7 +1050,7 @@ class DoctorSettingsProfileView extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.all(24),
@@ -936,13 +1058,15 @@ class DoctorSettingsProfileView extends StatelessWidget {
                 children: [
                   _buildSectionHeader("Overview"),
                   const SizedBox(height: 16),
-                  _buildTextField("Clinic Name", Icons.business, "City Heart Center"),
+                  _buildTextField(
+                      "Clinic Name", Icons.business, "City Heart Center"),
                   const SizedBox(height: 24),
-
                   _buildSectionHeader("Location"),
-                   const SizedBox(height: 16),
-                  _buildTextField("Address", Icons.location_on_outlined, "123 Medical Plaza, Downtown", maxLines: 2),
-                   const SizedBox(height: 16),
+                  const SizedBox(height: 16),
+                  _buildTextField("Address", Icons.location_on_outlined,
+                      "123 Medical Plaza, Downtown",
+                      maxLines: 2),
+                  const SizedBox(height: 16),
                   Container(
                     height: 160,
                     width: double.infinity,
@@ -951,7 +1075,8 @@ class DoctorSettingsProfileView extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: Colors.grey[200]!),
                       image: const DecorationImage(
-                        image: NetworkImage("https://via.placeholder.com/600x300"), // Better Aspect Ratio
+                        image: NetworkImage(
+                            "https://via.placeholder.com/600x300"), // Better Aspect Ratio
                         fit: BoxFit.cover,
                         opacity: 0.8, // More visible
                       ),
@@ -978,7 +1103,8 @@ class DoctorSettingsProfileView extends StatelessWidget {
                         ),
                         child: TextButton.icon(
                           onPressed: () {},
-                          icon: const Icon(Icons.map_rounded, color: AppColors.primary),
+                          icon: const Icon(Icons.map_rounded,
+                              color: AppColors.primary),
                           label: const Text(
                             "Locate on Map",
                             style: TextStyle(
@@ -987,25 +1113,29 @@ class DoctorSettingsProfileView extends StatelessWidget {
                             ),
                           ),
                           style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 12),
                             backgroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
                   _buildSectionHeader("Contact & Services"),
                   const SizedBox(height: 16),
-                  _buildTextField("Contact Number", Icons.phone_rounded, "+1 234 567 890"),
+                  _buildTextField(
+                      "Contact Number", Icons.phone_rounded, "+1 234 567 890"),
                   const SizedBox(height: 16),
-                  _buildTextField("Services", Icons.medical_services_outlined, "ECG, Echo, Consultation", maxLines: 2),
+                  _buildTextField("Services", Icons.medical_services_outlined,
+                      "ECG, Echo, Consultation",
+                      maxLines: 2),
                 ],
               ),
             ),
-            
+
             // Save Button
             Padding(
               padding: const EdgeInsets.all(24),
@@ -1017,9 +1147,12 @@ class DoctorSettingsProfileView extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
                   ),
-                  child: const Text("Update Clinic Info", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  child: const Text("Update Clinic Info",
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ),
             ),
@@ -1041,9 +1174,8 @@ class DoctorSettingsProfileView extends StatelessWidget {
     );
   }
 
-
-
-  Widget _buildTextField(String label, IconData icon, String initialValue, {int maxLines = 1}) {
+  Widget _buildTextField(String label, IconData icon, String initialValue,
+      {int maxLines = 1}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1080,7 +1212,8 @@ class DoctorSettingsProfileView extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: AppColors.primary),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           ),
         ),
       ],
@@ -1120,7 +1253,7 @@ class _StatItem extends StatelessWidget {
             Text(
               value,
               style: GoogleFonts.inter(
-                fontSize: 18, 
+                fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: const Color(0xFF1E293B),
               ),
@@ -1131,7 +1264,7 @@ class _StatItem extends StatelessWidget {
               child: Text(
                 unit,
                 style: GoogleFonts.inter(
-                  fontSize: 11, 
+                  fontSize: 11,
                   fontWeight: FontWeight.w600,
                   color: const Color(0xFF64748B),
                 ),
@@ -1142,7 +1275,6 @@ class _StatItem extends StatelessWidget {
       ],
     );
   }
-
 }
 
 class _VerticalDivider extends StatelessWidget {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/views/Ambulance/Dashboard/ambulance_dashboard_view_model.dart';
+import 'package:medlink/views/Ambulance/Ambulance%20main/ambulance_main_view_model.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:medlink/widgets/emergency_action_dialog.dart';
 import 'package:medlink/views/Ambulance/Mission/ambulance_mission_view.dart'
@@ -460,8 +461,13 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView> {
                   fontSize: 12, // Compact text
                   verticalPadding: 0,
                   onPressed: () {
+                    final mainVm = Provider.of<AmbulanceMainViewModel>(
+                      context,
+                      listen: false,
+                    );
                     showDialog(
                       context: context,
+                      useRootNavigator: false,
                       builder: (context) => EmergencyActionDialog(
                         title: "Accept Request",
                         message:
@@ -471,6 +477,18 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView> {
                         onConfirm: () async {
                           // Close dialog first to avoid blocking UI or multiple clicks
                           Navigator.pop(context);
+
+                          if (mainVm.hasActiveTrip) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'You already have an active trip. Complete it before accepting another request.',
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
 
                           // Show loading indicator or handle state if needed
                           final success =

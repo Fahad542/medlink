@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
@@ -7,6 +8,7 @@ import 'package:medlink/views/Register/register_viewmodel.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:provider/provider.dart';
 import 'login_view_model.dart';
+import 'forgot_password_viewmodel.dart';
 
 class LoginView extends StatelessWidget {
   final String? initialRole;
@@ -301,175 +303,248 @@ class LoginView extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04), // Golden Rule: Cleaner shadow
-                blurRadius: 15,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: TextField(
-            controller: controller,
-            obscureText: isObscured,
-            keyboardType: keyboardType,
-            style: GoogleFonts.inter(fontWeight: FontWeight.w400, fontSize: 15, color: Colors.black87),
-            cursorColor: AppColors.primary,
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: Colors.white, 
-              hintText: hint,
-              hintStyle: GoogleFonts.inter(color: Colors.grey[500], fontWeight: FontWeight.w400, fontSize: 13),
-              prefixIcon: Padding(
-                padding: const EdgeInsets.all(12), // Adjusted for larger height
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(10),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black
+                        .withOpacity(0.04), // Golden Rule: Cleaner shadow
+                    blurRadius: 15,
+                    offset: const Offset(0, 4),
                   ),
-                  child: Icon(icon, color: AppColors.primary, size: 18),
-                ),
+                ],
               ),
-              suffixIcon: isPassword
-                  ? IconButton(
-                      icon: Icon(
-                        isObscured ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-                        color: Colors.grey[400],
-                        size: 20,
+              child: TextField(
+                controller: controller,
+                obscureText: isObscured,
+                keyboardType: keyboardType,
+                style: GoogleFonts.inter(
+                    fontWeight: FontWeight.w400,
+                    fontSize: 15,
+                    color: Colors.black87),
+                cursorColor: AppColors.primary,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: Colors.white,
+                  hintText: hint,
+                  hintStyle: GoogleFonts.inter(
+                      color: Colors.grey[500],
+                      fontWeight: FontWeight.w400,
+                      fontSize: 13),
+                  prefixIcon: Padding(
+                    padding:
+                        const EdgeInsets.all(12), // Adjusted for larger height
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      onPressed: onVisibilityToggle,
-                    )
-                  : null,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(24),
-                borderSide: BorderSide.none,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(24),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(24),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18), // Golden Rule: v18
-            ),
-            onChanged: (text) => state.didChange(text),
-          ),
-        ),
-        if (state.hasError)
-          Padding(
-            padding: const EdgeInsets.only(left: 12, top: 4),
-            child: Row(
-              children: [
-                const Icon(Icons.error_outline_rounded, size: 14, color: AppColors.error),
-                const SizedBox(width: 4),
-                Text(
-                  state.errorText ?? "",
-                  style: GoogleFonts.inter(
-                    color: AppColors.error,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+                      child: Icon(icon, color: AppColors.primary, size: 18),
+                    ),
                   ),
+                  suffixIcon: isPassword
+                      ? IconButton(
+                          icon: Icon(
+                            isObscured
+                                ? Icons.visibility_off_rounded
+                                : Icons.visibility_rounded,
+                            color: Colors.grey[400],
+                            size: 20,
+                          ),
+                          onPressed: onVisibilityToggle,
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 18), // Golden Rule: v18
                 ),
-              ],
+                onChanged: (text) => state.didChange(text),
+              ),
             ),
-          ),
-      ],
+            if (state.hasError)
+              Padding(
+                padding: const EdgeInsets.only(left: 12, top: 4),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline_rounded,
+                        size: 14, color: AppColors.error),
+                    const SizedBox(width: 4),
+                    Text(
+                      state.errorText ?? "",
+                      style: GoogleFonts.inter(
+                        color: AppColors.error,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        );
+      },
     );
-  },
-);
-}
+  }
 
   void _showForgotPasswordSheet(BuildContext context) {
-    final emailController = TextEditingController();
-    
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(2),
-                    ),
+        return ChangeNotifierProvider(
+          create: (_) => ForgotPasswordViewModel(),
+          child: Consumer<ForgotPasswordViewModel>(
+            builder: (context, viewModel, child) {
+              return Padding(
+                padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom),
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(32)),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Center(
+                        child: Text(
+                          viewModel.currentStep == 1
+                              ? "Forgot Password"
+                              : viewModel.currentStep == 2
+                                  ? "Verify OTP"
+                                  : "Reset Password",
+                          style: GoogleFonts.inter(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.textPrimary,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Center(
+                        child: Text(
+                          viewModel.currentStep == 1
+                              ? "Enter your email or phone to reset your password"
+                              : viewModel.currentStep == 2
+                                  ? "Enter the 6-digit code sent to you"
+                                  : "Enter your new password below",
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                            color: Colors.grey[500],
+                            fontSize: 14,
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      if (viewModel.currentStep == 1) ...[
+                        _buildModernTextField(
+                          context,
+                          controller: viewModel.emailController,
+                          hint: "Email Address or Phone",
+                          icon: Icons.contact_mail_rounded,
+                        ),
+                      ] else if (viewModel.currentStep == 2) ...[
+                        if (kDebugMode && viewModel.debugOtp != null)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.shade50,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.amber.shade200),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.bug_report_outlined, size: 16, color: Colors.amber.shade800),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    "Debug OTP: ${viewModel.debugOtp}",
+                                    style: TextStyle(
+                                      color: Colors.amber.shade900,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        _buildModernTextField(
+                          context,
+                          controller: viewModel.otpController,
+                          hint: "Enter OTP code",
+                          icon: Icons.lock_clock_rounded,
+                          keyboardType: TextInputType.number,
+                        ),
+                      ] else if (viewModel.currentStep == 3) ...[
+                        _buildModernTextField(
+                          context,
+                          controller: viewModel.passwordController,
+                          hint: "New Password",
+                          icon: Icons.lock_reset_rounded,
+                          isPassword: true,
+                          isObscured: true,
+                        ),
+                      ],
+                      const SizedBox(height: 32),
+                      CustomButton(
+                        text: viewModel.currentStep == 1
+                            ? "Send OTP"
+                            : viewModel.currentStep == 2
+                                ? "Verify Code"
+                                : "Reset Password",
+                        height: 56,
+                        fontSize: 16,
+                        isLoading: viewModel.isLoading,
+                        onPressed: () {
+                          if (viewModel.currentStep == 1) {
+                            viewModel.sendResetLink(context);
+                          } else if (viewModel.currentStep == 2) {
+                            viewModel.verifyOtp(context);
+                          } else {
+                            viewModel.resetPassword(context);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 24),
-                Center(
-                  child: Text(
-                    "Forgot Password",
-                    style: GoogleFonts.inter(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Center(
-                  child: Text(
-                    "Enter your email to reset your password",
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      color: Colors.grey[500],
-                      fontSize: 14,
-                      height: 1.5,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 32),
-                
-                _buildModernTextField(
-                  context,
-                  controller: emailController,
-                  hint: "Email Address",
-                  icon: Icons.email_rounded,
-                ),
-                
-                const SizedBox(height: 32),
-                
-                CustomButton(
-                  text: "Send Reset Link",
-                  height: 56,
-                  fontSize: 16,
-                  onPressed: () {
-                    // Implement reset logic here or mocked for now
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text("Reset link sent to ${emailController.text}", style: GoogleFonts.inter()),
-                        backgroundColor: AppColors.primary,
-                      )
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
-              ],
-            ),
+              );
+            },
           ),
         );
       },
@@ -500,7 +575,7 @@ class LoginView extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-               Text(
+              Text(
                 "Create Account",
                 style: GoogleFonts.inter(
                   fontSize: 20,
@@ -527,7 +602,11 @@ class LoginView extends StatelessWidget {
                 color: AppColors.primary,
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterView(initialRole: UserRole.patient)));
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const RegisterView(
+                              initialRole: UserRole.patient)));
                 },
               ),
               const SizedBox(height: 16),
@@ -539,7 +618,11 @@ class LoginView extends StatelessWidget {
                 color: AppColors.secondary,
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterView(initialRole: UserRole.doctor)));
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const RegisterView(
+                              initialRole: UserRole.doctor)));
                 },
               ),
               const SizedBox(height: 16),
@@ -548,10 +631,14 @@ class LoginView extends StatelessWidget {
                 title: "Register as Driver",
                 subtitle: "Join emergency response team",
                 icon: Icons.emergency_rounded,
-                color: AppColors.primary, 
+                color: AppColors.primary,
                 onTap: () {
                   Navigator.pop(context);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterView(initialRole: UserRole.driver)));
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const RegisterView(
+                              initialRole: UserRole.driver)));
                 },
               ),
               const SizedBox(height: 16),
@@ -621,7 +708,8 @@ class LoginView extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey[300]),
+            Icon(Icons.arrow_forward_ios_rounded,
+                size: 16, color: Colors.grey[300]),
           ],
         ),
       ),
@@ -641,12 +729,13 @@ class LoginView extends StatelessWidget {
         decoration: BoxDecoration(
           color: isApple ? Colors.black : Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: isApple 
-              ? null 
-              : Border.all(color: Colors.grey.withOpacity(0.2)),
+          border:
+              isApple ? null : Border.all(color: Colors.grey.withOpacity(0.2)),
           boxShadow: [
-             BoxShadow(
-              color: isApple ? Colors.black.withOpacity(0.2) : Colors.grey.withOpacity(0.05),
+            BoxShadow(
+              color: isApple
+                  ? Colors.black.withOpacity(0.2)
+                  : Colors.grey.withOpacity(0.05),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -655,9 +744,12 @@ class LoginView extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            isApple 
-            ? const Icon(Icons.apple, size: 24, color: Colors.white)
-            : Image.asset(icon, height: 22, errorBuilder: (c,e,s) => const Icon(Icons.g_mobiledata, size: 24, color: Colors.red)),
+            isApple
+                ? const Icon(Icons.apple, size: 24, color: Colors.white)
+                : Image.asset(icon,
+                    height: 22,
+                    errorBuilder: (c, e, s) => const Icon(Icons.g_mobiledata,
+                        size: 24, color: Colors.red)),
             const SizedBox(width: 10),
             Text(
               label,

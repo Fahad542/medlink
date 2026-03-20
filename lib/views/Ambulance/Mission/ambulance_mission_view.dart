@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/views/Ambulance/Mission/ambulance_mission_view_model.dart';
 import 'package:medlink/views/call/call_view_model.dart';
 import 'package:medlink/widgets/custom_button.dart';
@@ -15,28 +17,40 @@ class AmbulanceMissionView extends StatefulWidget {
 }
 
 class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
-  // Dummy coordinates
-  static const LatLng _pickupLocation = LatLng(40.7128, -74.0060);
-  static const LatLng _dropoffLocation = LatLng(40.7589, -73.9851);
-  late Set<Marker> _markers;
+  final Completer<GoogleMapController> _mapController = Completer();
+  bool hasInitialFit = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _markers = {
-      Marker(
-        markerId: MarkerId('pickup'),
-        position: _pickupLocation,
-        infoWindow: InfoWindow(title: 'Pickup Location'),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+  Future<void> _fitCamera(List<LatLng> points) async {
+    if (!_mapController.isCompleted || points.isEmpty) return;
+    final controller = await _mapController.future;
+    if (points.length == 1) {
+      await controller.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(target: points.first, zoom: 15),
+        ),
+      );
+      return;
+    }
+
+    double minLat = points.first.latitude;
+    double maxLat = points.first.latitude;
+    double minLng = points.first.longitude;
+    double maxLng = points.first.longitude;
+    for (final p in points.skip(1)) {
+      minLat = p.latitude < minLat ? p.latitude : minLat;
+      maxLat = p.latitude > maxLat ? p.latitude : maxLat;
+      minLng = p.longitude < minLng ? p.longitude : minLng;
+      maxLng = p.longitude > maxLng ? p.longitude : maxLng;
+    }
+    await controller.animateCamera(
+      CameraUpdate.newLatLngBounds(
+        LatLngBounds(
+          southwest: LatLng(minLat, minLng),
+          northeast: LatLng(maxLat, maxLng),
+        ),
+        80,
       ),
-      Marker(
-        markerId: MarkerId('dropoff'),
-        position: _dropoffLocation,
-        infoWindow: InfoWindow(title: 'Hospital'),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-      ),
-    };
+    );
   }
 
   @override
@@ -45,6 +59,76 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
       create: (_) => AmbulanceMissionViewModel(),
       child: Consumer<AmbulanceMissionViewModel>(
         builder: (context, viewModel, child) {
+          final driverPos =
+              (viewModel.driverLat != null && viewModel.driverLng != null)
+                  ? LatLng(viewModel.driverLat!, viewModel.driverLng!)
+                  : null;
+          final pickupPos =
+              (viewModel.pickupLat != null && viewModel.pickupLng != null)
+                  ? LatLng(viewModel.pickupLat!, viewModel.pickupLng!)
+                  : null;
+          final dropoffPos =
+              (viewModel.dropoffLat != null && viewModel.dropoffLng != null)
+                  ? LatLng(viewModel.dropoffLat!, viewModel.dropoffLng!)
+                  : null;
+
+          final targetPos = pickupPos;
+
+          final markers = <Marker>{
+            if (driverPos != null)
+              Marker(
+                markerId: const MarkerId('driver'),
+                position: driverPos,
+                icon: BitmapDescriptor.defaultMarkerWithHue(
+                    BitmapDescriptor.hueAzure),
+                rotation: viewModel.driverHeading ?? 0.0,
+              ),
+            if (pickupPos != null)
+              Marker(
+                markerId: const MarkerId('pickup'),
+                position: pickupPos,
+                icon: BitmapDescriptor.defaultMarkerWithHue(
+                    BitmapDescriptor.hueGreen),
+              ),
+            if (dropoffPos != null)
+              Marker(
+                markerId: const MarkerId('dropoff'),
+                position: dropoffPos,
+                icon: BitmapDescriptor.defaultMarkerWithHue(
+                    BitmapDescriptor.hueRed),
+              ),
+          };
+
+          final polylines = <Polyline>{
+            if (driverPos != null && targetPos != null)
+              Polyline(
+                polylineId: const PolylineId('route'),
+                points: [driverPos, targetPos],
+                color: AppColors.primary,
+                width: 6,
+              ),
+          };
+
+          final cameraTarget =
+              driverPos ?? pickupPos ?? dropoffPos ?? const LatLng(0, 0);
+
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            if (!_mapController.isCompleted) return;
+            final controller = await _mapController.future;
+            final points = <LatLng>[
+              if (driverPos != null) driverPos,
+              if (targetPos != null) targetPos,
+            ];
+            if (points.isEmpty) return;
+
+            if (!hasInitialFit) {
+              _fitCamera(points);
+              hasInitialFit = true;
+            } else if (driverPos != null) {
+              controller.animateCamera(CameraUpdate.newLatLng(driverPos));
+            }
+          });
+
           return Scaffold(
             body: Stack(
               children: [
@@ -53,11 +137,14 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
                   height: MediaQuery.of(context).size.height *
                       0.7, // Map takes 70% height initially
                   child: GoogleMap(
-                    initialCameraPosition: const CameraPosition(
-                      target: _pickupLocation,
-                      zoom: 13,
-                    ),
-                    markers: _markers,
+                    initialCameraPosition:
+                        CameraPosition(target: cameraTarget, zoom: 13),
+                    onMapCreated: (c) {
+                      if (!_mapController.isCompleted)
+                        _mapController.complete(c);
+                    },
+                    markers: markers,
+                    polylines: polylines,
                     zoomControlsEnabled: false,
                     myLocationButtonEnabled: false,
                     mapToolbarEnabled: false,
@@ -197,8 +284,30 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
                                     child: CircleAvatar(
                                       radius: 28,
                                       backgroundColor: Colors.grey[200],
-                                      child: const Icon(Icons.person,
-                                          color: Colors.grey, size: 30),
+                                      backgroundImage: (viewModel.missionData[
+                                                      'patientPhotoUrl'] !=
+                                                  null &&
+                                              viewModel.missionData[
+                                                      'patientPhotoUrl']
+                                                  .toString()
+                                                  .isNotEmpty)
+                                          ? NetworkImage(
+                                              AppUrl.getFullUrl(viewModel
+                                                  .missionData[
+                                                      'patientPhotoUrl']
+                                                  .toString()),
+                                            )
+                                          : null,
+                                      child: (viewModel.missionData[
+                                                      'patientPhotoUrl'] !=
+                                                  null &&
+                                              viewModel.missionData[
+                                                      'patientPhotoUrl']
+                                                  .toString()
+                                                  .isNotEmpty)
+                                          ? null
+                                          : const Icon(Icons.person,
+                                              color: Colors.grey, size: 30),
                                     ),
                                   ),
                                   const SizedBox(width: 16),

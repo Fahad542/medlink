@@ -158,15 +158,19 @@ class PatientDashboardView extends StatelessWidget {
                                                       const SizedBox(width: 8),
                                                       _buildHeaderAction("assets/Icons/chat.png", () {
                                                         final userVM = Provider.of<UserViewModel>(context, listen: false);
-                                                        final currentUserId = userVM.loginSession?.data?.user?.id ?? 0;
+                                                        final uId = userVM.loginSession?.data?.user?.id?.toString();
+                                                        final dId = userVM.doctor?.id;
+                                                        final currentUserId = (uId != null && uId.isNotEmpty) ? uId :
+                                                                              (dId != null && dId.isNotEmpty) ? dId : "0";
                                                         Navigator.push(
                                                             context,
                                                             MaterialPageRoute(
                                                                 builder: (_) => ChatView(
-                                                                      recipientName: patient.name,
+                                                                      recipientName: patient.name ?? "Patient",
+                                                                      profileImage: patient.profileImage ?? "",
                                                                       appointmentId: patient.lastAppointmentId ?? "0",
                                                                       doctorId: currentUserId.toString(),
-                                                                      patientId: patient.id,
+                                                                      patientId: patient.id.toString(),
                                                                     )));
                                                       }, iconSize: 16, bgColor: Colors.white.withOpacity(0.15)),
                                                       const SizedBox(width: 8),

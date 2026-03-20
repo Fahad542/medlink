@@ -1,8 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:medlink/data/network/api_services.dart';
+import 'package:medlink/services/sos_socket_service.dart';
 
 class AmbulanceDashboardViewModel extends ChangeNotifier {
   final ApiServices _apiServices = ApiServices();
+  final SosSocketService _socket = SosSocketService.instance;
+  StreamSubscription<Map<String, dynamic>>? _sosSub;
 
   bool _isOnline = true;
   List<Map<String, dynamic>> _activeRequests = [];
@@ -19,6 +24,13 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
     _loadDashboard();
     _loadActiveRequests();
     _loadProfile();
+    _sosSub = _socket.sosUpdatedStream.listen(_handleSosUpdated);
+  }
+
+  @override
+  void dispose() {
+    _sosSub?.cancel();
+    super.dispose();
   }
 
   bool get isOnline => _isOnline;
@@ -125,6 +137,33 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error loading active requests: $e');
     }
+    notifyListeners();
+  }
+
+  void _handleSosUpdated(Map<String, dynamic> payload) {
+    if (!_isOnline) return;
+    if (payload['status']?.toString() != 'OPEN') return;
+    if (payload['assignedDriverId'] != null) return;
+
+    final id = payload['id']?.toString();
+    if (id == null || id.isEmpty) return;
+    final exists = _activeRequests.any((r) => r['id']?.toString() == id);
+    if (exists) return;
+
+    final patient = payload['patient'] is Map
+        ? Map<String, dynamic>.from(payload['patient'])
+        : <String, dynamic>{};
+
+    _activeRequests.insert(0, {
+      'id': id,
+      'patientName': patient['fullName'] ?? 'Unknown',
+      'severity': payload['severity'] ?? 'High',
+      'distance': 'Calculating...',
+      'location': payload['addressText'] ??
+          'Lat: ${payload['lat']}, Lng: ${payload['lng']}',
+      'incident': payload['emergencyType'] ?? 'Emergency',
+      'time': _formatTime(payload['createdAt']?.toString()),
+    });
     notifyListeners();
   }
 

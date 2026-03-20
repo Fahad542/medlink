@@ -5,6 +5,7 @@ import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/views/Ambulance/profile/ambulance_profile_view_model.dart';
 import 'package:medlink/views/Ambulance/profile/ambulance_edit_profile_view.dart';
 import 'package:medlink/widgets/logout_confirmation_dialog.dart';
+import 'package:medlink/widgets/delete_account_sheet.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -175,6 +176,45 @@ class AmbulanceProfileView extends StatelessWidget {
                                 const SizedBox(width: 8),
                                 Text(
                                   "Logout",
+                                  style: GoogleFonts.inter(
+                                    color: AppColors.error,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Delete Account Action
+                        GestureDetector(
+                          onTap: () {
+                            DeleteAccountSheet.show(context);
+                          },
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.error.withOpacity(0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.person_remove_rounded,
+                                    color: AppColors.error, size: 18),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "Delete Account",
                                   style: GoogleFonts.inter(
                                     color: AppColors.error,
                                     fontSize: 14,
