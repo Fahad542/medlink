@@ -16,6 +16,8 @@ class ChatView extends StatefulWidget {
   final String doctorId;
   final String patientId;
   final String? appointmentId;
+  final String? sosId;
+  final String? tripId;
 
   const ChatView({
     super.key,
@@ -24,6 +26,8 @@ class ChatView extends StatefulWidget {
     required this.doctorId,
     required this.patientId,
     this.appointmentId,
+    this.sosId,
+    this.tripId,
   });
 
   @override
@@ -42,6 +46,8 @@ class _ChatViewState extends State<ChatView> {
         token: Provider.of<UserViewModel>(context, listen: false).accessToken ??
             '',
         appointmentId: widget.appointmentId,
+        sosId: widget.sosId,
+        tripId: widget.tripId,
       )..fetchMessages(),
       child: Consumer<ChatViewModel>(
         builder: (context, viewModel, child) {

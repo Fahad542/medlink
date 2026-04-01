@@ -139,6 +139,66 @@ PODS:
   - shared_preferences_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
+  - Stripe (25.6.2):
+    - StripeApplePay (= 25.6.2)
+    - StripeCore (= 25.6.2)
+    - StripeIssuing (= 25.6.2)
+    - StripePayments (= 25.6.2)
+    - StripePaymentsUI (= 25.6.2)
+    - StripeUICore (= 25.6.2)
+  - stripe_ios (0.0.1):
+    - Flutter
+    - Stripe (~> 25.6.0)
+    - stripe_ios/stripe_ios (= 0.0.1)
+    - stripe_ios/stripe_objc (= 0.0.1)
+    - StripeApplePay (~> 25.6.0)
+    - StripeFinancialConnections (~> 25.6.0)
+    - StripePayments (~> 25.6.0)
+    - StripePaymentSheet (~> 25.6.0)
+    - StripePaymentsUI (~> 25.6.0)
+  - stripe_ios/stripe_ios (0.0.1):
+    - Flutter
+    - Stripe (~> 25.6.0)
+    - stripe_ios/stripe_objc
+    - StripeApplePay (~> 25.6.0)
+    - StripeFinancialConnections (~> 25.6.0)
+    - StripePayments (~> 25.6.0)
+    - StripePaymentSheet (~> 25.6.0)
+    - StripePaymentsUI (~> 25.6.0)
+  - stripe_ios/stripe_objc (0.0.1):
+    - Flutter
+    - Stripe (~> 25.6.0)
+    - StripeApplePay (~> 25.6.0)
+    - StripeFinancialConnections (~> 25.6.0)
+    - StripePayments (~> 25.6.0)
+    - StripePaymentSheet (~> 25.6.0)
+    - StripePaymentsUI (~> 25.6.0)
+  - StripeApplePay (25.6.2):
+    - StripeCore (= 25.6.2)
+  - StripeCore (25.6.2)
+  - StripeFinancialConnections (25.6.2):
+    - StripeCore (= 25.6.2)
+    - StripeUICore (= 25.6.2)
+  - StripeIssuing (25.6.2):
+    - StripeCore (= 25.6.2)
+    - StripePayments (= 25.6.2)
+    - StripePaymentsUI (= 25.6.2)
+  - StripePayments (25.6.2):
+    - StripeCore (= 25.6.2)
+    - StripePayments/Stripe3DS2 (= 25.6.2)
+  - StripePayments/Stripe3DS2 (25.6.2):
+    - StripeCore (= 25.6.2)
+  - StripePaymentSheet (25.6.2):
+    - StripeApplePay (= 25.6.2)
+    - StripeCore (= 25.6.2)
+    - StripePayments (= 25.6.2)
+    - StripePaymentsUI (= 25.6.2)
+  - StripePaymentsUI (25.6.2):
+    - StripeCore (= 25.6.2)
+    - StripePayments (= 25.6.2)
+    - StripeUICore (= 25.6.2)
+  - StripeUICore (25.6.2):
+    - StripeCore (= 25.6.2)
   - url_launcher_ios (0.0.1):
     - Flutter
 
@@ -155,6 +215,7 @@ DEPENDENCIES:
   - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
   - share_plus (from `.symlinks/plugins/share_plus/ios`)
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
+  - stripe_ios (from `.symlinks/plugins/stripe_ios/ios`)
   - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
 
 SPEC REPOS:
@@ -173,6 +234,15 @@ SPEC REPOS:
     - GoogleUtilities
     - nanopb
     - PromisesObjC
+    - Stripe
+    - StripeApplePay
+    - StripeCore
+    - StripeFinancialConnections
+    - StripeIssuing
+    - StripePayments
+    - StripePaymentSheet
+    - StripePaymentsUI
+    - StripeUICore
 
 EXTERNAL SOURCES:
   agora_rtc_engine:
@@ -199,6 +269,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/share_plus/ios"
   shared_preferences_foundation:
     :path: ".symlinks/plugins/shared_preferences_foundation/darwin"
+  stripe_ios:
+    :path: ".symlinks/plugins/stripe_ios/ios"
   url_launcher_ios:
     :path: ".symlinks/plugins/url_launcher_ios/ios"
 
@@ -229,6 +301,16 @@ SPEC CHECKSUMS:
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   share_plus: 50da8cb520a8f0f65671c6c6a99b3617ed10a58a
   shared_preferences_foundation: 9e1978ff2562383bd5676f64ec4e9aa8fa06a6f7
+  Stripe: d699d70375ea5d93fd73a572e1325e7016e8ba25
+  stripe_ios: eebee52319de946cc0da2d6ddc98a89b04cec95e
+  StripeApplePay: 566bfd4c13b5da3073cf4714b1c47aa331a39309
+  StripeCore: 079e142c59137f6972c5cf266bcaf62750e9d68a
+  StripeFinancialConnections: 0a6490eea15050554dc99a7258b8509452591a3b
+  StripeIssuing: c9a81551dcfe9709cc6c940a1b2e3820e45ea198
+  StripePayments: 8ada21cbaf57647fcd5510840677e33dc8549def
+  StripePaymentSheet: 220b9fa38fbc68c9ef6deaaf8f797ccc2aa8bde5
+  StripePaymentsUI: 042d300f11da88968e7659f7ea941b479bc8c2dd
+  StripeUICore: ca4c64f9fe95da6df3b651603ee724ed640fc260
   url_launcher_ios: 694010445543906933d732453a59da0a173ae33d
 
 PODFILE CHECKSUM: 501f4fdcf594c739a64b7d9239d49a63432e9e83

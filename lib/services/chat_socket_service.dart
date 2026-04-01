@@ -53,11 +53,18 @@ class ChatSocketService {
 
   void joinRoom(String appointmentId) {
     if (_socket == null) return;
-    if (_joinedAppointmentId != null && _joinedAppointmentId != appointmentId) {
-      leaveRoom(_joinedAppointmentId!);
-    }
     _joinedAppointmentId = appointmentId;
     _socket?.emit('joinRoom', {'appointmentId': appointmentId});
+  }
+
+  void joinSosRoom(String sosId) {
+    if (_socket == null) return;
+    _socket?.emit('joinSosRoom', {'sosId': int.tryParse(sosId) ?? sosId});
+  }
+
+  void joinTripRoom(String tripId) {
+    if (_socket == null) return;
+    _socket?.emit('joinTripRoom', {'tripId': int.tryParse(tripId) ?? tripId});
   }
 
   void leaveRoom(String appointmentId) {

@@ -162,7 +162,15 @@ class LoginView extends StatelessWidget {
                           child: _buildSocialButton(
                             icon: "assets/google.png",
                             label: "Google",
-                            onTap: () {},
+                            onTap: () {
+                              // In real app, call GoogleSignIn() then:
+                              // viewModel.socialLoginApi(context, 'google', googleToken);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        "Google Sign-In integration required")),
+                              );
+                            },
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -170,7 +178,15 @@ class LoginView extends StatelessWidget {
                           child: _buildSocialButton(
                             icon: "assets/Icons/apple.png",
                             label: "Apple",
-                            onTap: () {},
+                            onTap: () {
+                              // In real app, call SignWithApple() then:
+                              // viewModel.socialLoginApi(context, 'apple', appleToken);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        "Apple Sign-In integration required")),
+                              );
+                            },
                             isApple: true,
                           ),
                         ),

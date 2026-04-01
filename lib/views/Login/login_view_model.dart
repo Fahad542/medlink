@@ -126,6 +126,46 @@ class LoginViewModel with ChangeNotifier {
     }
   }
 
+  Future<void> socialLoginApi(
+      BuildContext context, String provider, String token) async {
+    setLoading(true);
+
+    try {
+      final response = await _apiServices.socialLogin(provider, token);
+      setLoading(false);
+
+      if (response != null) {
+        final loginModel = UserLoginModel.fromJson(response);
+
+        if (loginModel.success == true && loginModel.data != null) {
+          final userVM = Provider.of<UserViewModel>(context, listen: false);
+          await userVM.saveUserLoginSession(loginModel);
+
+          String roleToSave =
+              loginModel.data?.user?.role?.toString().toLowerCase() ??
+                  'patient';
+          if (roleToSave == 'ambulance') roleToSave = 'driver';
+
+          if (context.mounted) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) {
+                if (roleToSave == 'doctor') return const DoctorMainScreen();
+                if (roleToSave == 'patient') return const MainScreen();
+                if (roleToSave == 'driver') return const AmbulanceMainView();
+                return const MainScreen();
+              }),
+              (route) => false,
+            );
+          }
+        }
+      }
+    } catch (e) {
+      setLoading(false);
+      Utils.toastMessage(context, e.toString(), isError: true);
+    }
+  }
+
   @override
   void dispose() {
     emailController.dispose();

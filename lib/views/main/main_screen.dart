@@ -12,6 +12,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/views/Patient App/emergency/ambulance_tracking_view.dart';
 import 'package:medlink/views/call/call_view_model.dart';
 import 'package:medlink/views/services/session_view_model.dart';
+import 'package:medlink/services/call_socket_service.dart';
+import 'package:medlink/views/Patient%20App/consultation/video_call_view.dart';
+import 'dart:async';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -23,6 +26,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
+  StreamSubscription? _incomingCallSub;
 
   @override
   void initState() {
@@ -43,14 +47,97 @@ class _MainScreenState extends State<MainScreen>
       final patientId = int.tryParse(userVM.patient?.id ?? '');
       if (token != null && token.isNotEmpty && patientId != null) {
         emergencyVM.startRealtime(userId: patientId, token: token);
+
+        // Connect to dedicated Call Socket
+        final callSocket =
+            Provider.of<CallSocketService>(context, listen: false);
+        callSocket.connect(token: token, userId: patientId);
+
+        // Listen for real-time incoming calls
+        _incomingCallSub = callSocket.incomingCallStream.listen((data) {
+          _showIncomingCallDialog(data);
+        });
       }
-      Provider.of<CallViewModel>(context, listen: false).startPolling(context);
     });
+  }
+
+  void _showIncomingCallDialog(Map<String, dynamic> data) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.add_call, color: AppColors.primary),
+            const SizedBox(width: 10),
+            Text("Incoming Call",
+                style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (data['callerPhoto'] != null)
+              CircleAvatar(
+                radius: 40,
+                backgroundImage: NetworkImage(data['callerPhoto']),
+              )
+            else
+              const CircleAvatar(
+                radius: 40,
+                child: Icon(Icons.person, size: 40),
+              ),
+            const SizedBox(height: 16),
+            Text(
+              data['callerName'] ?? "Someone is calling...",
+              style:
+                  GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Text("Video Call Request",
+                style: GoogleFonts.inter(color: Colors.grey)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // TODO: Emit call:declined if we want to notify caller
+            },
+            child: Text("Decline", style: GoogleFonts.inter(color: Colors.red)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => VideoCallView(
+                    isDoctor: false,
+                    appointmentId:
+                        data['channelName'], // Using channelName as room id
+                  ),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            child:
+                Text("Accept", style: GoogleFonts.inter(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
+    _incomingCallSub?.cancel();
     super.dispose();
   }
 

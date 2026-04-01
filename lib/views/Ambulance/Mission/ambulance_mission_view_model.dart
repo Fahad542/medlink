@@ -182,7 +182,12 @@ class AmbulanceMissionViewModel extends ChangeNotifier {
         ? double.tryParse(data['dropoffLng'].toString())
         : _dropoffLng;
 
+    final sosId = data['sosId']?.toString();
+    final tripId = data['id']?.toString();
+
     _missionData = {
+      'sosId': sosId,
+      'tripId': tripId,
       'patientId': data['patient']?['id'], // Added patientId
       'patientName': data['patient']?['fullName'] ?? 'Unknown Patient',
       'patientPhotoUrl': data['patient']?['profilePhotoUrl'],

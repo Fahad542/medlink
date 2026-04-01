@@ -51,6 +51,7 @@ class AppointmentModel {
   final UserModel? user;
   final Map<String, dynamic>? vitals;
   final PrescriptionModel? prescription;
+  final bool isPaid;
 
   AppointmentModel({
     required this.id,
@@ -64,6 +65,7 @@ class AppointmentModel {
     this.user,
     this.vitals,
     this.prescription,
+    this.isPaid = false,
   });
 
   factory AppointmentModel.fromJson(Map<String, dynamic> json) {
@@ -132,6 +134,7 @@ class AppointmentModel {
       prescription: json['prescription'] != null
           ? PrescriptionModel.fromJson(json['prescription'])
           : null,
+      isPaid: json['isPaid'] ?? false,
     );
   }
 

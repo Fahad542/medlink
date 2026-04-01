@@ -71,6 +71,17 @@ class ApiServices {
     }
   }
 
+  Future<dynamic> confirmManualPayment(String paymentIntentId) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        AppUrl.confirmManualPayment,
+        jsonEncode({'paymentIntentId': paymentIntentId}),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<dynamic> createSos(double latitude, double longitude,
       {String incidentType = "Medical Emergency",
       String severity = "High"}) async {
@@ -92,6 +103,17 @@ class ApiServices {
   Future<dynamic> getMySos() async {
     try {
       return await _apiServices.getGetApiResponse(AppUrl.createSos);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> createAppointmentCheckout(String appointmentId) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        '${AppUrl.appointmentCheckout}/$appointmentId/payment/checkout',
+        jsonEncode({}),
+      );
     } catch (e) {
       rethrow;
     }
@@ -119,7 +141,8 @@ class ApiServices {
         if (relation != null && relation.isNotEmpty) 'relation': relation,
         'isPrimary': isPrimary,
       });
-      return await _apiServices.getPostApiResponse(AppUrl.emergencyContacts, body);
+      return await _apiServices.getPostApiResponse(
+          AppUrl.emergencyContacts, body);
     } catch (e) {
       rethrow;
     }
@@ -148,8 +171,8 @@ class ApiServices {
 
   Future<dynamic> deleteEmergencyContact(String contactId) async {
     try {
-      return await _apiServices.getDeleteApiResponse(
-          '${AppUrl.emergencyContacts}/$contactId');
+      return await _apiServices
+          .getDeleteApiResponse('${AppUrl.emergencyContacts}/$contactId');
     } catch (e) {
       rethrow;
     }
@@ -373,6 +396,17 @@ class ApiServices {
     }
   }
 
+  Future<dynamic> socialLogin(String provider, String token) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        AppUrl.socialLogin,
+        jsonEncode({'provider': provider, 'token': token}),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<dynamic> registerV1Step(dynamic data) async {
     try {
       return await _apiServices.getPostApiResponse(
@@ -553,6 +587,16 @@ class ApiServices {
     }
   }
 
+  Future<dynamic> createAppointmentPaymentCheckout(String appointmentId) async {
+    try {
+      final url =
+          '${AppUrl.appointmentCheckout}/$appointmentId/payment/checkout';
+      return await _apiServices.getPostApiResponse(url, jsonEncode({}));
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<dynamic> updatePatientProfile(
       Map<String, String> formData, File? file) async {
     try {
@@ -603,6 +647,72 @@ class ApiServices {
       } else {
         return await _apiServices.getPostApiResponse(url, jsonEncode(fields));
       }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getSosChatMessageHistory(String sosId) async {
+    try {
+      String url = '${AppUrl.getSosChatMessages}/$sosId/messages';
+      return await _apiServices.getGetApiResponse(url);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getTripChatMessageHistory(String tripId) async {
+    try {
+      String url = '${AppUrl.getTripChatMessages}/$tripId/messages';
+      return await _apiServices.getGetApiResponse(url);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> sendSosChatMessage(
+      String sosId, Map<String, String> fields, File? file) async {
+    try {
+      String url = '${AppUrl.sendSosChat}/$sosId/send';
+      if (file != null) {
+        return await _apiServices.getPostMultipartApiResponse(url, fields, file,
+            fileKey: 'file');
+      } else {
+        return await _apiServices.getPostApiResponse(url, jsonEncode(fields));
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> sendTripChatMessage(
+      String tripId, Map<String, String> fields, File? file) async {
+    try {
+      String url = '${AppUrl.sendTripChat}/$tripId/send';
+      if (file != null) {
+        return await _apiServices.getPostMultipartApiResponse(url, fields, file,
+            fileKey: 'file');
+      } else {
+        return await _apiServices.getPostApiResponse(url, jsonEncode(fields));
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getConversations() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.getChatConversations);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> uploadImage(File file) async {
+    try {
+      return await _apiServices.getPostMultipartApiResponse(
+          AppUrl.uploadImage, {}, file,
+          fileKey: 'file');
     } catch (e) {
       rethrow;
     }
@@ -979,6 +1089,16 @@ class ApiServices {
     }
   }
 
+  /// GET driver trip details. Returns { success, data: { ... } }.
+  Future<dynamic> getDriverTripDetails(String tripId) async {
+    try {
+      return await _apiServices
+          .getGetApiResponse('${AppUrl.driverTrips}/$tripId');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   /// Agora Token
   Future<dynamic> getAgoraToken(String channelName, String role) async {
     try {
@@ -1056,7 +1176,8 @@ class ApiServices {
       );
     } catch (e) {
       rethrow;
-    }}
+    }
+  }
 
   // --- Password Reset ---
   Future<dynamic> forgotPassword(String identifier) async {
@@ -1074,8 +1195,7 @@ class ApiServices {
     }
   }
 
-  Future<dynamic> verifyResetOtp(
-      String identifier, String otp) async {
+  Future<dynamic> verifyResetOtp(String identifier, String otp) async {
     try {
       final Map<String, dynamic> body = {
         'otp': otp,

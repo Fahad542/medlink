@@ -11,6 +11,8 @@ class EmergencyViewModel extends ChangeNotifier {
   bool _isSosActive = false;
   AmbulanceModel? _assignedAmbulance;
   String? _sosStatus;
+  String? _sosId;
+  String? get sosId => _sosId;
   Map<String, dynamic>? _activeTrip;
   Timer? _pollingTimer;
   bool _realtimeEnabled = false;
@@ -47,6 +49,7 @@ class EmergencyViewModel extends ChangeNotifier {
       if (patientId == null || patientId != _currentUserId) return;
 
       _sosStatus = payload['status']?.toString();
+      _sosId = payload['id']?.toString();
       final assigned = payload['assignedDriver'];
       if (assigned is Map) {
         _assignedAmbulance = AmbulanceModel.fromJson(
@@ -111,6 +114,7 @@ class EmergencyViewModel extends ChangeNotifier {
           // Check if the latest SOS is still active
           if (sos['status'] == 'OPEN' || sos['status'] == 'ASSIGNED') {
             _isSosActive = true;
+            _sosId = sos['id']?.toString();
             _sosStatus = sos['status']?.toString();
             _activeTrip = sos['trip'] is Map
                 ? Map<String, dynamic>.from(sos['trip'])
@@ -151,6 +155,9 @@ class EmergencyViewModel extends ChangeNotifier {
       final response = await _apiServices.createSos(latitude, longitude);
 
       if (response != null) {
+        if (response['data'] != null) {
+          _sosId = response['data']['id']?.toString();
+        }
         if (!_realtimeEnabled) {
           _startPollingForDriver();
         } else {
@@ -249,6 +256,7 @@ class EmergencyViewModel extends ChangeNotifier {
     _isSosActive = false;
     _assignedAmbulance = null;
     _sosStatus = null;
+    _sosId = null;
     _activeTrip = null;
     _pollingTimer?.cancel();
     notifyListeners();

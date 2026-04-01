@@ -5,7 +5,9 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/views/Ambulance/Mission/ambulance_mission_view_model.dart';
+import 'package:medlink/views/Patient App/consultation/chat_view.dart';
 import 'package:medlink/views/call/call_view_model.dart';
+import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:provider/provider.dart';
 
@@ -359,13 +361,53 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
                                           icon: const Icon(Icons.message,
                                               color: Colors.green),
                                           onPressed: () {
-                                            // TODO: Navigate to chat screen with patient
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(
-                                              const SnackBar(
-                                                  content: Text(
-                                                      "Chat feature coming soon!")),
-                                            );
+                                            final patientId = viewModel
+                                                .missionData['patientId']
+                                                ?.toString();
+                                            final patientName = viewModel
+                                                .missionData['patientName'];
+                                            final photoUrl = viewModel
+                                                .missionData['patientPhotoUrl'];
+
+                                            if (patientId != null) {
+                                              final userVM =
+                                                  Provider.of<UserViewModel>(
+                                                      context,
+                                                      listen: false);
+                                              final driverId = userVM
+                                                      .loginSession
+                                                      ?.data
+                                                      ?.user
+                                                      ?.id
+                                                      ?.toString() ??
+                                                  '0';
+
+                                              final sosId = viewModel.missionData['sosId'];
+                                              final tripId = viewModel.missionData['tripId'];
+
+                                              Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (context) =>
+                                                      ChatView(
+                                                    recipientName: patientName,
+                                                    doctorId:
+                                                        driverId, // Driver acting as sender
+                                                    patientId: patientId,
+                                                    profileImage: photoUrl,
+                                                    sosId: sosId,
+                                                    tripId: tripId,
+                                                  ),
+                                                ),
+                                              );
+                                            } else {
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                const SnackBar(
+                                                    content: Text(
+                                                        "Patient contact not available")),
+                                              );
+                                            }
                                           },
                                         ),
                                       ),

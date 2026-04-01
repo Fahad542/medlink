@@ -27,16 +27,27 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:medlink/services/notification_services.dart';
+import 'package:medlink/services/waiting_room_socket_service.dart';
+import 'package:medlink/services/call_socket_service.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
+
+import 'firebase_options.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Native Stripe
+  Stripe.publishableKey = "pk_test_51P7UReRxY2qSg84v2E6fRL72R7U9E8R2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2q"; // Generic Placeholder, actual key managed on backend session
+  await Stripe.instance.applySettings();
+
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform);
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
     NotificationServices notificationServices = NotificationServices();
@@ -80,6 +91,9 @@ class MedLinkApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PrescriptionViewModel()),
         ChangeNotifierProvider(create: (_) => DoctorDashboardViewModel()),
         ChangeNotifierProvider(create: (_) => CallViewModel()),
+        ChangeNotifierProvider(
+            create: (_) => WaitingRoomSocketService.instance),
+        ChangeNotifierProvider(create: (_) => CallSocketService.instance),
       ],
       child: MaterialApp(
         title: 'MedLink Africa',

@@ -403,18 +403,25 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                       final userVM = Provider.of<UserViewModel>(
                                           context,
                                           listen: false);
-                                      final currentUserId =
-                                          userVM.loginSession?.data?.user?.id ??
-                                              0;
+                                      final currentUserId = userVM
+                                              .loginSession?.data?.user?.id
+                                              ?.toString() ??
+                                          "0";
+                                      final emergencyVM =
+                                          Provider.of<EmergencyViewModel>(
+                                              context,
+                                              listen: false);
+                                      final sosId = emergencyVM.sosId;
+
                                       Navigator.push(
                                         context,
                                         MaterialPageRoute(
                                           builder: (context) => ChatView(
                                             recipientName:
                                                 widget.ambulance.driverName,
-                                            appointmentId: widget.ambulance.id,
                                             doctorId: widget.ambulance.id,
-                                            patientId: currentUserId.toString(),
+                                            patientId: currentUserId,
+                                            sosId: sosId,
                                           ),
                                         ),
                                       );

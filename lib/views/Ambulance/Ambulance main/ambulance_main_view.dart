@@ -8,8 +8,11 @@ import 'package:medlink/views/Ambulance/Ambulance%20main/ambulance_main_view_mod
 import 'package:medlink/views/call/call_view_model.dart';
 import 'package:medlink/views/Ambulance/Mission/ambulance_mission_view.dart';
 import 'package:medlink/views/services/session_view_model.dart';
+import 'package:medlink/services/call_socket_service.dart';
+import 'package:medlink/views/Patient%20App/consultation/video_call_view.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:async';
 
 class AmbulanceMainView extends StatefulWidget {
   const AmbulanceMainView({super.key});
@@ -22,6 +25,7 @@ class _AmbulanceMainViewState extends State<AmbulanceMainView>
     with SingleTickerProviderStateMixin {
   late final AmbulanceMainViewModel _viewModel;
   late AnimationController _pulseController;
+  StreamSubscription? _incomingCallSub;
 
   @override
   void initState() {
@@ -39,8 +43,89 @@ class _AmbulanceMainViewState extends State<AmbulanceMainView>
       final driverId = int.tryParse(userVM.driver?.id ?? '');
       if (token != null && token.isNotEmpty && driverId != null) {
         _viewModel.startRealtime(userId: driverId, token: token);
+
+        // Connect to dedicated Call Socket
+        final callSocket =
+            Provider.of<CallSocketService>(context, listen: false);
+        callSocket.connect(token: token, userId: driverId);
+
+        // Listen for real-time incoming calls
+        _incomingCallSub = callSocket.incomingCallStream.listen((data) {
+          _showIncomingCallDialog(data);
+        });
       }
     });
+  }
+
+  void _showIncomingCallDialog(Map<String, dynamic> data) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.add_call, color: AppColors.primary),
+            const SizedBox(width: 10),
+            Text("Incoming Call",
+                style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (data['callerPhoto'] != null)
+              CircleAvatar(
+                radius: 40,
+                backgroundImage: NetworkImage(data['callerPhoto']),
+              )
+            else
+              const CircleAvatar(
+                radius: 40,
+                child: Icon(Icons.person, size: 40),
+              ),
+            const SizedBox(height: 16),
+            Text(
+              data['callerName'] ?? "Someone is calling...",
+              style:
+                  GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Text("Video Call Request",
+                style: GoogleFonts.inter(color: Colors.grey)),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: Text("Decline", style: GoogleFonts.inter(color: Colors.red)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => VideoCallView(
+                    isDoctor: false,
+                    appointmentId: data['channelName'],
+                  ),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            child:
+                Text("Accept", style: GoogleFonts.inter(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -256,6 +341,7 @@ class _AmbulanceMainViewState extends State<AmbulanceMainView>
   @override
   void dispose() {
     _pulseController.dispose();
+    _incomingCallSub?.cancel();
     _viewModel.dispose();
     super.dispose();
   }

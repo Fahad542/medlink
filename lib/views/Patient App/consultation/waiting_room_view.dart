@@ -6,6 +6,10 @@ import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/views/Patient App/consultation/video_call_view.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:medlink/data/network/api_services.dart';
+import 'package:medlink/services/waiting_room_socket_service.dart';
+import 'package:medlink/views/services/session_view_model.dart';
+import 'package:provider/provider.dart';
+import 'dart:async';
 
 class WaitingRoomView extends StatefulWidget {
   final String? callTargetName;
@@ -27,11 +31,16 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
   bool _permissionsGranted = false;
   late RtcEngine _engine;
   bool _engineReady = false;
+  bool _isAutoJoining = false;
+  StreamSubscription? _statusSub;
 
   @override
   void initState() {
     super.initState();
     _checkPermissions();
+    if (!widget.isDoctor) {
+      _initSocket();
+    }
   }
 
   Future<void> _checkPermissions() async {
@@ -125,8 +134,58 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
     }
   }
 
+  void _initSocket() {
+    final userVM = Provider.of<UserViewModel>(context, listen: false);
+    final token = userVM.accessToken;
+    if (token == null || widget.appointmentId == null) return;
+
+    final socketService = Provider.of<WaitingRoomSocketService>(context, listen: false);
+    socketService.connect(token: token);
+    socketService.joinAppointmentRoom(widget.appointmentId!);
+
+    _statusSub = socketService.callStatusStream.listen((status) {
+      debugPrint("Socket: Received call status update: $status");
+      if (status == 'ACTIVE' || status == 'IN_PROGRESS') {
+        _autoJoinCall();
+      }
+    });
+  }
+
+  Future<void> _autoJoinCall() async {
+    if (_isAutoJoining) return;
+    _isAutoJoining = true;
+
+    if (_engineReady) {
+      await _engine.leaveChannel();
+      await _engine.release();
+      if (mounted) {
+        setState(() {
+          _engineReady = false;
+        });
+      }
+    }
+
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => VideoCallView(
+            isDoctor: widget.isDoctor,
+            appointmentId: widget.appointmentId,
+            initialMicOn: isMicOn,
+            initialCameraOn: isCameraOn,
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   void dispose() {
+    _statusSub?.cancel();
+    if (widget.appointmentId != null) {
+      WaitingRoomSocketService.instance.leaveAppointmentRoom(widget.appointmentId!);
+    }
     if (_engineReady) {
       _engine.leaveChannel();
       _engine.release();

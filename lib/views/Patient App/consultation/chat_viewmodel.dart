@@ -13,6 +13,8 @@ class ChatViewModel extends ChangeNotifier {
   final String patientId;
   final String token;
   String? appointmentId;
+  String? sosId;
+  String? tripId;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -27,6 +29,8 @@ class ChatViewModel extends ChangeNotifier {
     required this.patientId,
     required this.token,
     this.appointmentId,
+    this.sosId,
+    this.tripId,
   }) {
     _socket.connect(url: '${AppUrl.baseUrl}/chat', token: token);
     _newMsgSub = _socket.newMessageStream.listen(_handleNewMessage);
@@ -47,8 +51,16 @@ class ChatViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response =
-          await _apiServices.getUnifiedChatHistory(doctorId, patientId);
+      dynamic response;
+      if (sosId != null && sosId!.isNotEmpty) {
+        response = await _apiServices.getSosChatMessageHistory(sosId!);
+      } else if (tripId != null && tripId!.isNotEmpty) {
+        // Fallback to trip history if SOS is somehow missing
+        response = await _apiServices.getTripChatMessageHistory(tripId!);
+      } else {
+        response =
+            await _apiServices.getUnifiedChatHistory(doctorId, patientId);
+      }
       if (response != null && response['success'] == true) {
         final data = response['data'];
 
@@ -64,8 +76,12 @@ class ChatViewModel extends ChangeNotifier {
 
         // If appointmentId is missing, try to get it from the latest message
         if ((appointmentId == null || appointmentId!.isEmpty) &&
-            fetchedMessages.isNotEmpty) {
-          appointmentId = fetchedMessages.first.appointmentId.toString();
+            fetchedMessages.isNotEmpty &&
+            fetchedMessages.any((m) => m.appointmentId != null)) {
+          appointmentId = fetchedMessages
+              .firstWhere((m) => m.appointmentId != null)
+              .appointmentId
+              .toString();
         }
 
         fetchedMessages.sort((a, b) => b.sentAt.compareTo(a.sentAt));
@@ -82,16 +98,25 @@ class ChatViewModel extends ChangeNotifier {
 
   Future<void> sendMessage(String body, String currentUserId,
       {File? file}) async {
-    final String recipientId = currentUserId == doctorId ? patientId : doctorId;
-
     final Map<String, String> fields = {
       'messageType': file != null ? 'IMAGE' : 'TEXT',
       'body': body,
     };
 
     try {
-      final response =
-          await _apiServices.sendChatMessage(recipientId, fields, file);
+      dynamic response;
+      if (sosId != null && sosId!.isNotEmpty) {
+        response = await _apiServices.sendSosChatMessage(sosId!, fields, file);
+      } else if (tripId != null && tripId!.isNotEmpty) {
+        response =
+            await _apiServices.sendTripChatMessage(tripId!, fields, file);
+      } else {
+        final String recipientId =
+            currentUserId == doctorId ? patientId : doctorId;
+        response =
+            await _apiServices.sendChatMessage(recipientId, fields, file);
+      }
+
       if (response != null && response['success'] == true) {
         final newMessage = ChatMessageModel.fromJson(response['data']);
         _insertIfNotExists(newMessage);
@@ -103,18 +128,43 @@ class ChatViewModel extends ChangeNotifier {
   }
 
   void _joinRoomIfPossible() {
-    if (appointmentId == null || appointmentId!.isEmpty) return;
-    _socket.joinRoom(appointmentId!);
+    if (sosId != null && sosId!.isNotEmpty) {
+      _socket.joinSosRoom(sosId!);
+    }
+    if (tripId != null && tripId!.isNotEmpty) {
+      _socket.joinTripRoom(tripId!);
+    }
+    if (appointmentId != null && appointmentId!.isNotEmpty) {
+      _socket.joinRoom(appointmentId!);
+    }
   }
 
   void _handleNewMessage(Map<String, dynamic> payload) {
     try {
-      if (appointmentId == null || appointmentId!.isEmpty) return;
-      if (payload['appointmentId']?.toString() != appointmentId) return;
+      bool isRelevant = false;
+      
+      final String? incomingApptId = payload['appointmentId']?.toString();
+      final String? incomingSosId = payload['sosId']?.toString();
+      final String? incomingTripId = payload['tripId']?.toString();
+
+      if (appointmentId != null && appointmentId!.isNotEmpty && incomingApptId == appointmentId) {
+        isRelevant = true;
+      }
+      if (sosId != null && sosId!.isNotEmpty && incomingSosId == sosId) {
+        isRelevant = true;
+      }
+      if (tripId != null && tripId!.isNotEmpty && incomingTripId == tripId) {
+        isRelevant = true;
+      }
+
+      if (!isRelevant) return;
+
       final msg = ChatMessageModel.fromJson(payload);
       _insertIfNotExists(msg);
       notifyListeners();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint("Error handling real-time message: $e");
+    }
   }
 
   void _insertIfNotExists(ChatMessageModel msg) {

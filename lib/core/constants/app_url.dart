@@ -4,7 +4,7 @@ class AppUrl {
   //static const String baseUrl = 'https://medlink-be-production.up.railway.app';
 
   static const String baseUrl =
-      'http://192.168.100.24:3000'; // Real IP (for physical devices)
+      'http://192.168.100.104:3000'; // Real IP (for physical devices)
   // static const String baseUrl =
   //     'http://10.0.2.2:3000'; // Emulator Magic IP (points to your machine)
 
@@ -13,13 +13,23 @@ class AppUrl {
   static const String verifyOtp = '${baseUrl}/auth/verify-otp';
   static const String forgotPassword = '${baseUrl}/auth/password/forgot';
   static const String resetPassword = '${baseUrl}/auth/password/reset';
-  static const String deleteAccountSendOtp = '${baseUrl}/auth/account/delete/send-otp';
-  static const String deleteAccountVerifyOtp = '${baseUrl}/auth/account/delete/verify-otp';
+  static const String deleteAccountSendOtp =
+      '${baseUrl}/auth/account/delete/send-otp';
+  static const String deleteAccountVerifyOtp =
+      '${baseUrl}/auth/account/delete/verify-otp';
+  static const String socialLogin = '${baseUrl}/auth/social-login';
+
   static const String getAppointments = '${baseUrl}/appointments/patient';
   static const String getChatMessages =
       '${baseUrl}/chat/user'; // /{recipientId}/messages
   static const String sendChatMessage =
       '${baseUrl}/chat/user'; // /{recipientId}/messages
+  static const String sendSosChat = '${baseUrl}/chat/sos'; // /{sosId}/send
+  static const String getSosChatMessages =
+      '${baseUrl}/chat/sos'; // /{sosId}/messages
+  static const String sendTripChat = '${baseUrl}/chat/trip'; // /{tripId}/send
+  static const String getTripChatMessages =
+      '${baseUrl}/chat/trip'; // /{tripId}/messages
   static const String register = '${baseUrl}/auth/register';
   static const String registerStep1 = '$register/step1';
   static const String registerStep2 = '$register/step2';
@@ -64,6 +74,8 @@ class AppUrl {
       '${baseUrl}/patient/prescriptions'; // /{id}/tests/{testId}/report
   static const String getChatHistory =
       '${baseUrl}/chat/history/patient'; // /{patientId}/doctors
+  static const String getChatConversations = '${baseUrl}/chat/conversations';
+  static const String uploadImage = '${baseUrl}/upload/image';
   static const String getUnifiedChatHistory =
       '${baseUrl}/chat/history'; // /doctor/{doctorId}/patient/{patientId}
   static const String getEmergencyNumbers =
@@ -130,5 +142,10 @@ class AppUrl {
 
   /// Patient App Endpoints
   static const String createSos = '${baseUrl}/patient/sos';
-  static const String emergencyContacts = '${baseUrl}/patient/emergency-contacts';
+  static const String emergencyContacts =
+      '${baseUrl}/patient/emergency-contacts';
+  static const String appointmentCheckout =
+      '${baseUrl}/patient/appointments'; // /{id}/payment/checkout
+  static const String confirmManualPayment =
+      '${baseUrl}/patient/payments/confirm-manual';
 }

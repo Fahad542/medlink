@@ -2,7 +2,9 @@ enum MessageType { TEXT, IMAGE, FILE }
 
 class ChatMessageModel {
   final int id;
-  final int appointmentId;
+  final int? appointmentId;
+  final int? sosId;
+  final int? tripId;
   final int senderId;
   final MessageType messageType;
   final String? body;
@@ -11,7 +13,9 @@ class ChatMessageModel {
 
   ChatMessageModel({
     required this.id,
-    required this.appointmentId,
+    this.appointmentId,
+    this.sosId,
+    this.tripId,
     required this.senderId,
     required this.messageType,
     this.body,
@@ -23,6 +27,8 @@ class ChatMessageModel {
     return ChatMessageModel(
       id: json['id'],
       appointmentId: json['appointmentId'],
+      sosId: json['sosId'],
+      tripId: json['tripId'],
       senderId: json['senderId'],
       messageType: _parseMessageType(json['messageType']),
       body: json['body'],

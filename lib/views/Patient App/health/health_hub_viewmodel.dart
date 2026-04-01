@@ -213,16 +213,34 @@ class HealthHubViewModel extends ChangeNotifier {
   }
 
   Future<void> refreshData(bool isDoctor) async {
+    _isLoadingArticles = true;
+    _isLoadingEmergencyNumbers = true;
+    _isLoadingQuickInstructions = true;
+    _isLoadingFirstAid = true;
+    _isLoadingVideos = true;
+    notifyListeners();
+
     if (isDoctor) {
       await fetchDoctorArticles();
     } else {
+      // Run all fetches in parallel for efficiency
       await Future.wait([
         fetchHealthArticles(),
         fetchEmergencyNumbers(),
         fetchQuickInstructions(),
         fetchFirstAidTopics(),
         fetchHealthVideos(),
-      ]);
+      ]).catchError((e) {
+        debugPrint("Parallel fetch error in HealthHub: $e");
+        return [];
+      });
     }
+    
+    _isLoadingArticles = false;
+    _isLoadingEmergencyNumbers = false;
+    _isLoadingQuickInstructions = false;
+    _isLoadingFirstAid = false;
+    _isLoadingVideos = false;
+    notifyListeners();
   }
 }
