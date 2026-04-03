@@ -50,14 +50,20 @@ void main() async {
         options: DefaultFirebaseOptions.currentPlatform);
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-    NotificationServices notificationServices = NotificationServices();
-    notificationServices.requestNotificationPermission();
+    final notificationServices = NotificationServices();
+    await notificationServices.setupLocalNotifications();
+    await notificationServices.requestNotificationPermission();
+    await notificationServices.configureForegroundPresentation();
     notificationServices.firebaseInit();
-    notificationServices.getDeviceToken().then((value) {
+    notificationServices.listenForTokenWhenReady((token) {
       if (kDebugMode) {
-        print("Device Token: $value");
+        debugPrint('FCM token (ready/refresh): $token');
       }
     });
+    final token = await notificationServices.getDeviceToken();
+    if (kDebugMode && token != null) {
+      debugPrint('Device Token: $token');
+    }
   } catch (e) {
     debugPrint("Firebase initialization failed: $e");
   }

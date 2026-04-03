@@ -4,7 +4,7 @@ class AppUrl {
   //static const String baseUrl = 'https://medlink-be-production.up.railway.app';
 
   static const String baseUrl =
-      'http://192.168.100.104:3000'; // Real IP (for physical devices)
+      'https://www.medlink-africa.com';
   // static const String baseUrl =
   //     'http://10.0.2.2:3000'; // Emulator Magic IP (points to your machine)
 
@@ -19,12 +19,12 @@ class AppUrl {
       '${baseUrl}/auth/account/delete/verify-otp';
   static const String socialLogin = '${baseUrl}/auth/social-login';
 
-  static const String getAppointments = '${baseUrl}/appointments/patient';
   static const String getChatMessages =
       '${baseUrl}/chat/user'; // /{recipientId}/messages
   static const String sendChatMessage =
       '${baseUrl}/chat/user'; // /{recipientId}/messages
   static const String sendSosChat = '${baseUrl}/chat/sos'; // /{sosId}/send
+  static const String getAppointments = '${baseUrl}/appointments/patient';
   static const String getSosChatMessages =
       '${baseUrl}/chat/sos'; // /{sosId}/messages
   static const String sendTripChat = '${baseUrl}/chat/trip'; // /{tripId}/send
