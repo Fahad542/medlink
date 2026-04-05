@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_payment_view.dart';
+import 'package:medlink/views/main/main_screen.dart';
 
 class AppointmentDetailsView extends StatelessWidget {
   final DoctorModel doctor;
@@ -104,7 +105,7 @@ class AppointmentDetailsView extends StatelessWidget {
               children: [
                 Expanded(
                     child: _buildDetailCard(
-                        "Duration", "30 min")), // Hardcoded for now
+                        "Duration", "${doctor.sessionDuration} min")),
                 const SizedBox(width: 12),
                 Expanded(
                     child: _buildDetailCard(
@@ -291,9 +292,14 @@ class AppointmentDetailsView extends StatelessWidget {
                 child: CustomButton(
                   text: "Done",
                   onPressed: () {
-                    Navigator.pop(context); // Close dialog
-                    Navigator.popUntil(
-                        context, (route) => route.isFirst); // Go to home
+                    // Navigate back to MainScreen and show Appointments tab (index 1)
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) =>
+                              const MainScreen(initialIndex: 1)),
+                      (route) => false,
+                    );
                   },
                 ),
               )

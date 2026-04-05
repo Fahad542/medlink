@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
-import 'package:medlink/models/ambulance_model.dart';
 import 'package:medlink/views/Patient App/home/home_view.dart';
-import 'package:medlink/views/Patient%20App/Find%20a%20doctor/doctor_list_view.dart';
 import 'package:medlink/views/Patient App/appointment/appointment_list_view.dart';
 import 'package:medlink/views/Patient App/profile/profile_view.dart';
 import 'package:medlink/views/Patient App/health/health_hub_view.dart';
@@ -13,11 +11,16 @@ import 'package:medlink/views/Patient App/emergency/ambulance_tracking_view.dart
 import 'package:medlink/views/call/call_view_model.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/services/call_socket_service.dart';
-import 'package:medlink/views/Patient%20App/consultation/video_call_view.dart';
+import 'package:medlink/views/call/call_screen.dart';
+import 'package:medlink/services/appointment_socket_service.dart';
+import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
+import 'package:medlink/views/call/incoming_call_screen.dart';
+import 'package:medlink/core/constants/app_url.dart';
 import 'dart:async';
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  final int initialIndex;
+  const MainScreen({super.key, this.initialIndex = 0});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -27,10 +30,12 @@ class _MainScreenState extends State<MainScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
   StreamSubscription? _incomingCallSub;
+  StreamSubscription? _appointmentSub;
 
   @override
   void initState() {
     super.initState();
+    _selectedIndex = widget.initialIndex;
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
@@ -41,103 +46,94 @@ class _MainScreenState extends State<MainScreen>
       final emergencyVM =
           Provider.of<EmergencyViewModel>(context, listen: false);
       final userVM = Provider.of<UserViewModel>(context, listen: false);
+      final appointmentVM = Provider.of<AppointmentViewModel>(context, listen: false);
 
       emergencyVM.checkActiveSos();
       final token = userVM.accessToken;
       final patientId = int.tryParse(userVM.patient?.id ?? '');
+      
       if (token != null && token.isNotEmpty && patientId != null) {
         emergencyVM.startRealtime(userId: patientId, token: token);
+        
+        // Initial load
+        appointmentVM.loadUpcomingAppointments();
+
+        // Connect to Appointment Socket
+        final appointmentSocket = Provider.of<AppointmentSocketService>(context, listen: false);
+        appointmentSocket.connect(url: AppUrl.baseUrl, token: token);
+        _appointmentSub = appointmentSocket.appointmentUpdateStream.listen((_) {
+          debugPrint('[MainScreen] Appointment update received! Refreshing...');
+          appointmentVM.loadUpcomingAppointments();
+        });
+
+        // Start Call Polling as backup
+        Provider.of<CallViewModel>(context, listen: false).startPolling(context);
 
         // Connect to dedicated Call Socket
         final callSocket =
             Provider.of<CallSocketService>(context, listen: false);
         callSocket.connect(token: token, userId: patientId);
 
-        // Listen for real-time incoming calls
+        // Listen for real-time incoming calls via Socket
         _incomingCallSub = callSocket.incomingCallStream.listen((data) {
-          _showIncomingCallDialog(data);
+          _handleSocketIncomingCall(data);
         });
       }
     });
   }
 
-  void _showIncomingCallDialog(Map<String, dynamic> data) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const Icon(Icons.add_call, color: AppColors.primary),
-            const SizedBox(width: 10),
-            Text("Incoming Call",
-                style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-          ],
+  void _handleSocketIncomingCall(Map<String, dynamic> data) {
+    if (!mounted) return;
+    if (CallViewModel.isIncomingCallActive) {
+      debugPrint('[MainScreen] Incoming call skipped — already active');
+      return;
+    }
+    
+    final callerId = data['callerId'] is int
+        ? data['callerId'] as int
+        : int.tryParse(data['callerId']?.toString() ?? '');
+
+    CallViewModel.isIncomingCallActive = true;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => IncomingCallScreen(
+          callerName: data['callerName'] ?? 'Unknown Caller',
+          callerPhoto: data['callerPhoto'],
+          channelName: data['channelName'],
+          token: data['token'],
+          appId: data['appId'],
+          callerId: callerId,
+          onDecline: () {},
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (data['callerPhoto'] != null)
-              CircleAvatar(
-                radius: 40,
-                backgroundImage: NetworkImage(data['callerPhoto']),
-              )
-            else
-              const CircleAvatar(
-                radius: 40,
-                child: Icon(Icons.person, size: 40),
-              ),
-            const SizedBox(height: 16),
-            Text(
-              data['callerName'] ?? "Someone is calling...",
-              style:
-                  GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Text("Video Call Request",
-                style: GoogleFonts.inter(color: Colors.grey)),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // TODO: Emit call:declined if we want to notify caller
-            },
-            child: Text("Decline", style: GoogleFonts.inter(color: Colors.red)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => VideoCallView(
-                    isDoctor: false,
-                    appointmentId:
-                        data['channelName'], // Using channelName as room id
-                  ),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-            child:
-                Text("Accept", style: GoogleFonts.inter(color: Colors.white)),
-          ),
-        ],
       ),
-    );
+    ).then((result) {
+      CallViewModel.isIncomingCallActive = false;
+      if (result == true) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CallScreen(
+              channelName: data['channelName'],
+              token: data['token'],
+              appId: data['appId'],
+              recipientName: data['callerName'] ?? 'Caller',
+              recipientPhoto: data['callerPhoto'],
+              isCaller: false,
+              recipientId: callerId,
+            ),
+          ),
+        );
+      }
+    });
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
     _incomingCallSub?.cancel();
+    _appointmentSub?.cancel();
     super.dispose();
   }
 
@@ -193,25 +189,12 @@ class _MainScreenState extends State<MainScreen>
                           ),
                         );
                       } else {
-                        // Show "Searching" view with placeholder data
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => AmbulanceTrackingView(
-                              ambulance: AmbulanceModel(
-                                id: "0",
-                                driverName: "Searching...",
-                                plateNumber: "---",
-                                currentLat: 0.0,
-                                currentLng: 0.0,
-                                vehicleType: "---",
-                                status: "Searching",
-                                estimatedArrival: "--",
-                                profilePhotoUrl: "",
-                                phoneNumber: "",
-                              ),
-                            ),
-                          ),
+                        // User requested not traversing to trip details when finding driver.
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Finding Driver... Please wait."),
+                            duration: Duration(seconds: 1),
+                          )
                         );
                       }
                     },

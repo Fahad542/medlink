@@ -3,8 +3,11 @@ import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/data/network/api_services.dart';
+import 'package:medlink/services/waiting_room_socket_service.dart';
+import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/widgets/prescription_bottom_sheet.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:provider/provider.dart';
 
 class VideoCallView extends StatefulWidget {
   final bool isDoctor;
@@ -49,8 +52,37 @@ class _VideoCallViewState extends State<VideoCallView> {
     isMicOn = widget.initialMicOn;
     isCameraOn = widget.initialCameraOn;
     _initAgora();
+    _initSocket();
     // Timer will start only when remote user joins
   }
+
+  void _initSocket() {
+    final userVM = Provider.of<UserViewModel>(context, listen: false);
+    final token = userVM.accessToken;
+    if (token == null || widget.appointmentId == null) return;
+
+    final socketService = Provider.of<WaitingRoomSocketService>(context, listen: false);
+    socketService.connect(token: token);
+    socketService.joinAppointmentRoom(widget.appointmentId!);
+
+    socketService.participantJoinedStream.listen((data) {
+       debugPrint("[VideoCallView] Participant event: $data");
+       // Only update status message if it's the OTHER person
+       final currentUserId = userVM.loginSession?.data?.user?.id?.toString();
+       if (mounted && data['userId']?.toString() != currentUserId) {
+         setState(() {
+           if (data['status'] == 'LEFT') {
+             _statusMessage = null;
+           } else {
+             final name = data['fullName'] ?? (widget.isDoctor ? 'Patient' : 'Doctor');
+             _statusMessage = "$name is ready!";
+           }
+         });
+       }
+    });
+  }
+
+  String? _statusMessage;
 
   void _startTimer() {
     _timer?.cancel(); // Cancel any existing timer
@@ -116,6 +148,14 @@ class _VideoCallViewState extends State<VideoCallView> {
               setState(() {
                 _localUserJoined = true;
               });
+              // Notify backend that this user has joined
+              if (widget.appointmentId != null) {
+                ApiServices().updateCallStatus(
+                  widget.appointmentId!, 
+                  'JOINED', 
+                  appointmentId: widget.appointmentId
+                );
+              }
             }
           },
           onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
@@ -201,6 +241,13 @@ class _VideoCallViewState extends State<VideoCallView> {
   Future<void> _dispose() async {
     _timer?.cancel();
     try {
+      if (widget.appointmentId != null) {
+        ApiServices().updateCallStatus(
+          widget.appointmentId!, 
+          'LEFT', 
+          appointmentId: widget.appointmentId
+        );
+      }
       await _engine.leaveChannel();
       await _engine.release();
     } catch (e) {
@@ -438,9 +485,9 @@ class _VideoCallViewState extends State<VideoCallView> {
               const Icon(Icons.person, size: 100, color: Colors.white24),
               const SizedBox(height: 16),
               Text(
-                widget.isDoctor
+                _statusMessage ?? (widget.isDoctor
                     ? "Waiting for patient..."
-                    : "Waiting for doctor...",
+                    : "Waiting for doctor..."),
                 style: GoogleFonts.inter(color: Colors.white54, fontSize: 16),
               ),
             ],

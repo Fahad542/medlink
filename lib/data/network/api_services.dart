@@ -84,16 +84,25 @@ class ApiServices {
 
   Future<dynamic> createSos(double latitude, double longitude,
       {String incidentType = "Medical Emergency",
-      String severity = "High"}) async {
+      String severity = "High",
+      double? destinationLat,
+      double? destinationLng,
+      String? addressText}) async {
     try {
+      final payload = {
+        "lat": latitude,
+        "lng": longitude,
+        "emergencyType": incidentType,
+        "severity": severity,
+      };
+      
+      if (destinationLat != null) payload["destinationLat"] = destinationLat;
+      if (destinationLng != null) payload["destinationLng"] = destinationLng;
+      if (addressText != null) payload["addressText"] = addressText;
+      
       return await _apiServices.getPostApiResponse(
         AppUrl.createSos,
-        jsonEncode({
-          "lat": latitude,
-          "lng": longitude,
-          "emergencyType": incidentType,
-          "severity": severity
-        }),
+        jsonEncode(payload),
       );
     } catch (e) {
       rethrow;
@@ -113,6 +122,16 @@ class ApiServices {
       return await _apiServices.getPostApiResponse(
         '${AppUrl.appointmentCheckout}/$appointmentId/payment/checkout',
         jsonEncode({}),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getBookedSlots(String doctorId, String date) async {
+    try {
+      return await _apiServices.getGetApiResponse(
+        '${AppUrl.getBookedSlots}/$doctorId/booked-slots?date=$date',
       );
     } catch (e) {
       rethrow;
@@ -619,6 +638,38 @@ class ApiServices {
         formData,
         file,
         fileKey: 'profilePic',
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> updateDoctorPracticeSettings(Map<String, dynamic> data) async {
+    try {
+      return await _apiServices.getPutApiResponse(
+        AppUrl.updateDoctorPracticeSettings,
+        jsonEncode(data),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getPracticeSettings() async {
+    try {
+      return await _apiServices.getGetApiResponse(
+        AppUrl.updateDoctorPracticeSettings,
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> updateDoctorAvailabilitySlots(List<dynamic> slots) async {
+    try {
+      return await _apiServices.getPutApiResponse(
+        AppUrl.updateDoctorAvailabilitySlots,
+        jsonEncode({'slots': slots}),
       );
     } catch (e) {
       rethrow;
@@ -1139,11 +1190,16 @@ class ApiServices {
     }
   }
 
-  Future<dynamic> updateCallStatus(String channelName, String status) async {
+  Future<dynamic> updateCallStatus(String channelName, String status, {String? appointmentId}) async {
     try {
+      final payload = {
+        'channelName': channelName,
+        'status': status,
+        if (appointmentId != null) 'appointmentId': int.tryParse(appointmentId) ?? appointmentId,
+      };
       return await _apiServices.getPostApiResponse(
         AppUrl.updateCallStatus,
-        {'channelName': channelName, 'status': status},
+        jsonEncode(payload),
       );
     } catch (e) {
       rethrow;

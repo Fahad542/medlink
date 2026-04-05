@@ -94,6 +94,30 @@ class NetworkApiService extends BaseApiServices {
   }
 
   @override
+  Future getPutApiResponse(String url, dynamic data) async {
+    print(url);
+    dynamic responseJson;
+    try {
+      final headers = await _getHeaders();
+      final body = data is Map ? jsonEncode(data) : data;
+      final response = await http
+          .put(
+            Uri.parse(url),
+            body: body,
+            headers: headers,
+          )
+          .timeout(const Duration(seconds: 30));
+
+      responseJson = returnResponse(response);
+    } on SocketException catch (e) {
+      if (kDebugMode) print("SocketException for $url: $e");
+      throw FetchDataException('No Internet Connection or Server Unreachable');
+    }
+
+    return responseJson;
+  }
+
+  @override
   Future getPatchApiResponse(String url, dynamic data) async {
     print(url);
     dynamic responseJson;

@@ -15,6 +15,14 @@ class AppointmentViewModel extends ChangeNotifier {
   List<AppointmentModel> get pastAppointments => _pastAppointments;
   List<AppointmentModel> get cancelledAppointments => _cancelledAppointments;
 
+  List<String> _bookedSlots = [];
+  List<DateTimeRange> _bookedRanges = [];
+  bool _isLoadingBookedSlots = false;
+  
+  List<String> get bookedSlots => _bookedSlots;
+  List<DateTimeRange> get bookedRanges => _bookedRanges;
+  bool get isLoadingBookedSlots => _isLoadingBookedSlots;
+
   // Backwards compatibility alias
   List<AppointmentModel> get appointments => _upcomingAppointments;
 
@@ -129,7 +137,7 @@ class AppointmentViewModel extends ChangeNotifier {
     }
 
     String formattedStartTime = DateFormat("HH:mm").format(parsedStartTime);
-    DateTime parsedEndTime = parsedStartTime.add(const Duration(minutes: 30));
+    DateTime parsedEndTime = parsedStartTime.add(Duration(minutes: doctor.sessionDuration));
     String formattedEndTime = DateFormat("HH:mm").format(parsedEndTime);
 
     final appointmentData = {
@@ -137,8 +145,7 @@ class AppointmentViewModel extends ChangeNotifier {
       "date": DateFormat('yyyy-MM-dd').format(date),
       "startTime": formattedStartTime,
       "endTime": formattedEndTime,
-      "description":
-          description.isEmpty ? "General Consultation" : description,
+      "description": description.isEmpty ? "General Consultation" : description,
     };
 
     try {
@@ -169,6 +176,36 @@ class AppointmentViewModel extends ChangeNotifier {
         'success': false,
         'message': 'An error occurred during booking: $e'
       };
+    }
+  }
+
+  Future<void> fetchBookedSlots(String doctorId, String date) async {
+    _isLoadingBookedSlots = true;
+    _bookedSlots.clear();
+    _bookedRanges.clear();
+    notifyListeners();
+
+    try {
+      final response = await _apiService.getBookedSlots(doctorId, date);
+      if (response != null && response['success'] == true) {
+        final List<dynamic> data = response['data'];
+        _bookedRanges = data.map((json) {
+          final start = DateTime.parse(json['scheduledStart']).toUtc();
+          final end = DateTime.parse(json['scheduledEnd']).toUtc();
+          return DateTimeRange(start: start, end: end);
+        }).toList();
+
+        _bookedSlots = _bookedRanges.map((range) {
+          return DateFormat("hh:mm a").format(range.start);
+        }).toList();
+        
+        debugPrint("[AppointmentViewModel] Total booked ranges for $date: ${_bookedRanges.length}");
+      }
+    } catch (e) {
+      debugPrint("Error fetching booked slots: $e");
+    } finally {
+      _isLoadingBookedSlots = false;
+      notifyListeners();
     }
   }
 }

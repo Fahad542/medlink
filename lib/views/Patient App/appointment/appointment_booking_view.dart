@@ -5,10 +5,10 @@ import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/models/doctor_model.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
-import 'package:medlink/views/Patient%20App/appointment/appointment_payment_view.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:provider/provider.dart';
+import 'package:medlink/views/Patient%20App/appointment/appointment_payment_view.dart';
 
 class AppointmentBookingView extends StatefulWidget {
   final DoctorModel doctor;
@@ -37,6 +37,21 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
     "04:00 PM",
     "05:00 PM",
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchSlots(_selectedDate);
+    });
+  }
+
+  void _fetchSlots(DateTime date) {
+    final appointmentVM =
+        Provider.of<AppointmentViewModel>(context, listen: false);
+    appointmentVM.fetchBookedSlots(
+        widget.doctor.id, DateFormat('yyyy-MM-dd').format(date));
+  }
 
   @override
   void dispose() {
@@ -137,15 +152,31 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
                     children: dates.map((date) {
                       final isSelected =
                           DateUtils.isSameDay(_selectedDate, date);
+                      final isOffDay =
+                          !widget.doctor.availabilityDays.contains(DateFormat('E').format(date));
+                      
                       return GestureDetector(
-                        onTap: () => setState(() => _selectedDate = date),
+                        onTap: () {
+                          if (isOffDay) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Doctor is not available on ${DateFormat('EEEE').format(date)}")),
+                            );
+                            return;
+                          }
+                          setState(() {
+                            _selectedDate = date;
+                            _selectedTime = null;
+                            _fetchSlots(date);
+                          });
+                        },
                         child: Container(
                           margin: const EdgeInsets.only(right: 12),
                           padding: const EdgeInsets.symmetric(
                               horizontal: 20, vertical: 16),
                           decoration: BoxDecoration(
-                            color:
-                                isSelected ? AppColors.primary : Colors.white,
+                            color: isSelected
+                                ? AppColors.primary
+                                : (isOffDay ? Colors.grey[200] : Colors.white),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
                               color: isSelected
@@ -162,7 +193,7 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
                                   fontWeight: FontWeight.bold,
                                   color: isSelected
                                       ? Colors.white
-                                      : Colors.black87,
+                                      : (isOffDay ? Colors.grey[400] : Colors.black87),
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -171,8 +202,9 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
                                 style: GoogleFonts.inter(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
-                                  color:
-                                      isSelected ? Colors.white70 : Colors.grey,
+                                  color: isSelected
+                                      ? Colors.white70
+                                      : (isOffDay ? Colors.grey[300] : Colors.grey),
                                 ),
                               ),
                             ],
@@ -188,37 +220,55 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
                 // 3. Time Slots (Chips)
                 Text("Available Times", style: _sectionTitleStyle),
                 const SizedBox(height: 16),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: _timeSlots.map((time) {
-                    final isSelected = _selectedTime == time;
-                    return InkWell(
-                      onTap: () => setState(() => _selectedTime = time),
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: isSelected ? AppColors.primary : Colors.white,
+                Consumer<AppointmentViewModel>(
+                  builder: (context, appointmentVM, _) {
+                    return Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: _timeSlots.map((time) {
+                        final isSelected = _selectedTime == time;
+                        final isBooked = appointmentVM.bookedSlots.contains(time);
+
+                        return InkWell(
+                          onTap: () {
+                            if (isBooked) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text("This slot is already booked")),
+                              );
+                              return;
+                            }
+                            setState(() => _selectedTime = time);
+                          },
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSelected
-                                ? AppColors.primary
-                                : Colors.grey.withOpacity(0.2),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : (isBooked ? Colors.grey[200] : Colors.white),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : Colors.grey.withOpacity(0.2),
+                              ),
+                            ),
+                            child: Text(
+                              time,
+                              style: GoogleFonts.inter(
+                                color: isSelected
+                                    ? Colors.white
+                                    : (isBooked ? Colors.grey[400] : Colors.black87),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
                           ),
-                        ),
-                        child: Text(
-                          time,
-                          style: GoogleFonts.inter(
-                            color: isSelected ? Colors.white : Colors.black87,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
+                        );
+                      }).toList(),
                     );
-                  }).toList(),
+                  }
                 ),
                 const SizedBox(height: 30),
 

@@ -4,12 +4,14 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/core/constants/app_url.dart';
+import 'package:medlink/services/google_maps_service.dart';
 import 'package:medlink/views/Ambulance/Mission/ambulance_mission_view_model.dart';
 import 'package:medlink/views/Patient App/consultation/chat_view.dart';
 import 'package:medlink/views/call/call_view_model.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
 
 class AmbulanceMissionView extends StatefulWidget {
   const AmbulanceMissionView({super.key});
@@ -21,6 +23,12 @@ class AmbulanceMissionView extends StatefulWidget {
 class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
   final Completer<GoogleMapController> _mapController = Completer();
   bool hasInitialFit = false;
+
+  List<LatLng> _routePoints = [];
+  LatLng? _lastRoutedTargetPos;
+  LatLng? _lastRoutedDriverPos;
+  bool _isFetchingRoute = false;
+  String _etaText = "";
 
   Future<void> _fitCamera(List<LatLng> points) async {
     if (!_mapController.isCompleted || points.isEmpty) return;
@@ -55,6 +63,40 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
     );
   }
 
+  void _updateRouteIfNeeded(LatLng driverPos, LatLng targetPos) async {
+    if (_isFetchingRoute) return;
+
+    double distanceMoved = 0;
+    if (_lastRoutedDriverPos != null) {
+      distanceMoved = Geolocator.distanceBetween(
+        _lastRoutedDriverPos!.latitude,
+        _lastRoutedDriverPos!.longitude,
+        driverPos.latitude,
+        driverPos.longitude,
+      );
+    }
+    
+    bool shouldFetch = _routePoints.isEmpty || 
+          _lastRoutedTargetPos == null || 
+          _lastRoutedTargetPos!.latitude != targetPos.latitude || 
+          _lastRoutedTargetPos!.longitude != targetPos.longitude ||
+          distanceMoved > 50;
+    
+    if (shouldFetch) {
+      _isFetchingRoute = true;
+      final routeData = await GoogleMapsService.getRouteCoordinates(driverPos, targetPos);
+      if (routeData != null && mounted) {
+        setState(() {
+           _routePoints = routeData['points'];
+           _etaText = routeData['durationText'];
+           _lastRoutedTargetPos = targetPos;
+           _lastRoutedDriverPos = driverPos;
+        });
+      }
+      _isFetchingRoute = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
@@ -74,7 +116,14 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
                   ? LatLng(viewModel.dropoffLat!, viewModel.dropoffLng!)
                   : null;
 
-          final targetPos = pickupPos;
+          final isTransporting = viewModel.status == MissionStatus.transporting;
+          final targetPos = (isTransporting && dropoffPos != null) ? dropoffPos : (pickupPos ?? dropoffPos);
+
+          if (driverPos != null && targetPos != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _updateRouteIfNeeded(driverPos, targetPos);
+            });
+          }
 
           final markers = <Marker>{
             if (driverPos != null)
@@ -104,8 +153,8 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
           final polylines = <Polyline>{
             if (driverPos != null && targetPos != null)
               Polyline(
-                polylineId: const PolylineId('route'),
-                points: [driverPos, targetPos],
+                polylineId: PolylineId('route_${targetPos.latitude}_${targetPos.longitude}'),
+                points: _routePoints.isEmpty ? [driverPos, targetPos] : _routePoints,
                 color: AppColors.primary,
                 width: 6,
               ),
@@ -199,7 +248,7 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
                                   ),
                                 ),
                                 Text(
-                                  viewModel.missionData['eta'],
+                                  _etaText.isNotEmpty ? _etaText : viewModel.missionData['eta'],
                                   style: GoogleFonts.inter(
                                     color: AppColors.textPrimary,
                                     fontSize: 18,

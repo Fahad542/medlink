@@ -13,7 +13,10 @@ class WaitingRoomSocketService extends ChangeNotifier {
   String? _currentAppointmentId;
 
   final StreamController<String> _callStatusController = StreamController<String>.broadcast();
+  final StreamController<Map<String, dynamic>> _participantJoinedController = StreamController<Map<String, dynamic>>.broadcast();
+
   Stream<String> get callStatusStream => _callStatusController.stream;
+  Stream<Map<String, dynamic>> get participantJoinedStream => _participantJoinedController.stream;
 
   bool get isConnected => _isConnected;
 
@@ -53,6 +56,13 @@ class WaitingRoomSocketService extends ChangeNotifier {
         _callStatusController.add(data['status']);
       }
     });
+
+    _socket!.on('call:participantJoined', (data) {
+      debugPrint('Participant Joined: $data');
+      if (data is Map) {
+        _participantJoinedController.add(Map<String, dynamic>.from(data));
+      }
+    });
   }
 
   void joinAppointmentRoom(String appointmentId) {
@@ -84,6 +94,7 @@ class WaitingRoomSocketService extends ChangeNotifier {
   @override
   void dispose() {
     _callStatusController.close();
+    _participantJoinedController.close();
     disconnect();
     super.dispose();
   }

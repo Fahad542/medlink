@@ -72,6 +72,13 @@ class EmergencyViewModel extends ChangeNotifier {
 
       _activeTrip = Map<String, dynamic>.from(payload);
       final tripId = _activeTrip?['id'];
+      final status = _activeTrip?['status']?.toString();
+
+      if (status == 'COMPLETED' || status == 'CANCELLED') {
+        cancelSos();
+        return;
+      }
+
       if (tripId is int) {
         _socket.joinTrip(tripId);
       } else if (tripId is String) {
@@ -144,15 +151,29 @@ class EmergencyViewModel extends ChangeNotifier {
   }
 
   Future<void> triggerSos(BuildContext context) async {
+    // Basic SOS trigger
+    _triggerSosInternal(context);
+  }
+
+  Future<void> triggerSosWithDestination(BuildContext context, double destLat, double destLng) async {
+    _triggerSosInternal(context, destLat: destLat, destLng: destLng);
+  }
+
+  Future<void> _triggerSosInternal(BuildContext context, {double? destLat, double? destLng}) async {
     _isSosActive = true;
     notifyListeners();
 
     try {
-      // Hardcoded location for demo
+      // Hardcoded current location for demo (should ideally come from location service)
       const latitude = 37.7749;
       const longitude = -122.4194;
 
-      final response = await _apiServices.createSos(latitude, longitude);
+      final response = await _apiServices.createSos(
+        latitude, 
+        longitude,
+        destinationLat: destLat,
+        destinationLng: destLng,
+      );
 
       if (response != null) {
         if (response['data'] != null) {
@@ -168,7 +189,7 @@ class EmergencyViewModel extends ChangeNotifier {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('SOS Alert Sent Successfully! Help is on the way.'),
+              content: Text('SOS Alert Sent Successfully! Finding Driver...'),
               backgroundColor: Colors.red,
             ),
           );
@@ -189,7 +210,7 @@ class EmergencyViewModel extends ChangeNotifier {
       debugPrint("Error creating SOS: $e");
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error sending SOS: $e')),
+          SnackBar(content: Text('Error: $e')),
         );
       }
     }

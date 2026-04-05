@@ -7,6 +7,7 @@ import 'package:medlink/core/constants/app_url.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'package:medlink/views/call/call_view_model.dart';
+import 'package:medlink/services/call_socket_service.dart';
 import 'package:provider/provider.dart';
 
 class CallScreen extends StatefulWidget {
@@ -16,6 +17,7 @@ class CallScreen extends StatefulWidget {
   final String recipientName;
   final String? recipientPhoto;
   final bool isCaller;
+  final int? recipientId; // needed so caller can signal cancel via socket
 
   const CallScreen({
     super.key,
@@ -25,6 +27,7 @@ class CallScreen extends StatefulWidget {
     required this.recipientName,
     this.recipientPhoto,
     this.isCaller = false,
+    this.recipientId,
   });
 
   @override
@@ -39,48 +42,41 @@ class _CallScreenState extends State<CallScreen> {
   bool _speaker = false;
   int _seconds = 0;
   Timer? _timer;
+  bool _callEnded = false;
+  bool _isRinging = false; // true when other side confirmed ringing
+
+  StreamSubscription? _callEndedSub;
+  StreamSubscription? _callRingingSub;
 
   @override
   void initState() {
     super.initState();
     initAgora();
-    // Poll status to check if rejected
-    _startStatusPolling();
+    _listenForCallEnd();
+    _listenForRinging();
   }
 
-  // Add this
-  bool _callEnded = false;
-  Timer? _statusTimer;
-
-  void _startStatusPolling() {
-    _statusTimer?.cancel();
-    _statusTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
-      if (_localUserJoined && _remoteUid != null) {
-        // Call connected, maybe stop polling or poll less frequently
-        timer.cancel();
-        return;
-      }
-
-      try {
-        // We need to access ApiServices.
-        // Since CallScreen is not inside Provider(create...), we rely on global provider or direct instance.
-        // Let's use direct instance for this fix to be self-contained.
-        // import 'package:medlink/data/network/api_services.dart';
-        // final api = ApiServices();
-        // But we need to import it.
-        // Better: Use Provider.of<CallViewModel>(context, listen: false) if it is available above in the tree.
-        // MainScreen provides CallViewModel, so it should be available!
-        if (!mounted) return;
-
-        final status = await Provider.of<CallViewModel>(context, listen: false)
-            .getCallStatus(widget.channelName);
-        if (status == 'REJECTED' || status == 'ENDED') {
-          if (mounted) {
-            _onRemoteCallEnd(context);
-          }
+  void _listenForCallEnd() {
+    _callEndedSub =
+        CallSocketService.instance.callEndedStream.listen((channel) {
+      if (channel == widget.channelName) {
+        if (mounted) {
+          _onRemoteCallEnd(context);
         }
-      } catch (e) {
-        debugPrint("Status poll error: $e");
+      }
+    });
+  }
+
+  void _listenForRinging() {
+    if (!widget.isCaller) return; // Only the caller cares about ringing status
+    _callRingingSub =
+        CallSocketService.instance.callRingingStream.listen((channel) {
+      if (channel == widget.channelName) {
+        if (mounted) {
+          setState(() {
+            _isRinging = true;
+          });
+        }
       }
     });
   }
@@ -102,14 +98,21 @@ class _CallScreenState extends State<CallScreen> {
     return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 
+  String _getCallStatusText() {
+    if (_remoteUid != null) {
+      return _formatDuration(_seconds);
+    }
+    if (widget.isCaller) {
+      return _isRinging ? "Ringing..." : "Calling...";
+    }
+    return "Connecting...";
+  }
+
   Future<void> initAgora() async {
-    // retrieve permissions
     await [Permission.microphone].request();
 
-    // create the engine
     _engine = createAgoraRtcEngine();
 
-    // Check if appId is provided, otherwise show error
     if (widget.appId == null) {
       debugPrint("App ID is missing!");
       return;
@@ -124,14 +127,12 @@ class _CallScreenState extends State<CallScreen> {
       RtcEngineEventHandler(
         onJoinChannelSuccess: (RtcConnection connection, int elapsed) {
           debugPrint("local user ${connection.localUid} joined");
-          setState(() {
-            _localUserJoined = true;
-          });
         },
         onUserJoined: (RtcConnection connection, int remoteUid, int elapsed) {
           debugPrint("remote user $remoteUid joined");
           setState(() {
             _remoteUid = remoteUid;
+            _isRinging = false; // Clear ringing once connected
           });
           _startTimer();
         },
@@ -142,7 +143,6 @@ class _CallScreenState extends State<CallScreen> {
             setState(() {
               _remoteUid = null;
             });
-            // End call if remote user leaves
             _onRemoteCallEnd(context);
           }
         },
@@ -165,6 +165,8 @@ class _CallScreenState extends State<CallScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _callEndedSub?.cancel();
+    _callRingingSub?.cancel();
     if (!_callEnded) {
       _engine.leaveChannel();
     }
@@ -175,12 +177,23 @@ class _CallScreenState extends State<CallScreen> {
   void _onCallEnd(BuildContext context) {
     if (_callEnded) return;
     _callEnded = true;
+    _callEndedSub?.cancel();
+    _callRingingSub?.cancel();
+    _timer?.cancel();
     _engine.leaveChannel();
 
-    // Notify backend that call ended (only if local user initiated end)
     if (mounted) {
       Provider.of<CallViewModel>(context, listen: false)
           .updateCallStatus(widget.channelName, 'ENDED');
+
+      // If caller hangs up before pickup, also emit via socket for instant dismissal
+      if (widget.isCaller && _remoteUid == null && widget.recipientId != null) {
+        CallSocketService.instance.emitCancelCall(
+          channelName: widget.channelName,
+          recipientId: widget.recipientId!,
+        );
+      }
+
       Navigator.pop(context);
     }
   }
@@ -211,14 +224,13 @@ class _CallScreenState extends State<CallScreen> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: false, // Prevent back button
+      canPop: false,
       child: Scaffold(
         backgroundColor: const Color(0xFF212529),
         body: SafeArea(
           child: Column(
             children: [
               const SizedBox(height: 16),
-              // Handle indicator
               Container(
                 width: 40,
                 height: 4,
@@ -229,7 +241,7 @@ class _CallScreenState extends State<CallScreen> {
               ),
               const SizedBox(height: 60),
 
-              // Avatar with Pulse Effect
+              // Avatar
               Container(
                 width: 120,
                 height: 120,
@@ -260,7 +272,7 @@ class _CallScreenState extends State<CallScreen> {
 
               const SizedBox(height: 32),
 
-              // Name & Status
+              // Name
               Text(
                 widget.recipientName,
                 style: const TextStyle(
@@ -271,22 +283,24 @@ class _CallScreenState extends State<CallScreen> {
                 ),
               ),
               const SizedBox(height: 8),
+
+              // Status: Calling... → Ringing... → 00:00
               Text(
-                _remoteUid != null
-                    ? _formatDuration(_seconds)
-                    : (widget.isCaller ? "Calling..." : "Connecting..."),
-                style: const TextStyle(
-                  color: AppColors.primary,
+                _getCallStatusText(),
+                style: TextStyle(
+                  color: _isRinging && _remoteUid == null
+                      ? Colors.greenAccent
+                      : AppColors.primary,
                   fontSize: 18,
                   fontWeight: FontWeight.w500,
                   letterSpacing: 1.0,
-                  fontFeatures: [FontFeature.tabularFigures()],
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
 
               const Spacer(),
 
-              // Action Buttons Row (Mic, Video, Speaker)
+              // Action Buttons
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 40),
                 child: Row(
@@ -298,12 +312,6 @@ class _CallScreenState extends State<CallScreen> {
                       bgColor: _muted ? Colors.white : Colors.grey[800]!,
                       onTap: _onToggleMute,
                     ),
-                    // _buildCallActionButton(
-                    //   icon: Icons.videocam_off_rounded,
-                    //   iconColor: Colors.white,
-                    //   bgColor: Colors.grey[800]!,
-                    //   onTap: () {}, // Video disabled for now
-                    // ),
                     _buildCallActionButton(
                       icon: _speaker
                           ? Icons.volume_up_rounded

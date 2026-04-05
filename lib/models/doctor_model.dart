@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart';
 import 'package:medlink/core/constants/app_url.dart';
 
 class DoctorModel {
@@ -11,11 +12,12 @@ class DoctorModel {
   final double consultationFee;
   final String about;
   final String experience;
-
   final String location;
   final List<String> availabilityDays;
   final String startTime;
   final String endTime;
+  final int sessionDuration;
+  final List<dynamic> rawAvailability;
 
   DoctorModel({
     required this.id,
@@ -32,6 +34,8 @@ class DoctorModel {
     this.availabilityDays = const ["Mon", "Tue", "Wed", "Thu", "Fri"],
     this.startTime = "09:00 AM",
     this.endTime = "05:00 PM",
+    this.sessionDuration = 30,
+    this.rawAvailability = const [],
   });
   factory DoctorModel.fromJson(Map<String, dynamic> json) {
     String getImageUrl(String? path) {
@@ -69,6 +73,33 @@ class DoctorModel {
       parsedSpecialty = getField('specialty') ?? 'General';
     }
 
+    final rawAvailability = (getField('availability') as List<dynamic>?) ?? [];
+
+    String extractTime(bool isStart) {
+      if (rawAvailability.isEmpty) return isStart ? "09:00 AM" : "05:00 PM";
+      final first = rawAvailability.first;
+      String? val = isStart
+          ? (first['morningStart'] ?? first['startTime'])
+          : (first['eveningEnd'] ?? first['morningEnd'] ?? first['endTime']);
+
+      if (val == null) return isStart ? "09:00 AM" : "05:00 PM";
+
+      if (val.contains('T')) {
+        return DateFormat("hh:mm a").format(DateTime.parse(val).toLocal());
+      }
+      
+      try {
+        final parts = val.split(':');
+        final hr = int.parse(parts[0]);
+        final mn = int.parse(parts[1]);
+        final periods = hr >= 12 ? "PM" : "AM";
+        final hrStr = (hr % 12 == 0 ? 12 : hr % 12).toString().padLeft(2, '0');
+        return "$hrStr:${mn.toString().padLeft(2, '0')} $periods";
+      } catch (e) {
+        return val;
+      }
+    }
+
     return DoctorModel(
       id: getField('_id')?.toString() ?? getField('id')?.toString() ?? '',
       name: getField('full_name') ??
@@ -84,13 +115,10 @@ class DoctorModel {
       imageUrl: getImageUrl(getField('profile_image_url') ??
           getField('profilePhotoUrl') ??
           getField('imageUrl')),
-      isAvailable: getField('isAvailable') ??
-          getField('isActive') ??
-          true, // Default to true if missing
-      consultationFee: double.tryParse(
-              getField('consultation_fee')?.toString() ??
-                  getField('consultationFee')?.toString() ??
-                  '0') ??
+      isAvailable: getField('isAvailable') ?? getField('isActive') ?? true,
+      consultationFee: double.tryParse(getField('consultation_fee')?.toString() ??
+              getField('consultationFee')?.toString() ??
+              '0') ??
           0.0,
       about: getField('about') ??
           getField('bio') ??
@@ -102,13 +130,33 @@ class DoctorModel {
               getField('yearsOfExperience') ??
               0)
           .toString(),
-      location: getField('clinicAddress') ?? getField('location') ?? 'Unknown Location',
-      availabilityDays: (getField('availabilityDays') as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          ["Mon", "Tue", "Wed", "Thu", "Fri"],
-      startTime: getField('startTime') ?? "09:00 AM",
-      endTime: getField('endTime') ?? "05:00 PM",
+      location: getField('clinicAddress') ??
+          getField('location') ??
+          'Unknown Location',
+      availabilityDays: rawAvailability
+          .where((e) =>
+              e['morningStart'] != null ||
+              e['eveningStart'] != null ||
+              e['startTime'] != null)
+          .map((e) => {
+                0: "Sun",
+                1: "Mon",
+                2: "Tue",
+                3: "Wed",
+                4: "Thu",
+                5: "Fri",
+                6: "Sat"
+              }[e['dayOfWeek']])
+          .whereType<String>()
+          .toSet() 
+          .toList(),
+      startTime: extractTime(true),
+      endTime: extractTime(false),
+      sessionDuration: int.tryParse(getField('sessionDurationMin')?.toString() ??
+              getField('sessionDuration')?.toString() ??
+              '30') ??
+          30,
+      rawAvailability: rawAvailability,
     );
   }
 
@@ -128,6 +176,8 @@ class DoctorModel {
       'availabilityDays': availabilityDays,
       'startTime': startTime,
       'endTime': endTime,
+      'sessionDuration': sessionDuration,
+      'rawAvailability': rawAvailability,
     };
   }
 }

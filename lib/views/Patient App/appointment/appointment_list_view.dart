@@ -15,6 +15,7 @@ import 'package:medlink/views/Patient App/consultation/chat_view.dart';
 import 'package:medlink/views/doctor/Doctor%20profile/doctor_profile_view.dart';
 import 'package:medlink/widgets/appointment_info_card.dart';
 import 'package:medlink/widgets/appointment_list_shimmer.dart';
+
 class AppointmentListView extends StatefulWidget {
   const AppointmentListView({super.key});
 
@@ -119,8 +120,7 @@ class _AppointmentListViewState extends State<AppointmentListView>
                         "No upcoming appointments")),
                 RefreshIndicator(
                     onRefresh: () => _fetchAppointmentsForTab(1),
-                    child: _buildAppointmentList(
-                        appointmentVM.pastAppointments,
+                    child: _buildAppointmentList(appointmentVM.pastAppointments,
                         "No past appointments")),
                 RefreshIndicator(
                     onRefresh: () => _fetchAppointmentsForTab(2),

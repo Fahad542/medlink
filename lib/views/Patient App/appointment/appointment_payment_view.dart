@@ -7,6 +7,7 @@ import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:medlink/views/main/main_screen.dart';
 
 class AppointmentPaymentView extends StatefulWidget {
   final DoctorModel doctor;
@@ -78,6 +79,8 @@ class _AppointmentPaymentViewState extends State<AppointmentPaymentView> {
 
       if (confirmResponse != null && confirmResponse['success'] == true) {
         if (mounted) {
+          setState(() =>
+              _isProcessing = false); // Stop loading before success dialog
           _showSuccessDialog();
         }
       } else {
@@ -85,7 +88,9 @@ class _AppointmentPaymentViewState extends State<AppointmentPaymentView> {
             confirmResponse?['message'] ?? "Payment confirmation failed");
       }
     } catch (e) {
-      setState(() => _isProcessing = false);
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
       if (e is StripeException) {
         if (e.error.code == FailureCode.Canceled) {
           debugPrint("User cancelled payment sheet");
@@ -142,8 +147,11 @@ class _AppointmentPaymentViewState extends State<AppointmentPaymentView> {
             CustomButton(
               text: "Go to Appointments",
               onPressed: () {
-                Navigator.pop(context); // Close dialog
-                Navigator.pop(context, true); // Return success to booking view
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(
+                      builder: (_) => const MainScreen(initialIndex: 1)),
+                  (route) => false,
+                );
               },
             ),
           ],
@@ -157,7 +165,7 @@ class _AppointmentPaymentViewState extends State<AppointmentPaymentView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: const CustomAppBar(title: "Complete Payment"),
-      body: SingleChildScrollView(
+      body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -217,7 +225,7 @@ class _AppointmentPaymentViewState extends State<AppointmentPaymentView> {
                 DateFormat('EEEE, MMM d, yyyy').format(widget.date)),
             _buildDetailRow(Icons.access_time_outlined, "Time", widget.time),
 
-            const SizedBox(height: 40),
+            const Spacer(),
 
             if (_isProcessing)
               Center(
@@ -243,6 +251,7 @@ class _AppointmentPaymentViewState extends State<AppointmentPaymentView> {
                 style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[500]),
               ),
             ),
+            const SizedBox(height: 16),
           ],
         ),
       ),

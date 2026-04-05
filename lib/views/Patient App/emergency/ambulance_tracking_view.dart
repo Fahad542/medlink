@@ -10,6 +10,8 @@ import 'package:medlink/views/call/call_view_model.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/Patient App/emergency/emergency_viewmodel.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:medlink/services/google_maps_service.dart';
 
 class AmbulanceTrackingView extends StatefulWidget {
   final AmbulanceModel ambulance;
@@ -27,6 +29,13 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
   late Animation<double> _pulseAnimation;
   final Completer<GoogleMapController> _mapController = Completer();
   bool hasInitialFit = false;
+  bool _isNavigatingBack = false;
+
+  List<LatLng> _routePoints = [];
+  LatLng? _lastRoutedTargetPos;
+  LatLng? _lastRoutedDriverPos;
+  bool _isFetchingRoute = false;
+  String _etaText = "";
 
   @override
   void initState() {
@@ -58,67 +67,113 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
     final controller = await _mapController.future;
     if (points.length == 1) {
       await controller.animateCamera(
-        CameraUpdate.newCameraPosition(
-          CameraPosition(target: points.first, zoom: 15),
-        ),
+          CameraUpdate.newLatLngZoom(points.first, 14));
+    } else {
+      LatLngBounds bounds = _boundsFromLatLngList(points);
+      await controller.animateCamera(CameraUpdate.newLatLngBounds(bounds, 80));
+    }
+  }
+
+  LatLngBounds _boundsFromLatLngList(List<LatLng> list) {
+    double? x0, x1, y0, y1;
+    for (LatLng latLng in list) {
+      if (x0 == null) {
+        x0 = x1 = latLng.latitude;
+        y0 = y1 = latLng.longitude;
+      } else {
+        if (latLng.latitude > x1!) x1 = latLng.latitude;
+        if (latLng.latitude < x0) x0 = latLng.latitude;
+        if (latLng.longitude > y1!) y1 = latLng.longitude;
+        if (latLng.longitude < y0!) y0 = latLng.longitude;
+        if (latLng.longitude < y0) y0 = latLng.longitude;
+      }
+    }
+    return LatLngBounds(
+      northeast: LatLng(x1!, y1!),
+      southwest: LatLng(x0!, y0!),
+    );
+  }
+
+  void _updateRouteIfNeeded(LatLng driverPos, LatLng targetPos) async {
+    if (_isFetchingRoute) return;
+    
+    // Calculate distance moved by driver to avoid too many API calls
+    double distanceMoved = 0;
+    if (_lastRoutedDriverPos != null) {
+      distanceMoved = Geolocator.distanceBetween(
+        _lastRoutedDriverPos!.latitude,
+        _lastRoutedDriverPos!.longitude,
+        driverPos.latitude,
+        driverPos.longitude,
       );
-      return;
     }
 
-    double minLat = points.first.latitude;
-    double maxLat = points.first.latitude;
-    double minLng = points.first.longitude;
-    double maxLng = points.first.longitude;
-    for (final p in points.skip(1)) {
-      minLat = p.latitude < minLat ? p.latitude : minLat;
-      maxLat = p.latitude > maxLat ? p.latitude : maxLat;
-      minLng = p.longitude < minLng ? p.longitude : minLng;
-      maxLng = p.longitude > maxLng ? p.longitude : maxLng;
+    // Fetch if:
+    // 1. No route yet
+    // 2. Target changed (e.g. from pickup to dropoff)
+    // 3. Driver moved significantly (more than 50 meters)
+    bool shouldFetch = _routePoints.isEmpty || 
+          _lastRoutedTargetPos == null || 
+          _lastRoutedTargetPos!.latitude != targetPos.latitude || 
+          _lastRoutedTargetPos!.longitude != targetPos.longitude ||
+          distanceMoved > 50;
+    
+    if (shouldFetch) {
+      _isFetchingRoute = true;
+      final routeData = await GoogleMapsService.getRouteCoordinates(driverPos, targetPos);
+      if (routeData != null && mounted) {
+        setState(() {
+           _routePoints = routeData['points'];
+           _etaText = routeData['durationText'];
+           _lastRoutedTargetPos = targetPos;
+           _lastRoutedDriverPos = driverPos;
+        });
+      }
+      _isFetchingRoute = false;
     }
-    await controller.animateCamera(
-      CameraUpdate.newLatLngBounds(
-        LatLngBounds(
-          southwest: LatLng(minLat, minLng),
-          northeast: LatLng(maxLat, maxLng),
-        ),
-        80,
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     final emergencyVM = Provider.of<EmergencyViewModel>(context);
     final ambulance = emergencyVM.assignedAmbulance ?? widget.ambulance;
-    final etaText = emergencyVM.sosEtaText.isNotEmpty
+    final etaText = _etaText.isNotEmpty ? _etaText : (emergencyVM.sosEtaText.isNotEmpty
         ? emergencyVM.sosEtaText
-        : ambulance.estimatedArrival;
+        : ambulance.estimatedArrival);
 
     final trip = emergencyVM.activeTrip;
     final latestLocation = trip?['latestLocation'] is Map
         ? Map<String, dynamic>.from(trip?['latestLocation'])
         : null;
-    final driverLat = _toDouble(latestLocation?['lat']);
-    final driverLng = _toDouble(latestLocation?['lng']);
+    
+    // Driver current position
+    final driverLat = _toDouble(latestLocation?['lat']) ?? _toDouble(emergencyVM.assignedAmbulance?.currentLat);
+    final driverLng = _toDouble(latestLocation?['lng']) ?? _toDouble(emergencyVM.assignedAmbulance?.currentLng);
 
-    final pickupLat = _toDouble(trip?['pickupLat']);
-    final pickupLng = _toDouble(trip?['pickupLng']);
-    final dropoffLat = _toDouble(trip?['dropoffLat']);
-    final dropoffLng = _toDouble(trip?['dropoffLng']);
+    // Pickup Pos (where the patient is)
+    final pickupLat = _toDouble(trip?['pickupLat']) ?? _toDouble(trip?['sos']?['latitude']);
+    final pickupLng = _toDouble(trip?['pickupLng']) ?? _toDouble(trip?['sos']?['longitude']);
+    
+    // Dropoff Pos (destination)
+    final dropoffLat = _toDouble(trip?['dropoffLat']) ?? _toDouble(trip?['sos']?['destinationLat']);
+    final dropoffLng = _toDouble(trip?['dropoffLng']) ?? _toDouble(trip?['sos']?['destinationLng']);
 
-    final driverHeading = _toDouble(latestLocation?['heading']) ?? 0.0;
+    final status = emergencyVM.sosStatus?.toUpperCase() ?? '';
+    final isTransporting = status == 'ARRIVED' || status == 'TRANSPORTING' || status == 'IN_PROGRESS';
 
-    LatLng? driverPos = (driverLat != null && driverLng != null)
-        ? LatLng(driverLat, driverLng)
-        : null;
-    LatLng? pickupPos = (pickupLat != null && pickupLng != null)
-        ? LatLng(pickupLat, pickupLng)
-        : null;
-    LatLng? dropoffPos = (dropoffLat != null && dropoffLng != null)
-        ? LatLng(dropoffLat, dropoffLng)
-        : null;
+    LatLng? driverPos = (driverLat != null && driverLng != null) ? LatLng(driverLat, driverLng) : null;
+    LatLng? pickupPos = (pickupLat != null && pickupLng != null) ? LatLng(pickupLat, pickupLng) : null;
+    LatLng? dropoffPos = (dropoffLat != null && dropoffLng != null) ? LatLng(dropoffLat, dropoffLng) : null;
 
-    final targetPos = pickupPos;
+    // Determine target based on status (Indrive style)
+    final targetPos = (isTransporting && dropoffPos != null) ? dropoffPos : (pickupPos ?? dropoffPos);
+
+    if (driverPos != null && targetPos != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _updateRouteIfNeeded(driverPos, targetPos);
+      });
+    }
+
     final markers = <Marker>{
       if (driverPos != null)
         Marker(
@@ -145,8 +200,8 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
     final polylines = <Polyline>{
       if (driverPos != null && targetPos != null)
         Polyline(
-          polylineId: const PolylineId('route'),
-          points: [driverPos, targetPos],
+          polylineId: PolylineId('route_${targetPos.latitude}_${targetPos.longitude}'),
+          points: _routePoints.isEmpty ? [driverPos, targetPos] : _routePoints,
           color: AppColors.primary,
           width: 6,
         ),
@@ -154,6 +209,19 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
 
     final cameraTarget =
         driverPos ?? pickupPos ?? dropoffPos ?? const LatLng(0, 0);
+
+    // Safe auto-close if trip is completed
+    if (!emergencyVM.isSosActive) {
+      if (!_isNavigatingBack) {
+        _isNavigatingBack = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            Navigator.of(context).pop();
+          }
+        });
+      }
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!_mapController.isCompleted) return;

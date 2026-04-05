@@ -1,12 +1,12 @@
 class AppUrl {
   /// Base URL
   /// Base URL
-  //static const String baseUrl = 'https://medlink-be-production.up.railway.app';
+  ///static const String baseUrl = 'https://medlink-be-production.up.railway.app';
 
-  static const String baseUrl =
-      'https://www.medlink-africa.com';
   // static const String baseUrl =
-  //     'http://10.0.2.2:3000'; // Emulator Magic IP (points to your machine)
+  //     'https://www.medlink-africa.com';
+  static const String baseUrl =
+      'http://192.168.100.104:3000'; // Emulator Magic IP (points to your machine)
 
   /// Common Auth Endpoints
   static const String loginEndPoint = '${baseUrl}/auth/login';
@@ -57,6 +57,8 @@ class AppUrl {
   static const String getDoctorsBySpecialty =
       '${baseUrl}/patient/doctors/available';
   static const String bookAppointments = '${baseUrl}/patient/appointments';
+  static const String getBookedSlots =
+      '${baseUrl}/patient/doctors'; // /{id}/booked-slots
   static const String getUpcomingAppointments =
       '${baseUrl}/patient/appointments/upcoming';
   static const String getCancelledAppointments =
@@ -115,6 +117,10 @@ class AppUrl {
       '${baseUrl}/doctor/appointments-history'; // ?patientId={id}
   static const String getPrescriptionDetails =
       '${baseUrl}/doctor/appointments'; // /{id}/prescription-
+  static const String updateDoctorPracticeSettings =
+      '${baseUrl}/doctor/practice-settings';
+  static const String updateDoctorAvailabilitySlots =
+      '${baseUrl}/doctor/availability/slots';
   /// Driver App Endpoints
   static const String getDriverProfile = '${baseUrl}/driver/profile';
   static const String updateDriverStatus = '${baseUrl}/driver/status';

@@ -32,15 +32,15 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
   late RtcEngine _engine;
   bool _engineReady = false;
   bool _isAutoJoining = false;
+  String? _joinedParticipantName;
   StreamSubscription? _statusSub;
+  StreamSubscription? _joinSub;
 
   @override
   void initState() {
     super.initState();
     _checkPermissions();
-    if (!widget.isDoctor) {
-      _initSocket();
-    }
+    _initSocket();
   }
 
   Future<void> _checkPermissions() async {
@@ -149,6 +149,46 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
         _autoJoinCall();
       }
     });
+
+    _joinSub = socketService.participantJoinedStream.listen((data) {
+      debugPrint("Socket: Participant joined event: $data");
+      final currentUserId = userVM.loginSession?.data?.user?.id?.toString();
+      
+      if (mounted && data['userId']?.toString() != currentUserId) {
+        setState(() {
+          if (data['status'] == 'LEFT') {
+            _joinedParticipantName = null;
+          } else {
+            _joinedParticipantName = data['fullName'];
+          }
+        });
+      }
+    });
+
+    // Notify backend that I am WAITING
+    ApiServices().updateCallStatus(
+      widget.appointmentId!, 
+      'WAITING', 
+      appointmentId: widget.appointmentId
+    );
+
+    // Also check current status (if Doctor already joined before we entered)
+    _checkCurrentCallStatus();
+  }
+
+  Future<void> _checkCurrentCallStatus() async {
+    try {
+      final response = await ApiServices().getCallStatus(widget.appointmentId!);
+      if (response != null && response['status'] == 'JOINED') {
+         if (mounted) {
+           setState(() {
+             _joinedParticipantName = widget.callTargetName ?? 'Doctor';
+           });
+         }
+      }
+    } catch(e) {
+      debugPrint("Error checking call status: $e");
+    }
   }
 
   Future<void> _autoJoinCall() async {
@@ -183,6 +223,7 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
   @override
   void dispose() {
     _statusSub?.cancel();
+    _joinSub?.cancel();
     if (widget.appointmentId != null) {
       WaitingRoomSocketService.instance.leaveAppointmentRoom(widget.appointmentId!);
     }
@@ -291,11 +332,19 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
           const SizedBox(height: 30),
 
           // Info Text
-          Text(
-            "Waiting for ${widget.callTargetName ?? 'Doctor'}...",
-            style: GoogleFonts.inter(
-                color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
-          ),
+          if (_joinedParticipantName != null)
+             Text(
+              "$_joinedParticipantName has joined the call!",
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                  color: AppColors.primary, fontSize: 18, fontWeight: FontWeight.bold),
+            )
+          else
+            Text(
+              "Waiting for ${widget.callTargetName ?? 'Doctor'}...",
+              style: GoogleFonts.inter(
+                  color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
           const SizedBox(height: 8),
           // TODO: Implement Real-time status check from Backend (isUserInCall?)
           Text(

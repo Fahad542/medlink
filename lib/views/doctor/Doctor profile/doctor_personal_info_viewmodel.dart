@@ -43,10 +43,10 @@ class DoctorPersonalInfoViewModel extends ChangeNotifier {
   void _populateControllers(DoctorModel doctor) {
     nameController.text = doctor.name;
     specializationController.text = doctor.specialty;
-    experienceController.text = doctor.experience ?? "";
+    experienceController.text = doctor.experience;
     bioController.text = doctor.about;
     clinicNameController.text = doctor.hospital;
-    clinicAddressController.text = doctor.location ?? "";
+    clinicAddressController.text = doctor.location;
     // Note: Email and phone might need to be fetched from session or a separate profile call
     final user = _userViewModel.loginSession?.data?.user;
     if (user != null) {
@@ -73,11 +73,24 @@ class DoctorPersonalInfoViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await _apiServices.getDoctorProfile();
-      if (response != null && response['success'] == true) {
-        final Map<String, dynamic> data = response['data'];
+      // 1. Fetch Profile Details
+      final profileResponse = await _apiServices.getDoctorProfile();
+      // 2. Fetch Practice Settings (availability, fee, duration)
+      final settingsResponse = await _apiServices.getPracticeSettings();
 
-        // SYNC: We must preserve the accessToken AND the role when updating the local session
+      if (profileResponse != null && profileResponse['success'] == true) {
+        Map<String, dynamic> data = profileResponse['data'];
+
+        // Merge practice settings if available
+        if (settingsResponse != null && settingsResponse['success'] == true) {
+          final settingsData = settingsResponse['data'];
+          data['practiceSettings'] = settingsData;
+          // Flatten some common fields for easier parsing in DoctorModel
+          data['consultationFee'] = settingsData['consultationFee'];
+          data['sessionDurationMin'] = settingsData['sessionDurationMin'];
+          data['availability'] = settingsData['days'];
+        }
+
         if (_userViewModel.loginSession != null &&
             _userViewModel.loginSession!.data != null) {
           final currentAccessToken =
@@ -100,7 +113,6 @@ class DoctorPersonalInfoViewModel extends ChangeNotifier {
           final updatedLoginModel = UserLoginModel.fromJson(updatedSessionJson);
           await _userViewModel.saveUserLoginSession(updatedLoginModel);
 
-          // Update local controllers with fresh data
           final updatedDoctor = DoctorModel.fromJson(updatedUserJson);
           _populateControllers(updatedDoctor);
         }
@@ -147,6 +159,72 @@ class DoctorPersonalInfoViewModel extends ChangeNotifier {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Error updating profile: $e")),
+        );
+      }
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> updateAvailability({
+    required Set<String> selectedDays,
+    required double consultationFee,
+    required double sessionDuration,
+    required TimeOfDay? morningStart,
+    required TimeOfDay? morningEnd,
+    required TimeOfDay? eveningStart,
+    required TimeOfDay? eveningEnd,
+    required BuildContext context,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final Map<String, int> dayToNum = {
+        "Sun": 0, "Mon": 1, "Tue": 2, "Wed": 3, "Thu": 4, "Fri": 5, "Sat": 6
+      };
+
+      String? formatTime(TimeOfDay? tod) {
+        if (tod == null) return null;
+        final hour = tod.hour.toString().padLeft(2, '0');
+        final minute = tod.minute.toString().padLeft(2, '0');
+        return "$hour:$minute";
+      }
+
+      final List<Map<String, dynamic>> daysPayload = selectedDays.map((day) {
+        return {
+          "dayOfWeek": dayToNum[day],
+          "morningStart": formatTime(morningStart),
+          "morningEnd": formatTime(morningEnd),
+          "eveningStart": formatTime(eveningStart),
+          "eveningEnd": formatTime(eveningEnd),
+        };
+      }).toList();
+
+      final Map<String, dynamic> payload = {
+        "consultationFee": consultationFee,
+        "sessionDurationMin": sessionDuration.toInt(),
+        "days": daysPayload,
+      };
+
+      debugPrint("UPDATING PRACTICE SETTINGS: $payload");
+      final response = await _apiServices.updateDoctorPracticeSettings(payload);
+
+      if (response != null && response['success'] == true) {
+        debugPrint("AVAILABILITY UPDATE SUCCESS. FETCHING PROFILE...");
+        await fetchDoctorProfile();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Availability updated successfully")),
+          );
+          Navigator.pop(context);
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error updating availability: $e")),
         );
       }
     } finally {

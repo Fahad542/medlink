@@ -8,12 +8,10 @@ import 'package:medlink/views/doctor/Doctor%20profile/doctor_profile_view.dart';
 import 'package:provider/provider.dart';
 import 'package:medlink/views/Patient App/appointment/appointment_viewmodel.dart';
 import 'package:medlink/utils/utils.dart';
-import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/widgets/custom_network_image.dart';
 
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class AppointmentInfoCard extends StatelessWidget {
   final AppointmentModel appointment;
@@ -85,20 +83,8 @@ class AppointmentInfoCard extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // Pay Now — only if confirmed but not paid
-            if (appointment.status == AppointmentStatus.confirmed &&
-                !appointment.isPaid)
-              _buildOptionItem(
-                context,
-                icon: Icons.payments_outlined,
-                title: "Pay Now",
-                subtitle: "Complete payment to secure your session",
-                color: Colors.orange,
-                onTap: () {
-                  Navigator.pop(context);
-                  _handlePayment(context);
-                },
-              ),
+            // Pay Now section was here and has been removed as per user request.
+
 
             // View Prescription — only if prescription exists
             if (appointment.prescription != null)
@@ -1389,30 +1375,5 @@ class AppointmentInfoCard extends StatelessWidget {
       ),
     );
   }
-
-  Future<void> _handlePayment(BuildContext context) async {
-    try {
-      final apiService = ApiServices();
-      final response =
-          await apiService.createAppointmentPaymentCheckout(appointment.id);
-
-      if (response != null &&
-          response['success'] == true &&
-          response['data'] != null) {
-        final String url = response['data']['url'];
-        if (await canLaunchUrl(Uri.parse(url))) {
-          await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-        } else {
-          Utils.toastMessage(context, "Could not launch payment page",
-              isError: true);
-        }
-      } else {
-        Utils.toastMessage(
-            context, response?['message'] ?? "Failed to initiate payment",
-            isError: true);
-      }
-    } catch (e) {
-      Utils.toastMessage(context, "An error occurred: $e", isError: true);
-    }
-  }
 }
+

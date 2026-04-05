@@ -10,6 +10,9 @@ class CallViewModel extends ChangeNotifier {
   Timer? _pollingTimer;
   bool _isChecking = false;
 
+  /// Global flag: prevents duplicate incoming call screens from socket + polling
+  static bool isIncomingCallActive = false;
+
   @override
   void dispose() {
     _pollingTimer?.cancel();
@@ -19,10 +22,15 @@ class CallViewModel extends ChangeNotifier {
   Future<String> getCallStatus(String channelName) async {
     try {
       final response = await _apiServices.getCallStatus(channelName);
-      if (response != null &&
-          response['success'] == true &&
-          response['data'] != null) {
-        return response['data']['status'];
+      if (response != null) {
+        // Backend returns { status: 'RINGING' } directly
+        if (response['status'] != null) {
+          return response['status'].toString();
+        }
+        // Fallback: wrapped format { success: true, data: { status: ... } }
+        if (response['success'] == true && response['data'] != null) {
+          return response['data']['status']?.toString() ?? 'UNKNOWN';
+        }
       }
     } catch (e) {
       debugPrint("Get call status error: $e");
@@ -40,9 +48,13 @@ class CallViewModel extends ChangeNotifier {
 
   void startPolling(BuildContext context) {
     _pollingTimer?.cancel();
-    // Increased polling interval to 10 seconds to reduce server load
     _pollingTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
       if (_isChecking) return;
+      // Skip if an incoming call is already being shown (e.g. via socket)
+      if (isIncomingCallActive) {
+        debugPrint('[CallViewModel] Polling skipped — incoming call already active');
+        return;
+      }
       _isChecking = true;
       try {
         final response = await _apiServices.checkIncomingCall();
@@ -50,10 +62,18 @@ class CallViewModel extends ChangeNotifier {
           final data = response['data'];
           if (data != null && data['active'] == true && data['data'] != null) {
             final callData = data['data'];
-            // Incoming Call Found!
+
+            // Double-check flag again after async call
+            if (isIncomingCallActive) return;
+
             if (context.mounted) {
-              // Pause polling while ringing
               _pollingTimer?.cancel();
+
+              final callerId = callData['callerId'] is int
+                  ? callData['callerId'] as int
+                  : int.tryParse(callData['callerId']?.toString() ?? '');
+
+              isIncomingCallActive = true;
 
               Navigator.push(
                 context,
@@ -62,17 +82,17 @@ class CallViewModel extends ChangeNotifier {
                     callerName: callData['callerName'] ?? 'Unknown',
                     callerPhoto: callData['callerPhoto'],
                     channelName: callData['channelName'],
-                    token: callData['token'], // If pre-generated
-                    appId: callData['appId'], // If sent
+                    token: callData['token'],
+                    appId: callData['appId'],
+                    callerId: callerId,
                     onDecline: () {
-                      // Resume polling after decline
                       startPolling(context);
                     },
                   ),
                 ),
               ).then((result) {
+                isIncomingCallActive = false;
                 if (result == true) {
-                  // Accepted -> Go to Call Screen
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -83,16 +103,15 @@ class CallViewModel extends ChangeNotifier {
                         recipientName: callData['callerName'] ?? 'Caller',
                         recipientPhoto: callData['callerPhoto'],
                         isCaller: false,
+                        recipientId: callerId,
                       ),
                     ),
                   ).then((_) {
-                    // Resume polling after call ends
                     if (_pollingTimer?.isActive != true) {
                       startPolling(context);
                     }
                   });
                 } else {
-                  // Declined or dismissed
                   if (_pollingTimer?.isActive != true) {
                     startPolling(context);
                   }
@@ -126,10 +145,9 @@ class CallViewModel extends ChangeNotifier {
         final channelName = data['channelName'];
         final token = data['token'];
         final appId = data['appId'];
+        final recipientIdFromResponse = data['recipientId'];
 
         if (context.mounted) {
-          // Navigate to call screen
-          // When this screen is popped, it means call ended
           await Navigator.push(
             context,
             MaterialPageRoute(
@@ -140,10 +158,12 @@ class CallViewModel extends ChangeNotifier {
                 recipientName: recipientName,
                 recipientPhoto: recipientPhoto,
                 isCaller: true,
+                recipientId: recipientIdFromResponse is int
+                    ? recipientIdFromResponse
+                    : int.tryParse(recipientIdFromResponse?.toString() ?? ''),
               ),
             ),
           );
-          // Call ended, maybe show a toast
         }
       } else {
         if (context.mounted) {

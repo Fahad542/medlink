@@ -37,6 +37,15 @@ class _BookAppointmentContentState extends State<_BookAppointmentContent> {
   DateTime _focusedMonth = DateTime.now();
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final viewModel = Provider.of<DoctorProfileViewModel>(context, listen: false);
+      viewModel.selectDate(viewModel.selectedDate, widget.doctor);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final viewModel = Provider.of<DoctorProfileViewModel>(context);
 
@@ -80,17 +89,70 @@ class _BookAppointmentContentState extends State<_BookAppointmentContent> {
               itemBuilder: (context, index) {
                 final time = viewModel.timeSlots[index];
                 final isSelected = viewModel.selectedTime == time;
+                // Accurately check if this slot is already booked (even partially)
+                bool isBooked = false;
+                try {
+                  final slotTime = DateFormat("hh:mm a").parse(time);
+                  
+                  isBooked = viewModel.bookedRanges.any((range) {
+                    final bStart = range.start;
+                    final bEnd = range.end;
+                    
+                    // Convert both to a comparable "minutes from start of day" value
+                    // This ignores year/month/day differences which might vary by timezone
+                    final slotMins = slotTime.hour * 60 + slotTime.minute;
+                    // bStart and bEnd are guaranteed UTC from AppointmentViewModel fetch
+                    final startMins = bStart.hour * 60 + bStart.minute;
+                    final endMins = bEnd.hour * 60 + bEnd.minute;
+                    
+                    final match = slotMins >= startMins && slotMins < endMins;
+                    if (match) {
+                      debugPrint("[BookAppointmentView] Slot $time (mins: $slotMins) MATCHES range $startMins - $endMins mins");
+                    }
+                    return match;
+                  });
+                } catch(e) {
+                   isBooked = viewModel.bookedSlots.any((slot) =>
+                    slot.trim().toUpperCase() == time.trim().toUpperCase());
+                }
+
+                final isPast = viewModel.pastSlots.contains(time);
+                final isDisabled = isBooked || isPast || viewModel.isLoadingBookedSlots;
+
                 return InkWell(
-                  onTap: () => viewModel.selectTime(time),
+                  onTap: () {
+                    if (viewModel.isLoadingBookedSlots) {
+                       return; // Still loading availability
+                    }
+                    if (isBooked) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text("This slot is already taken")),
+                      );
+                      return;
+                    }
+                    if (isPast) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text("Cannot book a past time slot")),
+                      );
+                      return;
+                    }
+                    viewModel.selectTime(time);
+                  },
                   borderRadius: BorderRadius.circular(24),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: isSelected ? AppColors.primary : Colors.white,
+                      color: isSelected
+                          ? AppColors.primary
+                          : (isDisabled ? Colors.grey[100] : Colors.white),
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(
-                        color: isSelected ? AppColors.primary : Colors.grey.withOpacity(0.2),
+                        color: isSelected
+                            ? AppColors.primary
+                            : Colors.grey.withOpacity(0.2),
                       ),
                     ),
                     child: Text(
@@ -98,7 +160,9 @@ class _BookAppointmentContentState extends State<_BookAppointmentContent> {
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         fontWeight: FontWeight.w500, // Unbolded
-                        color: isSelected ? Colors.white : Colors.grey[600],
+                        color: isSelected
+                            ? Colors.white
+                            : (isDisabled ? Colors.grey[400] : Colors.grey[600]),
                       ),
                     ),
                   ),
@@ -256,18 +320,38 @@ class _BookAppointmentContentState extends State<_BookAppointmentContent> {
               }
               
               final currentDate = DateTime(_focusedMonth.year, _focusedMonth.month, dayNumber);
+              final now = DateTime.now();
+              final today = DateTime(now.year, now.month, now.day);
+              final isPast = currentDate.isBefore(today);
+              
               final isSelected = DateUtils.isSameDay(viewModel.selectedDate, currentDate);
-              final isToday = DateUtils.isSameDay(DateTime.now(), currentDate);
+              final isToday = DateUtils.isSameDay(now, currentDate);
+              final isDocAvailable = widget.doctor.availabilityDays.contains(DateFormat('E').format(currentDate));
+              final isAvailable = !isPast && isDocAvailable;
 
               return InkWell(
                 onTap: () {
-                  viewModel.selectDate(currentDate);
+                  if (isPast) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Cannot book a past date")),
+                    );
+                    return;
+                  }
+                  if (!isDocAvailable) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("Doctor is not available on ${DateFormat('EEEE').format(currentDate)}")),
+                    );
+                    return;
+                  }
+                  viewModel.selectDate(currentDate, widget.doctor);
                 },
                 borderRadius: BorderRadius.circular(10), // Circle or rounded square
                 child: Container(
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: isSelected ? AppColors.primary : Colors.transparent,
+                    color: isSelected 
+                        ? AppColors.primary 
+                        : (!isAvailable ? Colors.grey[200] : Colors.transparent),
                     shape: BoxShape.circle,
                     border: isToday && !isSelected ? Border.all(color: AppColors.primary, width: 1.5) : null,
                   ),
@@ -276,7 +360,9 @@ class _BookAppointmentContentState extends State<_BookAppointmentContent> {
                     style: GoogleFonts.inter(
                       fontSize: 14,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                      color: isSelected ? Colors.white : Colors.grey[800],
+                      color: isSelected 
+                          ? Colors.white 
+                          : (!isAvailable ? Colors.grey[400] : Colors.grey[800]),
                     ),
                   ),
                 ),

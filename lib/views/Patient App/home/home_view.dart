@@ -1,10 +1,10 @@
 import 'dart:io';
-import 'package:shimmer/shimmer.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/Patient%20App/emergency/emergency_viewmodel.dart';
+import 'package:medlink/views/Patient%20App/emergency/destination_picker_view.dart';
 import 'package:medlink/widgets/sos_button.dart';
 import 'package:medlink/views/Patient%20App/Find%20a%20doctor/doctor_list_view.dart';
 import 'package:medlink/views/Patient App/consultation/chat_list_view.dart';
@@ -412,65 +412,11 @@ class _HomeViewState extends State<HomeView> {
 
   void _showSOSConfirmation(
       BuildContext context, EmergencyViewModel emergencyVM) {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 8),
-              const Text(
-                "Activate SOS?",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "Are you sure you want to request an ambulance instantly?",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[600], fontSize: 14),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        foregroundColor: Colors.grey.shade700,
-                      ),
-                      child: const Text("Cancel"),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        emergencyVM.triggerSos(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        elevation: 0,
-                      ),
-                      child: const Text("Yes, Activate"),
-                    ),
-                  ),
-                ],
-              )
-            ],
-          ),
-        ),
+    // Navigate to maps view to pick destination before triggering SOS
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const DestinationPickerView(),
       ),
     );
   }
