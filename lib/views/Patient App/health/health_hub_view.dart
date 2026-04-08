@@ -861,6 +861,9 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
                           child: GestureDetector(
                             onTap: () async {
                               if (video.videoUrl.isNotEmpty) {
+                                await Provider.of<HealthHubViewModel>(context,
+                                        listen: false)
+                                    .recordReelView(video.id);
                                 final Uri url = Uri.parse(video.videoUrl);
                                 if (await canLaunchUrl(url)) {
                                   await launchUrl(url,

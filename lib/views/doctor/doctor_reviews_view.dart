@@ -1,180 +1,209 @@
 import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/data/network/api_services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/models/doctor_model.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
+import 'package:intl/intl.dart';
 
 class DoctorReviewsView extends StatelessWidget {
   final DoctorModel doctor;
+  final bool isDoctorMode;
 
-  const DoctorReviewsView({super.key, required this.doctor});
+  const DoctorReviewsView({
+    super.key,
+    required this.doctor,
+    this.isDoctorMode = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // Mock List of Reviews
-    final reviews = [
-      {
-        "name": "John Doe",
-        "rating": 4.5,
-        "comment": "Great experience, very professional.",
-        "date": "2 days ago"
-      },
-      {
-        "name": "Jane Smith",
-        "rating": 5.0,
-        "comment": "Highly recommended!",
-        "date": "1 week ago"
-      },
-      {
-        "name": "Michael Brown",
-        "rating": 4.0,
-        "comment": "Good doctor, but wait time was long.",
-        "date": "3 weeks ago"
-      },
-      {
-        "name": "Emily White",
-        "rating": 5.0,
-        "comment": "Excellent care and friendly staff.",
-        "date": "1 month ago"
-      },
-      {
-        "name": "David Wilson",
-        "rating": 3.5,
-        "comment": "Average experience.",
-        "date": "1 month ago"
-      },
-      {
-        "name": "Sarah Johnson",
-        "rating": 4.8,
-        "comment": "Very knowledgeable and kind.",
-        "date": "2 months ago"
-      },
-    ];
-
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      appBar: CustomAppBar(title: "Reviews for ${doctor.name
-          .split(' ')
-          .first}"), // Shorten name for title
-      body: Column(
-        children: [
-          _buildReviewSummary(reviews),
-          Expanded(
-            child: ListView.separated(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              itemCount: reviews.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              // Reduced spacing
-              itemBuilder: (context, index) {
-                final review = reviews[index];
-                return Container(
-                  padding: const EdgeInsets.all(12), // Reduced padding
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    // Slightly less rounded
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xff1D1617).withOpacity(0.04),
-                        offset: const Offset(0, 3),
-                        blurRadius: 10,
-                        spreadRadius: 0,
+      appBar: CustomAppBar(
+          title:
+              "Reviews for ${doctor.name.split(' ').first}"), // Shorten name for title
+      body: FutureBuilder<dynamic>(
+        future: isDoctorMode
+            ? ApiServices().getDoctorReviews()
+            : ApiServices().getPatientDoctorReviews(doctor.id),
+        builder: (context, snapshot) {
+          final response = snapshot.data;
+          final data = response is Map ? response['data'] : null;
+          final reviews = (data is Map && data['reviews'] is List)
+              ? List<Map<String, dynamic>>.from(data['reviews'])
+              : <Map<String, dynamic>>[];
+          final avg = double.tryParse(
+                  (data is Map ? data['averageRating'] : doctor.rating)
+                      .toString()) ??
+              doctor.rating;
+          final total = int.tryParse(
+                  (data is Map ? data['totalReviews'] : doctor.totalReviews)
+                      .toString()) ??
+              doctor.totalReviews;
+
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final distribution = _buildDistribution(reviews);
+
+          return Column(
+            children: [
+              _buildReviewSummary(
+                averageRating: avg,
+                totalReviews: total,
+                distribution: distribution,
+              ),
+              Expanded(
+                child: reviews.isEmpty
+                    ? const Center(child: Text("No reviews yet"))
+                    : ListView.separated(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 16),
+                        itemCount: reviews.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final review = reviews[index];
+                          return _buildReviewCard(review);
+                        },
                       ),
-                    ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildReviewCard(Map<String, dynamic> review) {
+    final patientMap = review['patient'] is Map
+        ? Map<String, dynamic>.from(review['patient'])
+        : <String, dynamic>{};
+    final reviewerName = (patientMap['fullName'] ??
+            review['patientName'] ??
+            review['name'] ??
+            "Patient")
+        .toString();
+    final rating = (double.tryParse(review['rating']?.toString() ?? '0') ?? 0)
+        .toStringAsFixed(1);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xff1D1617).withOpacity(0.04),
+            offset: const Offset(0, 3),
+            blurRadius: 10,
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.08),
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      reviewerName.characters.first,
+                      style: GoogleFonts.inter(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14),
+                    ),
                   ),
-                  child: Column(
+                  const SizedBox(width: 10),
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                width: 32,
-                                // Smaller avatar
-                                height: 32,
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary.withOpacity(0.08),
-                                  shape: BoxShape.circle,
-                                ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  (review['name'] as String)[0],
-                                  style: GoogleFonts.inter(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    review['name'] as String,
-                                    style: GoogleFonts.inter(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 14,
-                                        color: const Color(0xFF1E293B)),
-                                  ),
-                                  Text(
-                                    review['date'] as String,
-                                    style: GoogleFonts.inter(
-                                        color: Colors.grey[500], fontSize: 10),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.05),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.star_rounded, size: 14,
-                                    color: Colors.amber),
-                                const SizedBox(width: 4),
-                                Text(
-                                  (review['rating'] as double).toString(),
-                                  style: GoogleFonts.inter(
-                                      color: const Color(0xFF1E293B),
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 11),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
                       Text(
-                        review['comment'] as String,
-                        style: GoogleFonts.inter(color: const Color(0xFF64748B),
-                            height: 1.4,
-                            fontSize: 12.5),
+                        reviewerName,
+                        style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: const Color(0xFF1E293B)),
+                      ),
+                      Text(
+                        _formatReviewDate(review['createdAt']),
+                        style: GoogleFonts.inter(
+                            color: Colors.grey[500], fontSize: 10),
                       ),
                     ],
                   ),
-                );
-              },
-            ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.star_rounded,
+                        size: 14, color: Colors.amber),
+                    const SizedBox(width: 4),
+                    Text(
+                      rating,
+                      style: GoogleFonts.inter(
+                          color: const Color(0xFF1E293B),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            (review['comment'] ?? "No written feedback provided.").toString(),
+            style: GoogleFonts.inter(
+                color: const Color(0xFF64748B), height: 1.4, fontSize: 12.5),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildReviewSummary(List<Map<String, dynamic>> reviews) {
-    // Calculate stats (Mocked logic for simplicity, assuming data is static)
-    double averageRating = 4.8;
-    int totalReviews = 120; // Mock total
+  Map<int, double> _buildDistribution(List<Map<String, dynamic>> reviews) {
+    final counts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
+    for (final r in reviews) {
+      final star =
+          (double.tryParse(r['rating']?.toString() ?? '0') ?? 0).round();
+      if (star >= 1 && star <= 5) counts[star] = (counts[star] ?? 0) + 1;
+    }
+    final total = reviews.length;
+    if (total == 0) return {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
+    return {
+      1: (counts[1] ?? 0) / total,
+      2: (counts[2] ?? 0) / total,
+      3: (counts[3] ?? 0) / total,
+      4: (counts[4] ?? 0) / total,
+      5: (counts[5] ?? 0) / total,
+    };
+  }
 
+  Widget _buildReviewSummary({
+    required double averageRating,
+    required int totalReviews,
+    required Map<int, double> distribution,
+  }) {
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.all(16), // Reduced padding
@@ -184,23 +213,27 @@ class DoctorReviewsView extends StatelessWidget {
           Column(
             children: [
               Text(
-                averageRating.toString(),
-                style: GoogleFonts.inter(fontSize: 36,
+                averageRating.toStringAsFixed(1),
+                style: GoogleFonts.inter(
+                    fontSize: 36,
                     fontWeight: FontWeight.bold,
                     color: const Color(0xFF1E293B)), // Smaller font
               ),
               Row(
-                children: List.generate(5, (index) =>
-                    Icon(
-                        Icons.star_rounded,
-                        color: index < 4 ? Colors.amber : Colors.grey[300],
+                children: List.generate(
+                    5,
+                    (index) => Icon(Icons.star_rounded,
+                        color: index < averageRating.round()
+                            ? Colors.amber
+                            : Colors.grey[300],
                         size: 16 // Smaller stars
-                    )),
+                        )),
               ),
               const SizedBox(height: 4),
               Text(
                 "$totalReviews Reviews",
-                style: GoogleFonts.inter(color: Colors.grey[500],
+                style: GoogleFonts.inter(
+                    color: Colors.grey[500],
                     fontSize: 11,
                     fontWeight: FontWeight.w500),
               ),
@@ -211,17 +244,30 @@ class DoctorReviewsView extends StatelessWidget {
           Expanded(
             child: Column(
               children: [
-                _buildRatingBar(5, 0.8),
-                _buildRatingBar(4, 0.15),
-                _buildRatingBar(3, 0.03),
-                _buildRatingBar(2, 0.01),
-                _buildRatingBar(1, 0.01),
+                _buildRatingBar(5, distribution[5] ?? 0),
+                _buildRatingBar(4, distribution[4] ?? 0),
+                _buildRatingBar(3, distribution[3] ?? 0),
+                _buildRatingBar(2, distribution[2] ?? 0),
+                _buildRatingBar(1, distribution[1] ?? 0),
               ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _formatReviewDate(dynamic value) {
+    if (value == null) return "Recently";
+    final dt = DateTime.tryParse(value.toString());
+    if (dt == null) return value.toString();
+    final now = DateTime.now();
+    final diff = now.difference(dt.toLocal());
+    if (diff.inMinutes < 1) return "Just now";
+    if (diff.inHours < 1) return "${diff.inMinutes} min ago";
+    if (diff.inDays < 1) return "${diff.inHours} hours ago";
+    if (diff.inDays < 7) return "${diff.inDays} days ago";
+    return DateFormat('MMM d, yyyy').format(dt.toLocal());
   }
 
   Widget _buildRatingBar(int star, double value) {
@@ -231,7 +277,8 @@ class DoctorReviewsView extends StatelessWidget {
         children: [
           Text(
             "$star",
-            style: GoogleFonts.inter(fontSize: 11,
+            style: GoogleFonts.inter(
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: Colors.grey[600]), // Smaller font
           ),

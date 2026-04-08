@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:medlink/views/Patient App/appointment/appointment_viewmodel.dart';
 import 'package:medlink/utils/utils.dart';
 import 'package:medlink/widgets/custom_network_image.dart';
+import 'package:medlink/data/network/api_services.dart';
 
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -457,6 +458,9 @@ class AppointmentInfoCard extends StatelessWidget {
                                             ? "Session confirmed successfully"
                                             : "Failed to confirm session",
                                         isError: !success);
+                                    if (success) {
+                                      _showDoctorReviewBottomSheet(context);
+                                    }
                                   }
                                 },
                           style: ElevatedButton.styleFrom(
@@ -484,6 +488,110 @@ class AppointmentInfoCard extends StatelessWidget {
             ),
           );
         });
+      },
+    );
+  }
+
+  void _showDoctorReviewBottomSheet(BuildContext context) {
+    final api = ApiServices();
+    final commentController = TextEditingController();
+    int rating = 0;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        bool submitting = false;
+        return StatefulBuilder(
+          builder: (ctx, setState) => Padding(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 16,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Rate your doctor",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: List.generate(
+                    5,
+                    (index) => IconButton(
+                      onPressed: () => setState(() => rating = index + 1),
+                      icon: Icon(
+                        index < rating ? Icons.star : Icons.star_border,
+                        color: Colors.amber,
+                      ),
+                    ),
+                  ),
+                ),
+                TextField(
+                  controller: commentController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    hintText: "Write optional feedback",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: submitting
+                        ? null
+                        : () async {
+                            if (rating <= 0) {
+                              Utils.toastMessage(
+                                context,
+                                "Please select a star rating first",
+                                isError: true,
+                              );
+                              return;
+                            }
+                            setState(() => submitting = true);
+                            bool ok = false;
+                            try {
+                              final res = await api.submitDoctorReview(
+                                appointment.id.toString(),
+                                rating: rating,
+                                comment: commentController.text.trim(),
+                              );
+                              ok = res != null && res['success'] == true;
+                            } catch (_) {}
+                            if (!context.mounted) return;
+                            if (ok) {
+                              Navigator.pop(ctx);
+                              Utils.toastMessage(
+                                context,
+                                "Thank you for your review!",
+                              );
+                            } else {
+                              setState(() => submitting = false);
+                              Utils.toastMessage(
+                                context,
+                                "Review could not be submitted",
+                                isError: true,
+                              );
+                            }
+                          },
+                    child: submitting
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text("Submit Review"),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
       },
     );
   }

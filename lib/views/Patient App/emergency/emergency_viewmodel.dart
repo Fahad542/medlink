@@ -14,6 +14,7 @@ class EmergencyViewModel extends ChangeNotifier {
   String? _sosId;
   String? get sosId => _sosId;
   Map<String, dynamic>? _activeTrip;
+  String? _lastCompletedTripId;
   Timer? _pollingTimer;
   bool _realtimeEnabled = false;
   StreamSubscription<Map<String, dynamic>>? _sosSub;
@@ -27,6 +28,7 @@ class EmergencyViewModel extends ChangeNotifier {
   String? get sosStatus => _sosStatus;
   Map<String, dynamic>? get activeTrip => _activeTrip;
   String? get tripStatus => _activeTrip?['status']?.toString();
+  String? get lastCompletedTripId => _lastCompletedTripId;
 
   @override
   void dispose() {
@@ -75,6 +77,9 @@ class EmergencyViewModel extends ChangeNotifier {
       final status = _activeTrip?['status']?.toString();
 
       if (status == 'COMPLETED' || status == 'CANCELLED') {
+        if (status == 'COMPLETED') {
+          _lastCompletedTripId = _activeTrip?['id']?.toString();
+        }
         cancelSos();
         return;
       }
@@ -238,6 +243,11 @@ class EmergencyViewModel extends ChangeNotifier {
               // For tracking, we might want to keep polling if we implement live location later
             } else if (sos['status'] == 'RESOLVED' ||
                 sos['status'] == 'CANCELLED') {
+              final trip = _activeTrip;
+              final tripStatus = trip?['status']?.toString();
+              if (tripStatus == 'COMPLETED') {
+                _lastCompletedTripId = trip?['id']?.toString();
+              }
               cancelSos();
             }
           }
@@ -280,6 +290,11 @@ class EmergencyViewModel extends ChangeNotifier {
     _sosId = null;
     _activeTrip = null;
     _pollingTimer?.cancel();
+    notifyListeners();
+  }
+
+  void clearCompletedTripReviewPrompt() {
+    _lastCompletedTripId = null;
     notifyListeners();
   }
 }

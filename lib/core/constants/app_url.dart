@@ -56,6 +56,8 @@ class AppUrl {
       '${baseUrl}/patient/doctors/categories';
   static const String getDoctorsBySpecialty =
       '${baseUrl}/patient/doctors/available';
+  static const String getDoctorReviewsForPatient =
+      '${baseUrl}/patient/doctors'; // /{doctorId}/reviews
   static const String bookAppointments = '${baseUrl}/patient/appointments';
   static const String getBookedSlots =
       '${baseUrl}/patient/doctors'; // /{id}/booked-slots
@@ -121,6 +123,12 @@ class AppUrl {
       '${baseUrl}/doctor/practice-settings';
   static const String updateDoctorAvailabilitySlots =
       '${baseUrl}/doctor/availability/slots';
+  static const String doctorReviews = '${baseUrl}/doctor/reviews';
+  static const String doctorPayoutAccount = '${baseUrl}/doctor/payout-account';
+  static const String doctorWithdrawals = '${baseUrl}/doctor/withdrawals';
+  static const String doctorWithdrawalRequest =
+      '${baseUrl}/doctor/withdrawals/request';
+
   /// Driver App Endpoints
   static const String getDriverProfile = '${baseUrl}/driver/profile';
   static const String updateDriverStatus = '${baseUrl}/driver/status';
@@ -145,13 +153,23 @@ class AppUrl {
       '${baseUrl}/driver/earnings/summary';
   static const String getDriverEarningsTransactions =
       '${baseUrl}/driver/earnings/transactions';
+  static const String driverReviews = '${baseUrl}/driver/reviews';
+  static const String driverPayoutAccount = '${baseUrl}/driver/payout-account';
+  static const String driverWithdrawals = '${baseUrl}/driver/withdrawals';
+  static const String driverWithdrawalRequest =
+      '${baseUrl}/driver/withdrawals/request';
 
   /// Patient App Endpoints
   static const String createSos = '${baseUrl}/patient/sos';
   static const String emergencyContacts =
       '${baseUrl}/patient/emergency-contacts';
+  static const String patientReels = '${baseUrl}/patient/reels';
   static const String appointmentCheckout =
       '${baseUrl}/patient/appointments'; // /{id}/payment/checkout
   static const String confirmManualPayment =
       '${baseUrl}/patient/payments/confirm-manual';
+  static const String reviewDoctor =
+      '${baseUrl}/patient/appointments'; // /{appointmentId}/review-doctor
+  static const String reviewDriver =
+      '${baseUrl}/patient/trips'; // /{tripId}/review-driver
 }

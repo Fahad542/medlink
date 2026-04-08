@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:http/http.dart' as http;
 import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/data/network/network_api_services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -406,6 +405,58 @@ class ApiServices {
     }
   }
 
+  Future<dynamic> getDriverReviews() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.driverReviews);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getDriverPayoutAccount() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.driverPayoutAccount);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> upsertDriverPayoutAccount(Map<String, dynamic> data) async {
+    try {
+      return await _apiServices.getPatchApiResponse(
+        AppUrl.driverPayoutAccount,
+        jsonEncode(data),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> requestDriverWithdrawal({
+    required double amount,
+    String? note,
+  }) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        AppUrl.driverWithdrawalRequest,
+        jsonEncode({
+          'amount': amount,
+          if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+        }),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getDriverWithdrawals() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.driverWithdrawals);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<dynamic> loginApi(dynamic data) async {
     try {
       return await _apiServices.getPostApiResponse(
@@ -545,6 +596,16 @@ class ApiServices {
         url += "?specialtyId=$specialtyId";
       }
       return await _apiServices.getGetApiResponse(url);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getPatientDoctorReviews(String doctorId) async {
+    try {
+      return await _apiServices.getGetApiResponse(
+        '${AppUrl.getDoctorReviewsForPatient}/$doctorId/reviews',
+      );
     } catch (e) {
       rethrow;
     }
@@ -779,6 +840,44 @@ class ApiServices {
     }
   }
 
+  Future<dynamic> submitDoctorReview(
+    String appointmentId, {
+    required int rating,
+    String? comment,
+  }) async {
+    try {
+      final payload = {
+        'rating': rating,
+        if (comment != null && comment.trim().isNotEmpty) 'comment': comment,
+      };
+      return await _apiServices.getPostApiResponse(
+        '${AppUrl.reviewDoctor}/$appointmentId/review-doctor',
+        jsonEncode(payload),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> submitDriverReview(
+    String tripId, {
+    required int rating,
+    String? comment,
+  }) async {
+    try {
+      final payload = {
+        'rating': rating,
+        if (comment != null && comment.trim().isNotEmpty) 'comment': comment,
+      };
+      return await _apiServices.getPostApiResponse(
+        '${AppUrl.reviewDriver}/$tripId/review-driver',
+        jsonEncode(payload),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<dynamic> completeAppointment(String appointmentId) async {
     try {
       final url =
@@ -855,6 +954,54 @@ class ApiServices {
     }
   }
 
+  Future<dynamic> getPatientReels() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.patientReels);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getPatientReelById(String reelId) async {
+    try {
+      return await _apiServices.getGetApiResponse('${AppUrl.patientReels}/$reelId');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> markPatientReelViewed(String reelId) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        '${AppUrl.patientReels}/$reelId/view',
+        jsonEncode({}),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> likePatientReel(String reelId) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        '${AppUrl.patientReels}/$reelId/like',
+        jsonEncode({}),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> unlikePatientReel(String reelId) async {
+    try {
+      return await _apiServices.getDeleteApiResponse(
+        '${AppUrl.patientReels}/$reelId/like',
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<List<dynamic>> getPatientAppointments(String patientId,
       {String? status}) async {
     try {
@@ -899,6 +1046,58 @@ class ApiServices {
   Future<dynamic> getDoctorBalance() async {
     try {
       return await _apiServices.getGetApiResponse(AppUrl.getDoctorBalance);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getDoctorReviews() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.doctorReviews);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getDoctorPayoutAccount() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.doctorPayoutAccount);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> upsertDoctorPayoutAccount(Map<String, dynamic> data) async {
+    try {
+      return await _apiServices.getPutApiResponse(
+        AppUrl.doctorPayoutAccount,
+        jsonEncode(data),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> requestDoctorWithdrawal({
+    required double amount,
+    String? note,
+  }) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        AppUrl.doctorWithdrawalRequest,
+        jsonEncode({
+          'amount': amount,
+          if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+        }),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getDoctorWithdrawals() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.doctorWithdrawals);
     } catch (e) {
       rethrow;
     }

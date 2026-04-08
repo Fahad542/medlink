@@ -11,10 +11,14 @@ class AmbulanceEarningsViewModel extends ChangeNotifier {
   List<Map<String, dynamic>> _transactions = [];
   bool _isLoading = true;
   bool _isLoadingTransactions = false;
+  String? _maskedPayoutCard;
+  bool _hasPayoutAccount = false;
 
   bool get isLoading => _isLoading;
   bool get isLoadingTransactions => _isLoadingTransactions;
   List<Map<String, dynamic>> get transactions => List.unmodifiable(_transactions);
+  String? get maskedPayoutCard => _maskedPayoutCard;
+  bool get hasPayoutAccount => _hasPayoutAccount;
 
   String get totalBalanceFormatted => _formatAmount(_totalBalance);
   String get earningsTodayFormatted => _formatAmount(_earningsToday);
@@ -39,6 +43,7 @@ class AmbulanceEarningsViewModel extends ChangeNotifier {
       await Future.wait([
         _fetchSummary(),
         _fetchTransactions(),
+        _fetchPayoutAccount(),
       ]);
     } finally {
       _isLoading = false;
@@ -84,6 +89,58 @@ class AmbulanceEarningsViewModel extends ChangeNotifier {
     } catch (e) {
       debugPrint('AmbulanceEarningsViewModel _fetchTransactions error: $e');
       _transactions = [];
+    }
+  }
+
+  Future<void> _fetchPayoutAccount() async {
+    try {
+      final response = await _apiServices.getDriverPayoutAccount();
+      if (response != null && response['success'] == true) {
+        final data = response['data'];
+        final masked = _extractMaskedCard(data);
+        if (masked != null && masked.isNotEmpty) {
+          _maskedPayoutCard = masked;
+          _hasPayoutAccount = true;
+        } else {
+          _maskedPayoutCard = null;
+          _hasPayoutAccount = false;
+        }
+      }
+    } catch (e) {
+      debugPrint('AmbulanceEarningsViewModel _fetchPayoutAccount error: $e');
+      _maskedPayoutCard = null;
+      _hasPayoutAccount = false;
+    }
+  }
+
+  String? _extractMaskedCard(dynamic data) {
+    if (data is! Map) return null;
+    final payload = data['payoutAccount'] is Map ? data['payoutAccount'] : data;
+    if (payload is! Map) return null;
+
+    final masked = (payload['maskedCardNumber'] ?? payload['cardNumberMasked'])
+        ?.toString()
+        .trim();
+    if (masked != null && masked.isNotEmpty) return masked;
+
+    final last4 = payload['cardLast4']?.toString().trim();
+    if (last4 != null && last4.isNotEmpty) {
+      return "**** **** **** $last4";
+    }
+    return null;
+  }
+
+  Future<bool> requestWithdrawal({
+    required double amount,
+    String? note,
+  }) async {
+    try {
+      final response =
+          await _apiServices.requestDriverWithdrawal(amount: amount, note: note);
+      return response != null && response['success'] == true;
+    } catch (e) {
+      debugPrint('AmbulanceEarningsViewModel requestWithdrawal error: $e');
+      return false;
     }
   }
 }

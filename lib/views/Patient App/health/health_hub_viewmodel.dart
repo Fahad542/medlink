@@ -169,10 +169,41 @@ class HealthHubViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await _apiServices.getHealthVideos();
+      final response = await _apiServices.getPatientReels();
       if (response != null && response['data'] != null) {
-        final List<dynamic> dataList = response['data'];
-        _healthVideos = dataList.map((json) => HealthVideo.fromJson(json)).toList();
+        final reelsData = response['data'];
+        final List<dynamic> dataList = reelsData is List
+            ? reelsData
+            : (reelsData is Map && reelsData['items'] is List)
+                ? reelsData['items'] as List<dynamic>
+                : <dynamic>[];
+        if (dataList.isEmpty) {
+          final fallback = await _apiServices.getHealthVideos();
+          if (fallback != null && fallback['data'] != null) {
+            final fallbackData = fallback['data'];
+            final List<dynamic> fallbackList = fallbackData is List
+                ? fallbackData
+                : (fallbackData is Map && fallbackData['items'] is List)
+                    ? fallbackData['items'] as List<dynamic>
+                    : <dynamic>[];
+            _healthVideos =
+                fallbackList.map((json) => HealthVideo.fromJson(json)).toList();
+            return;
+          }
+        }
+        _healthVideos = dataList.map((json) => _mapReelToVideo(json)).toList();
+      } else {
+        final fallback = await _apiServices.getHealthVideos();
+        if (fallback != null && fallback['data'] != null) {
+          final fallbackData = fallback['data'];
+          final List<dynamic> dataList = fallbackData is List
+              ? fallbackData
+              : (fallbackData is Map && fallbackData['items'] is List)
+                  ? fallbackData['items'] as List<dynamic>
+                  : <dynamic>[];
+          _healthVideos =
+              dataList.map((json) => HealthVideo.fromJson(json)).toList();
+        }
       }
     } catch (e) {
       debugPrint("Error fetching health videos: $e");
@@ -180,6 +211,27 @@ class HealthHubViewModel extends ChangeNotifier {
       _isLoadingVideos = false;
       notifyListeners();
     }
+  }
+
+  Future<void> recordReelView(int reelId) async {
+    try {
+      await _apiServices.markPatientReelViewed(reelId.toString());
+    } catch (e) {
+      debugPrint("Error marking reel view: $e");
+    }
+  }
+
+  HealthVideo _mapReelToVideo(dynamic json) {
+    final Map<String, dynamic> data = json is Map<String, dynamic>
+        ? json
+        : <String, dynamic>{};
+    return HealthVideo(
+      id: data['id'] ?? 0,
+      title: (data['title'] ?? data['caption'] ?? '').toString(),
+      videoUrl: (data['videoUrl'] ?? data['video_url'] ?? '').toString(),
+      category: (data['category'] ?? 'Health').toString(),
+      createdAt: (data['createdAt'] ?? data['created_at'] ?? '').toString(),
+    );
   }
 
   // Helper method to assign predictable colors and icons based on title keywords

@@ -11,6 +11,8 @@ class DoctorEarningsViewModel extends ChangeNotifier {
   double _thisWeekEarning = 0.0;
   String _currency = "PKR";
   List<dynamic> _recentTransactions = [];
+  String? _maskedPayoutCard;
+  bool _hasPayoutAccount = false;
 
   DoctorEarningsViewModel() {
     fetchBalance();
@@ -22,6 +24,8 @@ class DoctorEarningsViewModel extends ChangeNotifier {
   double get thisWeekEarning => _thisWeekEarning;
   String get currency => _currency;
   List<dynamic> get recentTransactions => _recentTransactions;
+  String? get maskedPayoutCard => _maskedPayoutCard;
+  bool get hasPayoutAccount => _hasPayoutAccount;
 
   Future<void> fetchBalance() async {
     _isLoading = true;
@@ -39,11 +43,65 @@ class DoctorEarningsViewModel extends ChangeNotifier {
           _recentTransactions = data['recentTransactions'] ?? [];
         }
       }
+      await fetchPayoutAccount();
     } catch (e) {
       debugPrint("Error fetching doctor balance: $e");
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> fetchPayoutAccount() async {
+    try {
+      final response = await _apiServices.getDoctorPayoutAccount();
+      if (response != null && response['success'] == true) {
+        final data = response['data'];
+        final masked = _extractMaskedCard(data);
+        if (masked != null && masked.isNotEmpty) {
+          _maskedPayoutCard = masked;
+          _hasPayoutAccount = true;
+        } else {
+          _maskedPayoutCard = null;
+          _hasPayoutAccount = false;
+        }
+      }
+    } catch (e) {
+      debugPrint("Error fetching doctor payout account: $e");
+      _maskedPayoutCard = null;
+      _hasPayoutAccount = false;
+    }
+    notifyListeners();
+  }
+
+  String? _extractMaskedCard(dynamic data) {
+    if (data is! Map) return null;
+    final payload = data['payoutAccount'] is Map ? data['payoutAccount'] : data;
+    if (payload is! Map) return null;
+
+    final masked = (payload['maskedCardNumber'] ?? payload['cardNumberMasked'])
+        ?.toString()
+        .trim();
+    if (masked != null && masked.isNotEmpty) return masked;
+
+    final last4 = payload['cardLast4']?.toString().trim();
+    if (last4 != null && last4.isNotEmpty) {
+      return "**** **** **** $last4";
+    }
+    return null;
+  }
+
+  Future<bool> requestWithdrawal({
+    required double amount,
+    String? note,
+  }) async {
+    try {
+      final response =
+          await _apiServices.requestDoctorWithdrawal(amount: amount, note: note);
+      return response != null && response['success'] == true;
+    } catch (e) {
+      debugPrint("Error requesting doctor withdrawal: $e");
+      return false;
     }
   }
 

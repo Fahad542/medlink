@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -12,24 +13,121 @@ class PayoutSettingsView extends StatefulWidget {
 }
 
 class _PayoutSettingsViewState extends State<PayoutSettingsView> with SingleTickerProviderStateMixin {
+  final ApiServices _apiServices = ApiServices();
   late TabController _tabController;
   final _bankNameController = TextEditingController();
   final _accountNameController = TextEditingController();
   final _accountNumberController = TextEditingController();
   final _swiftCodeController = TextEditingController();
-  
+
   final _mobileNumberController = TextEditingController();
+  bool _isLoading = false;
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _loadPayoutAccount();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _bankNameController.dispose();
+    _accountNameController.dispose();
+    _accountNumberController.dispose();
+    _swiftCodeController.dispose();
+    _mobileNumberController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadPayoutAccount() async {
+    setState(() => _isLoading = true);
+    try {
+      final response = await _apiServices.getDoctorPayoutAccount();
+      if (response != null && response['success'] == true) {
+        final rawData = response['data'];
+        final data = (rawData is Map && rawData['payoutAccount'] is Map)
+            ? rawData['payoutAccount']
+            : rawData;
+        if (data is Map) {
+          _accountNameController.text =
+              (data['accountHolderName'] ?? '').toString();
+          _bankNameController.text = (data['bankName'] ?? '').toString();
+          final maskedCard =
+              (data['maskedCardNumber'] ?? data['cardNumberMasked'])?.toString();
+          if (maskedCard != null && maskedCard.isNotEmpty) {
+            _accountNumberController.text = maskedCard;
+          } else if (data['cardLast4'] != null) {
+            _accountNumberController.text = '**** **** **** ${data['cardLast4']}';
+          }
+          if (data['expiryMonth'] != null && data['expiryYear'] != null) {
+            _swiftCodeController.text =
+                '${data['expiryMonth']}/${data['expiryYear']}';
+          }
+        }
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to load payout account')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _saveBankDetails() async {
+    final name = _accountNameController.text.trim();
+    final number = _accountNumberController.text.trim();
+    final bankName = _bankNameController.text.trim();
+    final expiryRaw = _swiftCodeController.text.trim();
+
+    if (name.isEmpty || number.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Account name and card number are required')),
+      );
+      return;
+    }
+
+    int? expiryMonth;
+    int? expiryYear;
+    if (expiryRaw.isNotEmpty && expiryRaw.contains('/')) {
+      final parts = expiryRaw.split('/');
+      if (parts.length == 2) {
+        expiryMonth = int.tryParse(parts[0]);
+        expiryYear = int.tryParse(parts[1]);
+      }
+    }
+
+    setState(() => _isSaving = true);
+    try {
+      final payload = {
+        'accountHolderName': name,
+        'cardNumber': number.replaceAll(' ', ''),
+        if (bankName.isNotEmpty) 'bankName': bankName,
+        if (expiryMonth != null) 'expiryMonth': expiryMonth,
+        if (expiryYear != null) 'expiryYear': expiryYear,
+      };
+      final response = await _apiServices.upsertDoctorPayoutAccount(payload);
+      if (response != null && response['success'] == true) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Payout account saved')),
+        );
+        Navigator.pop(context);
+      } else {
+        throw Exception('Failed');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to save payout account')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   @override
@@ -96,13 +194,15 @@ class _PayoutSettingsViewState extends State<PayoutSettingsView> with SingleTick
           ),
           
           Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildBankForm(),
-                _buildMobileForm(),
-              ],
-            ),
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildBankForm(),
+                      _buildMobileForm(),
+                    ],
+                  ),
           ),
         ],
       ),
@@ -126,13 +226,9 @@ class _PayoutSettingsViewState extends State<PayoutSettingsView> with SingleTick
           
           const SizedBox(height: 48),
           CustomButton(
-            text: "Save Bank Details",
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Bank details saved successfully")),
-              );
-            },
+            text: _isSaving ? "Saving..." : "Save Bank Details",
+            isLoading: _isSaving,
+            onPressed: _saveBankDetails,
           ),
         ],
       ),

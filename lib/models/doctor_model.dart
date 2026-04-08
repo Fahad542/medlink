@@ -18,6 +18,8 @@ class DoctorModel {
   final String endTime;
   final int sessionDuration;
   final List<dynamic> rawAvailability;
+  final int totalReviews;
+  final List<Map<String, dynamic>> recentReviews;
 
   DoctorModel({
     required this.id,
@@ -36,6 +38,8 @@ class DoctorModel {
     this.endTime = "05:00 PM",
     this.sessionDuration = 30,
     this.rawAvailability = const [],
+    this.totalReviews = 0,
+    this.recentReviews = const [],
   });
   factory DoctorModel.fromJson(Map<String, dynamic> json) {
     String getImageUrl(String? path) {
@@ -74,6 +78,41 @@ class DoctorModel {
     }
 
     final rawAvailability = (getField('availability') as List<dynamic>?) ?? [];
+    final parsedRecentReviewsRaw =
+        (json['recentReviews'] ??
+            json['reviews'] ??
+            getField('recentReviews') ??
+            getField('reviews')) as List<dynamic>?;
+    final parsedRecentReviews = (parsedRecentReviewsRaw ?? [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+
+    double parsedRating =
+        double.tryParse(getField('rating')?.toString() ?? '0') ?? 0.0;
+    if (parsedRating == 0) {
+      parsedRating = double.tryParse(
+              getField('averageRating')?.toString() ??
+                  getField('avgRating')?.toString() ??
+                  '0') ??
+          0.0;
+    }
+
+    int parsedTotalReviews =
+        int.tryParse(getField('reviewCount')?.toString() ?? '0') ?? 0;
+    if (parsedTotalReviews == 0) {
+      parsedTotalReviews = int.tryParse(
+              getField('totalReviews')?.toString() ??
+                  getField('reviewsCount')?.toString() ??
+                  '0') ??
+          0;
+    }
+    if (parsedTotalReviews == 0 && parsedRecentReviews.isNotEmpty) {
+      parsedTotalReviews = parsedRecentReviews.length;
+    }
+    if (parsedTotalReviews == 0 && parsedRecentReviewsRaw != null) {
+      parsedTotalReviews = parsedRecentReviewsRaw.length;
+    }
 
     String extractTime(bool isStart) {
       if (rawAvailability.isEmpty) return isStart ? "09:00 AM" : "05:00 PM";
@@ -111,7 +150,7 @@ class DoctorModel {
           getField('hospital') ??
           getField('clinicName') ??
           'Unknown Hospital',
-      rating: double.tryParse(getField('rating')?.toString() ?? '0') ?? 0.0,
+      rating: parsedRating,
       imageUrl: getImageUrl(getField('profile_image_url') ??
           getField('profilePhotoUrl') ??
           getField('imageUrl')),
@@ -157,6 +196,8 @@ class DoctorModel {
               '30') ??
           30,
       rawAvailability: rawAvailability,
+      totalReviews: parsedTotalReviews,
+      recentReviews: parsedRecentReviews,
     );
   }
 
@@ -178,6 +219,8 @@ class DoctorModel {
       'endTime': endTime,
       'sessionDuration': sessionDuration,
       'rawAvailability': rawAvailability,
+      'totalReviews': totalReviews,
+      'recentReviews': recentReviews,
     };
   }
 }

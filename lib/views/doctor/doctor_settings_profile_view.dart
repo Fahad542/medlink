@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/data/network/api_services.dart';
 
 import 'package:medlink/views/doctor/Doctor%20profile/doctor_personal_info_view.dart';
 import 'package:medlink/views/doctor/Doctor%20earnings/doctor_earnings_view.dart';
+import 'package:medlink/views/doctor/doctor_reviews_view.dart';
 import 'package:medlink/views/Login/login_view.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:medlink/widgets/delete_account_sheet.dart';
@@ -57,10 +59,34 @@ class DoctorSettingsProfileView extends StatelessWidget {
                           _StatItem(
                               label: "Patients", value: "1.5k", unit: "Lives"),
                           _VerticalDivider(),
-                          _StatItem(
-                              label: "Rating",
-                              value: doctor?.rating.toString() ?? "0.0",
-                              unit: "Star"),
+                          GestureDetector(
+                            onTap: () {
+                              if (doctor == null) return;
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => DoctorReviewsView(
+                                    doctor: doctor,
+                                    isDoctorMode: true,
+                                  ),
+                                ),
+                              );
+                            },
+                            child: FutureBuilder<int>(
+                              future: _getDoctorReviewCount(
+                                fallbackCount: doctor?.totalReviews ?? 0,
+                              ),
+                              builder: (context, snapshot) {
+                                final count =
+                                    snapshot.data ?? (doctor?.totalReviews ?? 0);
+                                return _StatItem(
+                                  label: "Reviews",
+                                  value: count.toString(),
+                                  unit: "",
+                                );
+                              },
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -625,8 +651,24 @@ class DoctorSettingsProfileView extends StatelessWidget {
   Widget _buildDivider() =>
       Divider(height: 1, thickness: 1, indent: 60, color: Colors.grey[100]);
 
+  Future<int> _getDoctorReviewCount({required int fallbackCount}) async {
+    try {
+      final response = await ApiServices().getDoctorReviews();
+      final data = response is Map ? response['data'] : null;
+      if (data is! Map) return fallbackCount;
+      final total = int.tryParse((data['totalReviews'] ?? '').toString());
+      if (total != null) return total;
+      final reviews = data['reviews'];
+      if (reviews is List) return reviews.length;
+      return fallbackCount;
+    } catch (_) {
+      return fallbackCount;
+    }
+  }
+
   Widget _StatItem(
       {required String label, required String value, required String unit}) {
+    final hasUnit = unit.trim().isNotEmpty;
     return Column(
       children: [
         Text(value,
@@ -641,12 +683,13 @@ class DoctorSettingsProfileView extends StatelessWidget {
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                     color: Colors.grey[500])),
-            const SizedBox(width: 2),
-            Text(unit,
-                style: GoogleFonts.inter(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary)),
+            if (hasUnit) const SizedBox(width: 2),
+            if (hasUnit)
+              Text(unit,
+                  style: GoogleFonts.inter(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary)),
           ],
         ),
       ],

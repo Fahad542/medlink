@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/data/network/api_services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/models/doctor_model.dart';
 import 'package:medlink/widgets/custom_button.dart';
@@ -28,15 +29,28 @@ class DoctorProfileView extends StatelessWidget {
   }
 }
 
-class _DoctorProfileContent extends StatelessWidget {
+class _DoctorProfileContent extends StatefulWidget {
   final DoctorModel doctor;
 
   const _DoctorProfileContent({required this.doctor});
 
   @override
+  State<_DoctorProfileContent> createState() => _DoctorProfileContentState();
+}
+
+class _DoctorProfileContentState extends State<_DoctorProfileContent> {
+  late Future<dynamic> _reviewsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _reviewsFuture = ApiServices().getPatientDoctorReviews(widget.doctor.id);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final viewModel = Provider.of<DoctorProfileViewModel>(context);
-    final hasBooking = viewModel.hasBooking(doctor.id);
+    final hasBooking = viewModel.hasBooking(widget.doctor.id);
 
     // Total height of the fixed header area (280 bg + 60 overlap + 20 buffer)
     const double fixedHeaderHeight = 360;
@@ -140,13 +154,13 @@ class _DoctorProfileContent extends StatelessWidget {
                           ),
                           child: CircleAvatar(
                             radius: 50,
-                            backgroundImage: NetworkImage(doctor.imageUrl),
+                            backgroundImage: NetworkImage(widget.doctor.imageUrl),
                             backgroundColor: Colors.grey[200],
                           ),
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          doctor.name,
+                          widget.doctor.name,
                           style: GoogleFonts.inter(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
@@ -155,7 +169,7 @@ class _DoctorProfileContent extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          doctor.specialty,
+                          widget.doctor.specialty,
                           style: GoogleFonts.inter(
                             fontSize: 14,
                             color: Colors.white.withOpacity(0.9),
@@ -186,14 +200,28 @@ class _DoctorProfileContent extends StatelessWidget {
                           )
                         ],
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _buildStatItem("Patients", "1.5K+"),
-                          _buildStatItem(
-                              "Experience", "${doctor.experience} Yrs"),
-                          _buildStatItem("Rating", doctor.rating.toString()),
-                        ],
+                      child: FutureBuilder<dynamic>(
+                        future: _reviewsFuture,
+                        builder: (context, snapshot) {
+                          final res = snapshot.data;
+                          final data = res is Map ? res['data'] : null;
+                          final averageRating = double.tryParse(
+                                  (data is Map
+                                          ? data['averageRating']
+                                          : widget.doctor.rating)
+                                      .toString()) ??
+                              widget.doctor.rating;
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              _buildStatItem("Patients", "1.5K+"),
+                              _buildStatItem(
+                                  "Experience", "${widget.doctor.experience} Yrs"),
+                              _buildStatItem(
+                                  "Rating", averageRating.toStringAsFixed(1)),
+                            ],
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -240,10 +268,10 @@ class _DoctorProfileContent extends StatelessWidget {
                                 context,
                                 MaterialPageRoute(
                                     builder: (_) => WaitingRoomView(
-                                          callTargetName: doctor.name,
+                                          callTargetName: widget.doctor.name,
                                           isDoctor: false,
                                           appointmentId: viewModel
-                                              .getAppointmentId(doctor.id),
+                                              .getAppointmentId(widget.doctor.id),
                                         )),
                               );
                             },
@@ -276,7 +304,7 @@ class _DoctorProfileContent extends StatelessWidget {
                   Text("About", style: _sectionTitleStyle),
                   const SizedBox(height: 8),
                   Text(
-                    doctor.about,
+                    widget.doctor.about,
                     style:
                         GoogleFonts.inter(color: Colors.grey[600], height: 1.5),
                   ),
@@ -287,13 +315,13 @@ class _DoctorProfileContent extends StatelessWidget {
                     children: [
                       Expanded(
                           child: _buildInfoCard(Icons.local_hospital_rounded,
-                              "Hospital", doctor.hospital, AppColors.primary)),
+                              "Hospital", widget.doctor.hospital, AppColors.primary)),
                       const SizedBox(width: 16),
                       Expanded(
                           child: _buildInfoCard(
                               Icons.attach_money_rounded,
                               "Consultation",
-                              "KES ${doctor.consultationFee}",
+                              "KES ${widget.doctor.consultationFee}",
                               AppColors.primary)),
                     ],
                   ),
@@ -301,26 +329,60 @@ class _DoctorProfileContent extends StatelessWidget {
                   const SizedBox(height: 24),
 
                   // Ratings & Reviews Section
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text("Ratings & Reviews", style: _sectionTitleStyle),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) =>
-                                    DoctorReviewsView(doctor: doctor)),
-                          );
-                        },
-                        child: const Text("See All"),
-                      ),
-                    ],
+                  FutureBuilder<dynamic>(
+                    future: _reviewsFuture,
+                    builder: (context, snapshot) {
+                      final response = snapshot.data;
+                      final data = response is Map ? response['data'] : null;
+                      final reviews = (data is Map && data['reviews'] is List)
+                          ? List<Map<String, dynamic>>.from(data['reviews'])
+                          : <Map<String, dynamic>>[];
+                      final previewReview = reviews.isNotEmpty ? reviews.first : null;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text("Ratings & Reviews", style: _sectionTitleStyle),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) =>
+                                            DoctorReviewsView(doctor: widget.doctor)),
+                                  );
+                                },
+                                child: const Text("See All"),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          if (previewReview != null)
+                            _buildReviewItem(
+                              (previewReview['patient']?['fullName'] ??
+                                      previewReview['patientName'] ??
+                                      previewReview['name'] ??
+                                      'Patient')
+                                  .toString(),
+                              double.tryParse(
+                                      previewReview['rating']?.toString() ?? '0') ??
+                                  0,
+                              (previewReview['comment'] ??
+                                      "No written feedback provided.")
+                                  .toString(),
+                              _formatReviewDate(previewReview['createdAt']),
+                            )
+                          else
+                            Text(
+                              "No reviews yet",
+                              style: GoogleFonts.inter(color: Colors.grey[600]),
+                            ),
+                        ],
+                      );
+                    },
                   ),
-                  const SizedBox(height: 12),
-                  _buildReviewItem("John Doe", 4.5,
-                      "Great experience, very professional.", "2 days ago"),
 
                   const SizedBox(height: 12),
 
@@ -355,13 +417,26 @@ class _DoctorProfileContent extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                        builder: (_) => BookAppointmentView(doctor: doctor)),
+                        builder: (_) => BookAppointmentView(doctor: widget.doctor)),
                   );
                 }),
           ),
         ),
       ),
     );
+  }
+
+  String _formatReviewDate(dynamic value) {
+    if (value == null) return "Recently";
+    final dt = DateTime.tryParse(value.toString());
+    if (dt == null) return value.toString();
+    final now = DateTime.now();
+    final diff = now.difference(dt.toLocal());
+    if (diff.inMinutes < 1) return "Just now";
+    if (diff.inHours < 1) return "${diff.inMinutes} min ago";
+    if (diff.inDays < 1) return "${diff.inHours} hours ago";
+    if (diff.inDays < 7) return "${diff.inDays} days ago";
+    return DateFormat('MMM d, yyyy').format(dt.toLocal());
   }
 
   Widget _buildStatItem(String label, String value) {
@@ -531,9 +606,4 @@ class _DoctorProfileContent extends StatelessWidget {
         color: AppColors.textPrimary,
       );
 
-  TextStyle get _subTitleStyle => GoogleFonts.inter(
-        fontSize: 16,
-        fontWeight: FontWeight.bold,
-        color: Colors.black87,
-      );
 }

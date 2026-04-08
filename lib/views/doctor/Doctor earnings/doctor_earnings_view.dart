@@ -266,7 +266,12 @@ class DoctorEarningsView extends StatelessWidget {
                 child: const Icon(Icons.account_balance_rounded, color: AppColors.primary),
               ),
               title: Text("Bank Account", style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15)),
-              subtitle: Text("Ended in **** 8899", style: GoogleFonts.inter(color: Colors.grey[500], fontSize: 13)),
+              subtitle: Text(
+                viewModel.maskedPayoutCard != null
+                    ? "Card ${viewModel.maskedPayoutCard}"
+                    : "No payout card saved",
+                style: GoogleFonts.inter(color: Colors.grey[500], fontSize: 13),
+              ),
               trailing: Container(
                 decoration: BoxDecoration(
                   color: Colors.grey[50],
@@ -275,16 +280,159 @@ class DoctorEarningsView extends StatelessWidget {
                 ),
                 child: IconButton(
                   icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.grey),
-                  onPressed: (){
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const PayoutSettingsView()));
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const PayoutSettingsView()),
+                    );
+                    if (!context.mounted) return;
+                    await viewModel.fetchPayoutAccount();
                   },
                 ),
               ),
             ),
           ),
           const SizedBox(height: 40),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _onRequestWithdrawal(context, viewModel),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              icon: const Icon(Icons.account_balance_wallet_outlined),
+              label: const Text("Request Withdrawal"),
+            ),
+          ),
+          const SizedBox(height: 16),
         ],
       ),
+    );
+  }
+
+  void _onRequestWithdrawal(
+      BuildContext context, DoctorEarningsViewModel viewModel) {
+    if (!viewModel.hasPayoutAccount) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text("Add payout account first"),
+          content: const Text(
+              "Please add your payout account information before requesting a withdrawal."),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Later"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const PayoutSettingsView(),
+                  ),
+                );
+              },
+              child: const Text("Add Account"),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    _showWithdrawalRequestSheet(context, viewModel);
+  }
+
+  void _showWithdrawalRequestSheet(
+      BuildContext context, DoctorEarningsViewModel viewModel) {
+    final amountController = TextEditingController();
+    final noteController = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) {
+        bool submitting = false;
+        return StatefulBuilder(
+          builder: (ctx, setState) => Padding(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 16,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: amountController,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: "Amount",
+                    hintText: "Enter withdrawal amount",
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: noteController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: "Note (optional)",
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: submitting
+                        ? null
+                        : () async {
+                            final amount =
+                                double.tryParse(amountController.text.trim());
+                            if (amount == null || amount <= 0) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text("Enter a valid amount")),
+                              );
+                              return;
+                            }
+                            setState(() => submitting = true);
+                            final success = await viewModel.requestWithdrawal(
+                              amount: amount,
+                              note: noteController.text.trim(),
+                            );
+                            if (!context.mounted) return;
+                            Navigator.pop(ctx);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  success
+                                      ? "Withdrawal request submitted"
+                                      : "Failed to submit withdrawal request",
+                                ),
+                              ),
+                            );
+                          },
+                    child: submitting
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text("Submit Request"),
+                  ),
+                )
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
