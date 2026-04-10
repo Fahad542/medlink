@@ -96,10 +96,20 @@ class _AppointmentPaymentViewState extends State<AppointmentPaymentView> {
           debugPrint("User cancelled payment sheet");
           return;
         }
+
+        // Specific handling for -1005 (Network connection lost)
+        final String errorMsg = e.error.localizedMessage ?? "Unknown payment error";
+        final bool isNetworkError = errorMsg.contains('-1005') || 
+                                    errorMsg.toLowerCase().contains('connection was lost');
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content: Text("Payment failed: ${e.error.localizedMessage}")),
+              content: Text(isNetworkError 
+                  ? "Network connection lost. Please check your internet and try again."
+                  : "Payment failed: $errorMsg"),
+              backgroundColor: isNetworkError ? Colors.orange : Colors.red,
+            ),
           );
         }
       } else {

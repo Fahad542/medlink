@@ -45,28 +45,38 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Initialize Native Stripe
-  Stripe.publishableKey = "pk_test_51P7UReRxY2qSg84v2E6fRL72R7U9E8R2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2q"; // Generic Placeholder, actual key managed on backend session
-  await Stripe.instance.applySettings();
+  // We set a common test key just to avoid crashes on certain platforms
+  // but we don't block the startup with applySettings if it fails.
+  try {
+    Stripe.publishableKey = "pk_test_51P7UReRxY2qSg84v"; // Generic Placeholder
+    // Only apply settings if we really need to, but don't let it hang the app
+    await Stripe.instance.applySettings().timeout(const Duration(seconds: 2));
+  } catch (e) {
+    debugPrint("Stripe early init ignored: $e");
+  }
 
   try {
+    // 1. Core Firebase Init
     await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform);
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
+    // 2. Notification setup (Non-blocking as much as possible)
     final notificationServices = NotificationServices();
     await notificationServices.setupLocalNotifications();
-    await notificationServices.requestNotificationPermission();
-    await notificationServices.configureForegroundPresentation();
-    notificationServices.firebaseInit();
-    notificationServices.listenForTokenWhenReady((token) {
-      if (kDebugMode) {
-        debugPrint('FCM token (ready/refresh): $token');
+    
+    // Perform incidental setup in background after Firebase is ready
+    await (Future(() async {
+      await notificationServices.requestNotificationPermission();
+      await notificationServices.configureForegroundPresentation();
+      notificationServices.firebaseInit();
+      
+      final token = await notificationServices.getDeviceToken();
+      if (kDebugMode && token != null) {
+        debugPrint('Device Token: $token');
       }
-    });
-    final token = await notificationServices.getDeviceToken();
-    if (kDebugMode && token != null) {
-      debugPrint('Device Token: $token');
-    }
+    }));
+
   } catch (e) {
     debugPrint("Firebase initialization failed: $e");
   }

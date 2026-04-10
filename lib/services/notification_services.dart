@@ -18,12 +18,16 @@ class NotificationServices {
   /// iOS: FCM needs APNs token before [getToken]. This polls briefly after permission.
   Future<void> _waitForApnsTokenIfNeeded() async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) return;
-    const maxAttempts = 40;
+    const maxAttempts = 20; // Reduced from 40 for faster startup
     for (var i = 0; i < maxAttempts; i++) {
       final apns = await messaging.getAPNSToken();
-      if (apns != null) return;
+      if (apns != null) {
+        debugPrint('APNs Token found after $i attempts');
+        return;
+      }
       await Future<void>.delayed(const Duration(milliseconds: 250));
     }
+    debugPrint('APNs Token check complete (not found)');
   }
 
   /// Required by [flutter_local_notifications] 10+ on Android.

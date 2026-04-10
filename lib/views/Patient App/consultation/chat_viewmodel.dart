@@ -23,7 +23,7 @@ class ChatViewModel extends ChangeNotifier {
   List<ChatMessageModel> get messages => _messages;
 
   StreamSubscription<Map<String, dynamic>>? _newMsgSub;
-
+ 
   ChatViewModel({
     required this.doctorId,
     required this.patientId,
@@ -36,7 +36,7 @@ class ChatViewModel extends ChangeNotifier {
     _newMsgSub = _socket.newMessageStream.listen(_handleNewMessage);
     _joinRoomIfPossible();
   }
-
+ 
   @override
   void dispose() {
     _newMsgSub?.cancel();
@@ -45,11 +45,11 @@ class ChatViewModel extends ChangeNotifier {
     }
     super.dispose();
   }
-
+ 
   Future<void> fetchMessages() async {
     _isLoading = true;
     notifyListeners();
-
+ 
     try {
       dynamic response;
       if (sosId != null && sosId!.isNotEmpty) {
@@ -63,17 +63,17 @@ class ChatViewModel extends ChangeNotifier {
       }
       if (response != null && response['success'] == true) {
         final data = response['data'];
-
+ 
         // The data has a 'messages' list according to the screenshot
         final List<dynamic> messagesList =
             (data is Map && data.containsKey('messages'))
                 ? data['messages']
                 : (data is List ? data : []);
-
+ 
         final List<ChatMessageModel> fetchedMessages = messagesList
             .map((json) => ChatMessageModel.fromJson(json))
             .toList();
-
+ 
         // If appointmentId is missing, try to get it from the latest message
         if ((appointmentId == null || appointmentId!.isEmpty) &&
             fetchedMessages.isNotEmpty &&
@@ -83,7 +83,7 @@ class ChatViewModel extends ChangeNotifier {
               .appointmentId
               .toString();
         }
-
+ 
         fetchedMessages.sort((a, b) => b.sentAt.compareTo(a.sentAt));
         _messages = fetchedMessages;
         _joinRoomIfPossible();
@@ -95,14 +95,14 @@ class ChatViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
-
+ 
   Future<void> sendMessage(String body, String currentUserId,
       {File? file}) async {
     final Map<String, String> fields = {
       'messageType': file != null ? 'IMAGE' : 'TEXT',
       'body': body,
     };
-
+ 
     try {
       dynamic response;
       if (sosId != null && sosId!.isNotEmpty) {
@@ -116,7 +116,7 @@ class ChatViewModel extends ChangeNotifier {
         response =
             await _apiServices.sendChatMessage(recipientId, fields, file);
       }
-
+ 
       if (response != null && response['success'] == true) {
         final newMessage = ChatMessageModel.fromJson(response['data']);
         _insertIfNotExists(newMessage);
@@ -126,7 +126,7 @@ class ChatViewModel extends ChangeNotifier {
       debugPrint("Error sending message: $e");
     }
   }
-
+ 
   void _joinRoomIfPossible() {
     if (sosId != null && sosId!.isNotEmpty) {
       _socket.joinSosRoom(sosId!);
@@ -138,7 +138,7 @@ class ChatViewModel extends ChangeNotifier {
       _socket.joinRoom(appointmentId!);
     }
   }
-
+ 
   void _handleNewMessage(Map<String, dynamic> payload) {
     try {
       bool isRelevant = false;
@@ -146,7 +146,7 @@ class ChatViewModel extends ChangeNotifier {
       final String? incomingApptId = payload['appointmentId']?.toString();
       final String? incomingSosId = payload['sosId']?.toString();
       final String? incomingTripId = payload['tripId']?.toString();
-
+ 
       if (appointmentId != null && appointmentId!.isNotEmpty && incomingApptId == appointmentId) {
         isRelevant = true;
       }
@@ -156,9 +156,9 @@ class ChatViewModel extends ChangeNotifier {
       if (tripId != null && tripId!.isNotEmpty && incomingTripId == tripId) {
         isRelevant = true;
       }
-
+ 
       if (!isRelevant) return;
-
+ 
       final msg = ChatMessageModel.fromJson(payload);
       _insertIfNotExists(msg);
       notifyListeners();
@@ -166,7 +166,7 @@ class ChatViewModel extends ChangeNotifier {
       debugPrint("Error handling real-time message: $e");
     }
   }
-
+ 
   void _insertIfNotExists(ChatMessageModel msg) {
     final exists = _messages.any((m) => m.id == msg.id);
     if (exists) return;
