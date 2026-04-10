@@ -4,6 +4,7 @@ import 'package:medlink/core/constants/app_colors.dart';
 import 'package:intl/intl.dart';
 import 'package:medlink/views/Ambulance/profile/ambulance_earnings_view_model.dart';
 import 'package:medlink/views/Ambulance/profile/ambulance_payout_settings_view.dart';
+import 'package:medlink/widgets/emergency_action_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -386,30 +387,22 @@ class _AmbulanceEarningsViewState extends State<AmbulanceEarningsView> {
     if (!viewModel.hasPayoutAccount) {
       showDialog(
         context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Add payout account first'),
-          content: const Text(
-              'Please add payout information before requesting withdrawal.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Later'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const AmbulancePayoutSettingsView()),
-                ).then((_) {
-                  if (!mounted) return;
-                  viewModel.fetchEarningsSummary();
-                });
-              },
-              child: const Text('Add Account'),
-            ),
-          ],
+        builder: (_) => EmergencyActionDialog(
+          title: 'Payout Account Required',
+          message: 'Please add payout information before requesting withdrawal.',
+          actionText: 'Add Account',
+          actionColor: AppColors.primary,
+          onConfirm: () {
+            Navigator.pop(context);
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const AmbulancePayoutSettingsView()),
+            ).then((_) {
+              if (!mounted) return;
+              viewModel.fetchEarningsSummary();
+            });
+          },
         ),
       );
       return;

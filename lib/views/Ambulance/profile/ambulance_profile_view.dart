@@ -671,15 +671,26 @@ class AmbulanceProfileView extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text("Select Language",
-            style:
-                GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 18)),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        title: Center(
+          child: Text(
+            "Select Language",
+            style: GoogleFonts.plusJakartaSans(
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            const SizedBox(height: 8),
             _buildLanguageOption(context, "English", "🇺🇸"),
             _buildLanguageOption(context, "Spanish", "🇪🇸"),
+            const SizedBox(height: 8),
           ],
         ),
       ),

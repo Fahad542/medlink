@@ -10,6 +10,7 @@ import 'package:medlink/views/Patient App/consultation/chat_view.dart';
 import 'package:medlink/views/call/call_view_model.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/widgets/custom_button.dart';
+import 'package:medlink/widgets/emergency_action_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -407,8 +408,11 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
                                           shape: BoxShape.circle,
                                         ),
                                         child: IconButton(
-                                          icon: const Icon(Icons.message,
-                                              color: Colors.green),
+                                          icon: Image.asset(
+                                            'assets/Icons/chat.png',
+                                            height: 20,
+                                            color: Colors.green,
+                                          ),
                                           onPressed: () {
                                             final patientId = viewModel
                                                 .missionData['patientId']
@@ -467,8 +471,11 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
                                           shape: BoxShape.circle,
                                         ),
                                         child: IconButton(
-                                          icon: const Icon(Icons.call,
-                                              color: Colors.green),
+                                          icon: Image.asset(
+                                            'assets/Icons/phone.png',
+                                            height: 20,
+                                            color: Colors.green,
+                                          ),
                                           onPressed: () {
                                             final patientId = viewModel
                                                 .missionData['patientId'];
@@ -645,33 +652,15 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
       AmbulanceMissionViewModel viewModel, String action) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text("Confirmation",
-            style: GoogleFonts.inter(fontWeight: FontWeight.bold)),
-        content: Text(
-          "Are you sure you want to $action?",
-          style: GoogleFonts.inter(color: Colors.grey[700]),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text("Cancel",
-                style: GoogleFonts.inter(
-                    color: Colors.grey[500], fontWeight: FontWeight.w600)),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx); // Close dialog
-              viewModel.updateStatus(); // Perform action
-            },
-            child: Text("Confirm",
-                style: GoogleFonts.inter(
-                    color: AppColors.primary, fontWeight: FontWeight.bold)),
-          ),
-        ],
+      builder: (ctx) => EmergencyActionDialog(
+        title: "Confirmation",
+        message: "Are you sure you want to $action?",
+        actionText: "Confirm",
+        actionColor: AppColors.primary,
+        onConfirm: () {
+          Navigator.pop(ctx);
+          viewModel.updateStatus();
+        },
       ),
     );
   }
