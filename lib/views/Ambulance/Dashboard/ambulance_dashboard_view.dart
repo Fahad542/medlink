@@ -33,9 +33,7 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView> {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => AmbulanceDashboardViewModel(),
-      child: Consumer<AmbulanceDashboardViewModel>(
+    return Consumer<AmbulanceDashboardViewModel>(
         builder: (context, viewModel, child) {
           // Listen for route pop results if we navigate to profile and back?
           // Since Profile is in another tab, this view might not know.
@@ -88,7 +86,6 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView> {
             ),
           );
         },
-      ),
     );
   }
 
@@ -340,6 +337,16 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView> {
 
   Widget _buildRequestCard(BuildContext context,
       AmbulanceDashboardViewModel viewModel, Map<String, dynamic> request) {
+    final createdAt = request['createdAt'];
+    final remaining =
+        AmbulanceDashboardViewModel.remainingAcceptTime(createdAt);
+    final progress = AmbulanceDashboardViewModel.acceptProgressFraction(
+            createdAt)
+        .clamp(0.0, 1.0);
+    final countdownColor = progress < 0.2
+        ? Colors.red
+        : (progress < 0.45 ? Colors.orange : AppColors.primary);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16), // Increased padding
@@ -403,6 +410,44 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView> {
                 color: Colors.grey[600], fontSize: 11), // Smaller Subtitle
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Accept within',
+                    style: GoogleFonts.inter(
+                      color: Colors.grey[700],
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    AmbulanceDashboardViewModel.formatCountdownMmSs(remaining),
+                    style: GoogleFonts.inter(
+                      color: countdownColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 6,
+                  backgroundColor: Colors.grey[200],
+                  valueColor:
+                      AlwaysStoppedAnimation<Color>(countdownColor),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8), // Reduced spacing
           Row(
@@ -495,6 +540,8 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView> {
                               await viewModel.acceptRequest(request['id']);
 
                           if (success && context.mounted) {
+                            await mainVm.checkActiveTrip(startPolling: false);
+                            if (!context.mounted) return;
                             // Proceed to mission view
                             Navigator.push(
                               context,

@@ -14,8 +14,10 @@ class AmbulanceMainViewModel extends ChangeNotifier {
   Timer? _tripPollingTimer;
   StreamSubscription<Map<String, dynamic>>? _tripSub;
   StreamSubscription<Map<String, dynamic>>? _locSub;
+  StreamSubscription<Map<String, dynamic>>? _sosDriverSub;
   StreamSubscription<Position>? _posSub;
-  int? _sharingTripId;
+  /// Trip id as string (numeric or UUID) for location emit + dedupe.
+  String? _sharingTripIdKey;
   int? _currentUserId;
   bool _realtimeEnabled = false;
 
@@ -24,12 +26,16 @@ class AmbulanceMainViewModel extends ChangeNotifier {
   bool get hasActiveTrip => _activeTrip != null;
   String get activeTripStatus => (_activeTrip?['status']?.toString() ?? '');
 
+  /// Called when the current trip ends (completed/cancelled or API shows no trip).
+  VoidCallback? onActiveTripEnded;
+
   void setIndex(int index) {
     _currentIndex = index;
     notifyListeners();
   }
 
   Future<void> checkActiveTrip({bool startPolling = true}) async {
+    final hadActive = _activeTrip != null;
     try {
       final response = await _apiServices.getCurrentTrip();
       if (response != null && response['success'] == true) {
@@ -37,18 +43,10 @@ class AmbulanceMainViewModel extends ChangeNotifier {
         if (data is Map) {
           _activeTrip = Map<String, dynamic>.from(data);
           final tripId = _activeTrip?['id'];
-          if (tripId is int) {
+          if (tripId != null) {
             _socket.joinTrip(tripId);
             if (_realtimeEnabled) {
               await _startLocationSharing(tripId);
-            }
-          } else if (tripId is String) {
-            final parsed = int.tryParse(tripId);
-            if (parsed != null) {
-              _socket.joinTrip(parsed);
-              if (_realtimeEnabled) {
-                await _startLocationSharing(parsed);
-              }
             }
           }
           notifyListeners();
@@ -60,6 +58,7 @@ class AmbulanceMainViewModel extends ChangeNotifier {
       notifyListeners();
       _stopTripPolling();
       _stopLocationSharing();
+      if (hadActive) onActiveTripEnded?.call();
     } catch (e) {
       debugPrint('Error checking active trip: $e');
     }
@@ -70,17 +69,10 @@ class AmbulanceMainViewModel extends ChangeNotifier {
     _realtimeEnabled = true;
     _stopTripPolling();
     _socket.connect(url: '${AppUrl.baseUrl}/sos', token: token);
-    _socket.joinUser();
     final existingTripId = _activeTrip?['id'];
-    if (existingTripId is int) {
+    if (existingTripId != null) {
       _socket.joinTrip(existingTripId);
       _startLocationSharing(existingTripId);
-    } else if (existingTripId is String) {
-      final parsed = int.tryParse(existingTripId);
-      if (parsed != null) {
-        _socket.joinTrip(parsed);
-        _startLocationSharing(parsed);
-      }
     }
 
     _tripSub ??= _socket.tripUpdatedStream.listen((payload) {
@@ -89,29 +81,36 @@ class AmbulanceMainViewModel extends ChangeNotifier {
 
       final status = payload['status']?.toString();
       if (status == 'COMPLETED' || status == 'CANCELLED') {
+        final hadActive = _activeTrip != null;
         _activeTrip = null;
         _stopLocationSharing();
         notifyListeners();
+        if (hadActive) onActiveTripEnded?.call();
         return;
       }
 
       _activeTrip = Map<String, dynamic>.from(payload);
       final tripId = _activeTrip?['id'];
-      if (tripId is int) {
+      if (tripId != null) {
         _socket.joinTrip(tripId);
         _startLocationSharing(tripId);
-      } else if (tripId is String) {
-        final parsed = int.tryParse(tripId);
-        if (parsed != null) {
-          _socket.joinTrip(parsed);
-          _startLocationSharing(parsed);
-        }
       }
       notifyListeners();
     });
 
+    _sosDriverSub ??= _socket.sosUpdatedStream.listen((payload) {
+      final aid = payload['assignedDriverId'];
+      final st = payload['status']?.toString();
+      if (st == 'ASSIGNED' &&
+          aid != null &&
+          _currentUserId != null &&
+          aid.toString() == _currentUserId.toString()) {
+        checkActiveTrip(startPolling: false);
+      }
+    });
+
     _locSub ??= _socket.tripLocationUpdatedStream.listen((payload) {
-      final tripId = payload['tripId'];
+      final tripId = payload['tripId'] ?? payload['trip_id'];
       final currentTripId = _activeTrip?['id'];
       if (tripId == null || currentTripId == null) return;
       if (tripId.toString() != currentTripId.toString()) return;
@@ -132,12 +131,14 @@ class AmbulanceMainViewModel extends ChangeNotifier {
     });
   }
 
-  Future<void> _startLocationSharing(int tripId) async {
-    if (_sharingTripId != null && _sharingTripId != tripId) {
+  Future<void> _startLocationSharing(Object tripId) async {
+    final key = tripId.toString();
+    if (key.isEmpty) return;
+    if (_sharingTripIdKey != null && _sharingTripIdKey != key) {
       _stopLocationSharing();
     }
-    if (_posSub != null) return;
-    _sharingTripId = tripId;
+    if (_posSub != null && _sharingTripIdKey == key) return;
+    _sharingTripIdKey = key;
 
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
@@ -185,7 +186,7 @@ class AmbulanceMainViewModel extends ChangeNotifier {
   void _stopLocationSharing() {
     _posSub?.cancel();
     _posSub = null;
-    _sharingTripId = null;
+    _sharingTripIdKey = null;
   }
 
   String get activeTripEtaText {
@@ -235,6 +236,7 @@ class AmbulanceMainViewModel extends ChangeNotifier {
     _stopLocationSharing();
     _tripSub?.cancel();
     _locSub?.cancel();
+    _sosDriverSub?.cancel();
     super.dispose();
   }
 }

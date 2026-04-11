@@ -37,12 +37,17 @@ class GoogleMapsService {
     return points;
   }
 
-  // Fetch Route from A to B
+  // Fetch driving directions (roads) from A → B
   static Future<Map<String, dynamic>?> getRouteCoordinates(
-      LatLng origin, LatLng destination) async {
+    LatLng origin,
+    LatLng destination, {
+    String travelMode = 'driving',
+  }) async {
     try {
       final String url =
-          "$_baseUrl/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&key=$_apiKey";
+          "$_baseUrl/directions/json?origin=${origin.latitude},${origin.longitude}"
+          "&destination=${destination.latitude},${destination.longitude}"
+          "&mode=$travelMode&key=$_apiKey";
       print("Fetching route from Google: $url");
       final response = await http.get(Uri.parse(url));
 

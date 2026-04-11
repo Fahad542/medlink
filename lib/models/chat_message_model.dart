@@ -25,16 +25,29 @@ class ChatMessageModel {
 
   factory ChatMessageModel.fromJson(Map<String, dynamic> json) {
     return ChatMessageModel(
-      id: json['id'],
-      appointmentId: json['appointmentId'],
-      sosId: json['sosId'],
-      tripId: json['tripId'],
-      senderId: json['senderId'],
+      id: _asInt(json['id']),
+      appointmentId: _asIntOrNull(json['appointmentId']),
+      sosId: _asIntOrNull(json['sosId']),
+      tripId: _asIntOrNull(json['tripId']),
+      senderId: _asInt(json['senderId']),
       messageType: _parseMessageType(json['messageType']),
       body: json['body'],
       mediaUrl: json['mediaUrl'],
-      sentAt: DateTime.parse(json['sentAt']),
+      sentAt: DateTime.parse(json['sentAt'].toString()),
     );
+  }
+
+  static int _asInt(dynamic v) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    return int.tryParse(v?.toString() ?? '') ?? 0;
+  }
+
+  static int? _asIntOrNull(dynamic v) {
+    if (v == null) return null;
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    return int.tryParse(v.toString());
   }
 
   static MessageType _parseMessageType(String? type) {

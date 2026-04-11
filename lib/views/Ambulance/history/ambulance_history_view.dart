@@ -11,45 +11,76 @@ import 'package:shimmer/shimmer.dart';
 class AmbulanceHistoryView extends StatelessWidget {
   const AmbulanceHistoryView({super.key});
 
+  static AmbulanceHistoryViewModel? _ancestorViewModel(BuildContext context) {
+    try {
+      return Provider.of<AmbulanceHistoryViewModel>(context, listen: false);
+    } on ProviderNotFoundException {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final inherited = _ancestorViewModel(context);
+    const child = _AmbulanceHistoryBody();
+
+    if (inherited != null) {
+      return ChangeNotifierProvider<AmbulanceHistoryViewModel>.value(
+        value: inherited,
+        child: child,
+      );
+    }
+
     return ChangeNotifierProvider(
-      create: (_) => AmbulanceHistoryViewModel(),
-      child: Consumer<AmbulanceHistoryViewModel>(
-        builder: (context, viewModel, child) {
-          return Scaffold(
-            backgroundColor: const Color(0xFFF8FAFC),
-            appBar: const CustomAppBar(
-              title: "Trip History",
-              automaticallyImplyLeading: false,
-            ),
-            body: Column(
-              children: [
-                Expanded(
-                  child: viewModel.isLoading
-                      ? _buildShimmerList()
-                      : RefreshIndicator(
-                          onRefresh: () => viewModel.fetchHistory(),
-                          child: viewModel.trips.isEmpty
-                              ? _buildEmptyState()
-                              : ListView.builder(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 20, vertical: 16),
-                                  itemCount: viewModel.trips.length,
-                                  physics: const BouncingScrollPhysics(
-                                      parent: AlwaysScrollableScrollPhysics()),
-                                  itemBuilder: (context, index) {
-                                    final trip = viewModel.trips[index];
-                                    return _buildTripCard(context, trip);
-                                  },
-                                ),
-                        ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+      create: (_) {
+        final vm = AmbulanceHistoryViewModel();
+        vm.fetchHistory();
+        return vm;
+      },
+      child: child,
+    );
+  }
+}
+
+class _AmbulanceHistoryBody extends StatelessWidget {
+  const _AmbulanceHistoryBody();
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AmbulanceHistoryViewModel>(
+      builder: (context, viewModel, child) {
+        return Scaffold(
+          backgroundColor: const Color(0xFFF8FAFC),
+          appBar: const CustomAppBar(
+            title: "Trip History",
+            automaticallyImplyLeading: false,
+          ),
+          body: Column(
+            children: [
+              Expanded(
+                child: viewModel.isLoading
+                    ? _buildShimmerList()
+                    : RefreshIndicator(
+                        onRefresh: () => viewModel.fetchHistory(),
+                        child: viewModel.trips.isEmpty
+                            ? _buildEmptyState()
+                            : ListView.builder(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 20, vertical: 16),
+                                itemCount: viewModel.trips.length,
+                                physics: const BouncingScrollPhysics(
+                                    parent: AlwaysScrollableScrollPhysics()),
+                                itemBuilder: (context, index) {
+                                  final trip = viewModel.trips[index];
+                                  return _buildTripCard(context, trip);
+                                },
+                              ),
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -93,14 +124,13 @@ class AmbulanceHistoryView extends StatelessWidget {
   }
 
   Widget _buildTripCard(BuildContext context, Map<String, dynamic> trip) {
-    // Check if trip is active
     final String rawStatus = trip['rawStatus'] ?? '';
-    final bool isActive = ['ACCEPTED', 'ARRIVED', 'IN_PROGRESS'].contains(rawStatus);
-    
-    // UI Status Color
+    final bool isActive =
+        ['ACCEPTED', 'ARRIVED', 'IN_PROGRESS'].contains(rawStatus);
+
     Color statusColor = AppColors.success;
     String statusText = "Completed";
-    
+
     if (isActive) {
       statusColor = AppColors.primary;
       statusText = "Active";
@@ -128,15 +158,16 @@ class AmbulanceHistoryView extends StatelessWidget {
         child: InkWell(
           onTap: () {
             if (isActive) {
-              // Navigate to Mission View if active
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => const AmbulanceMissionView(),
                 ),
-              );
+              ).then((_) {
+                if (!context.mounted) return;
+                context.read<AmbulanceHistoryViewModel>().fetchHistory();
+              });
             } else {
-              // Show details for completed trips
               Navigator.push(
                 context,
                 MaterialPageRoute(

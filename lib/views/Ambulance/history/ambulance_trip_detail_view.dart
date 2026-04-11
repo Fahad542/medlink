@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/utils/trip_fare_format.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 
 class AmbulanceTripDetailView extends StatefulWidget {
@@ -136,7 +137,8 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "Trip ${widget.trip['tripNumber']}",
+                                widget.trip['tripNumber']?.toString() ??
+                                    'Trip #${widget.trip['id']}',
                                 style: GoogleFonts.inter(
                                   fontSize: 16, // Reduced from 18
                                   fontWeight: FontWeight.w600,
@@ -272,12 +274,9 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
                           ],
                         ),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            _buildPaymentRow("Base Fare", "${widget.trip['currency'] ?? 'CFA'} 0.00"),
-                            const SizedBox(height: 10),
-                            _buildPaymentRow("Distance (0.0 km)", "${widget.trip['currency'] ?? 'CFA'} 0.00"),
-                            const SizedBox(height: 10),
-                            _buildPaymentRow("Time (0 mins)", "${widget.trip['currency'] ?? 'CFA'} 0.00"),
+                            ..._buildFareLineItems(widget.trip),
                             const Padding(
                               padding: EdgeInsets.symmetric(vertical: 12), // Reduced
                               child: Divider(),
@@ -294,7 +293,7 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
                                   ),
                                 ),
                                 Text(
-                                  widget.trip['earnings'],
+                                  widget.trip['earnings']?.toString() ?? '—',
                                   style: GoogleFonts.inter(
                                     fontSize: 18, // Reduced from 20
                                     fontWeight: FontWeight.w600,
@@ -399,7 +398,9 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
                     ),
                     const SizedBox(height: 2),
                      Text(
-                      "Current Location", 
+                      trip['pickupAddress']?.toString() ??
+                          trip['location']?.toString() ??
+                          'Pickup',
                        style: GoogleFonts.inter(
                         fontSize: 14, // Reduced
                         fontWeight: FontWeight.w600,
@@ -417,7 +418,10 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
                     ),
                     const SizedBox(height: 2),
                      Text(
-                      trip['location'],
+                      trip['dropoffAddress']?.toString() ??
+                          trip['dropoffLabel']?.toString() ??
+                          trip['location']?.toString() ??
+                          'Destination',
                        style: GoogleFonts.inter(
                         fontSize: 14, // Reduced
                         fontWeight: FontWeight.w600,
@@ -432,6 +436,78 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
         ],
       ),
     );
+  }
+
+  String _currencyHint(Map<String, dynamic> trip) {
+    return trip['currency']?.toString() ??
+        trip['fareCurrency']?.toString() ??
+        (trip['payment'] is Map
+            ? (trip['payment'] as Map)['currency']?.toString()
+            : null) ??
+        '';
+  }
+
+  List<Widget> _buildFareLineItems(Map<String, dynamic> trip) {
+    final cur = _currencyHint(trip);
+    String fmt(double v) => TripFareFormat.formatCfa(v, currencyHint: cur);
+
+    final items = <Widget>[];
+    void line(String label, double? amount) {
+      if (amount != null && amount > 0) {
+        if (items.isNotEmpty) {
+          items.add(const SizedBox(height: 10));
+        }
+        items.add(_buildPaymentRow(label, fmt(amount)));
+      }
+    }
+
+    line(
+      'Base fare',
+      TripFareFormat.amountForKeys(trip, ['baseFare', 'base_fare', 'baseAmount']),
+    );
+
+    final distFare = TripFareFormat.amountForKeys(
+      trip,
+      ['distanceFare', 'distance_fare', 'kmFare', 'perKmFare'],
+    );
+    final km = trip['distanceKm'] ?? trip['distance'] ?? trip['totalDistanceKm'];
+    if (distFare != null) {
+      final kmLabel = km != null ? ' ($km km)' : '';
+      line('Distance$kmLabel', distFare);
+    }
+
+    line(
+      'Time',
+      TripFareFormat.amountForKeys(
+        trip,
+        ['timeFare', 'time_fare', 'durationFare', 'minutesFare'],
+      ),
+    );
+
+    line(
+      'Surge',
+      TripFareFormat.amountForKeys(trip, ['surgeFare', 'surge', 'surgeAmount']),
+    );
+
+    line(
+      'Fees',
+      TripFareFormat.amountForKeys(trip, ['serviceFee', 'platformFee', 'tax', 'taxAmount']),
+    );
+
+    if (items.isEmpty) {
+      items.add(
+        Text(
+          'Line items not provided — total reflects the trip fare from your records.',
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            color: Colors.grey[600],
+            height: 1.35,
+          ),
+        ),
+      );
+    }
+
+    return items;
   }
 
   Widget _buildPaymentRow(String label, String value) {

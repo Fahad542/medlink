@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 class SosSocketService {
@@ -11,6 +12,9 @@ class SosSocketService {
   io.Socket? _socket;
   String? _token;
   String? _url;
+  String? _lastJoinedSosKey;
+  /// Last trip room joined (numeric id or UUID string — must match backend `joinTrip` / broadcasts).
+  String? _lastJoinedTripIdKey;
 
   final StreamController<Map<String, dynamic>> _sosUpdatedController =
       StreamController.broadcast();
@@ -29,29 +33,51 @@ class SosSocketService {
   bool get isConnected => _socket?.connected == true;
 
   void connect({required String url, required String token}) {
+    final socketUrl = url.endsWith('/sos') ? url : '$url/sos';
+
     if (_socket != null &&
-        _url == url &&
+        _url == socketUrl &&
         _token == token &&
         _socket!.connected == true) {
       return;
     }
 
     disconnect();
-    _url = url;
+    _url = socketUrl;
     _token = token;
 
     final socket = io.io(
-      url,
-      <String, dynamic>{
-        'transports': ['websocket'],
-        'autoConnect': false,
-        'extraHeaders': {'Authorization': 'Bearer $token'},
-      },
+      socketUrl,
+      io.OptionBuilder()
+          .setTransports(['websocket', 'polling'])
+          .disableAutoConnect()
+          .setExtraHeaders({'Authorization': 'Bearer $token'})
+          .setAuth({
+            'authorization': 'Bearer $token',
+            'token': token,
+          })
+          .setQuery({'token': token})
+          .build(),
     );
 
-    socket.on('connect', (_) {});
-    socket.on('disconnect', (_) {});
-    socket.on('connect_error', (_) {});
+    socket.onConnect((_) {
+      debugPrint('[SosSocketService] connected');
+      _emitJoinUser();
+      if (_lastJoinedSosKey != null && _lastJoinedSosKey!.isNotEmpty) {
+        socket.emit('joinSos', {'sosId': _idWireFromKey(_lastJoinedSosKey!)});
+      }
+      if (_lastJoinedTripIdKey != null) {
+        socket.emit('joinTrip', {
+          'tripId': _idWireFromKey(_lastJoinedTripIdKey!),
+        });
+      }
+    });
+    socket.onConnectError((dynamic e) {
+      debugPrint('[SosSocketService] connect_error: $e');
+    });
+    socket.onDisconnect((dynamic r) {
+      debugPrint('[SosSocketService] disconnect: $r');
+    });
 
     socket.on('sos:updated', (data) {
       final m = _toMap(data);
@@ -61,13 +87,23 @@ class SosSocketService {
       final m = _toMap(data);
       if (m != null) _tripUpdatedController.add(m);
     });
-    socket.on('trip:locationUpdated', (data) {
+    void onDriverLoc(dynamic data) {
       final m = _toMap(data);
       if (m != null) _tripLocationUpdatedController.add(m);
-    });
+    }
+
+    socket.on('trip:locationUpdated', onDriverLoc);
+    socket.on('trip:driverLocation', onDriverLoc);
+    socket.on('driverLocationUpdated', onDriverLoc);
 
     _socket = socket;
     socket.connect();
+  }
+
+  void _emitJoinUser() {
+    if (_socket == null) return;
+    debugPrint('[SosSocketService] emit joinUser');
+    _socket!.emit('joinUser', <String, dynamic>{});
   }
 
   void disconnect() {
@@ -80,27 +116,48 @@ class SosSocketService {
     }
   }
 
+  /// Call after connect if you need an explicit re-join (e.g. token refresh).
   void joinUser() {
-    _socket?.emit('joinUser', {});
+    _emitJoinUser();
   }
 
-  void joinTrip(int tripId) {
-    _socket?.emit('joinTrip', {'tripId': tripId});
+  void joinSos(Object sosId) {
+    final key = sosId.toString();
+    if (key.isEmpty) return;
+    _lastJoinedSosKey = key;
+    _socket?.emit('joinSos', {'sosId': _idWireFromKey(key)});
   }
 
-  void joinSos(int sosId) {
-    _socket?.emit('joinSos', {'sosId': sosId});
+  /// Call when patient ends emergency flow so reconnect does not rejoin old rooms.
+  void clearJoinedRooms() {
+    _lastJoinedSosKey = null;
+    _lastJoinedTripIdKey = null;
+  }
+
+  /// Backend may expect a number (auto-id) or a string (UUID). Prefer int when parsable.
+  static dynamic _idWireFromKey(String key) {
+    final n = int.tryParse(key);
+    return n ?? key;
+  }
+
+  void joinTrip(Object tripId) {
+    final key = tripId.toString();
+    if (key.isEmpty) return;
+    _lastJoinedTripIdKey = key;
+    _socket?.emit('joinTrip', {'tripId': _idWireFromKey(key)});
   }
 
   void updateTripLocation({
-    required int tripId,
+    required Object tripId,
     required double lat,
     required double lng,
     double? speed,
     double? heading,
   }) {
+    final key = tripId.toString();
+    if (key.isEmpty) return;
     _socket?.emit('updateTripLocation', {
-      'tripId': tripId,
+      'tripId': _idWireFromKey(key),
       'lat': lat,
       'lng': lng,
       if (speed != null) 'speed': speed,
@@ -109,7 +166,7 @@ class SosSocketService {
   }
 
   Map<String, dynamic>? _toMap(dynamic data) {
-    if (data is Map) return Map<String, dynamic>.from(data as Map);
+    if (data is Map) return Map<String, dynamic>.from(data);
     if (data is String) {
       try {
         final decoded = jsonDecode(data);
@@ -119,4 +176,3 @@ class SosSocketService {
     return null;
   }
 }
-

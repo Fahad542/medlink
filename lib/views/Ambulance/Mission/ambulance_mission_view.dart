@@ -13,6 +13,8 @@ import 'package:medlink/widgets/custom_button.dart';
 import 'package:medlink/widgets/emergency_action_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:medlink/utils/gps_coord.dart';
+import 'package:medlink/utils/vehicle_map_marker.dart';
 
 class AmbulanceMissionView extends StatefulWidget {
   const AmbulanceMissionView({super.key});
@@ -26,10 +28,32 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
   bool hasInitialFit = false;
 
   List<LatLng> _routePoints = [];
+  List<LatLng> _patientToHospitalLeg = [];
+  String? _patientToHospitalKey;
+  bool _patientToHospitalFetching = false;
   LatLng? _lastRoutedTargetPos;
   LatLng? _lastRoutedDriverPos;
   bool _isFetchingRoute = false;
   String _etaText = "";
+
+  BitmapDescriptor? _vehicleIcon;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      try {
+        final icon = await VehicleMapMarker.forContext(context);
+        if (mounted) setState(() => _vehicleIcon = icon);
+      } catch (_) {
+        if (mounted) {
+          setState(() => _vehicleIcon =
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure));
+        }
+      }
+    });
+  }
 
   Future<void> _fitCamera(List<LatLng> points) async {
     if (!_mapController.isCompleted || points.isEmpty) return;
@@ -77,25 +101,54 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
       );
     }
     
-    bool shouldFetch = _routePoints.isEmpty || 
-          _lastRoutedTargetPos == null || 
-          _lastRoutedTargetPos!.latitude != targetPos.latitude || 
-          _lastRoutedTargetPos!.longitude != targetPos.longitude ||
-          distanceMoved > 50;
-    
+    final targetChanged = _lastRoutedTargetPos == null ||
+        _lastRoutedTargetPos!.latitude != targetPos.latitude ||
+        _lastRoutedTargetPos!.longitude != targetPos.longitude;
+    bool shouldFetch = _routePoints.isEmpty ||
+        targetChanged ||
+        distanceMoved > 50;
+
     if (shouldFetch) {
+      if (targetChanged && mounted) {
+        setState(() => _routePoints = []);
+      }
       _isFetchingRoute = true;
       final routeData = await GoogleMapsService.getRouteCoordinates(driverPos, targetPos);
       if (routeData != null && mounted) {
-        setState(() {
-           _routePoints = routeData['points'];
-           _etaText = routeData['durationText'];
-           _lastRoutedTargetPos = targetPos;
-           _lastRoutedDriverPos = driverPos;
-        });
+        final pts = routeData['points'];
+        if (pts is List<LatLng> && pts.length >= 2) {
+          setState(() {
+            _routePoints = List<LatLng>.from(pts);
+            _etaText = routeData['durationText']?.toString() ?? '';
+            _lastRoutedTargetPos = targetPos;
+            _lastRoutedDriverPos = driverPos;
+          });
+        }
       }
       _isFetchingRoute = false;
     }
+  }
+
+  Future<void> _syncPatientToHospitalRoad(LatLng? pickup, LatLng? drop) async {
+    if (pickup == null || drop == null) return;
+    final key =
+        '${pickup.latitude.toStringAsFixed(5)}_${pickup.longitude.toStringAsFixed(5)}_'
+        '${drop.latitude.toStringAsFixed(5)}_${drop.longitude.toStringAsFixed(5)}';
+    if (_patientToHospitalKey == key && _patientToHospitalLeg.isNotEmpty) {
+      return;
+    }
+    if (_patientToHospitalFetching) return;
+    _patientToHospitalFetching = true;
+    final routeData =
+        await GoogleMapsService.getRouteCoordinates(pickup, drop);
+    _patientToHospitalFetching = false;
+    if (!mounted || routeData == null) return;
+    final raw = routeData['points'];
+    if (raw is! List<LatLng>) return;
+    setState(() {
+      _patientToHospitalKey = key;
+      _patientToHospitalLeg = List<LatLng>.from(raw);
+    });
   }
 
   @override
@@ -104,10 +157,10 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
       create: (_) => AmbulanceMissionViewModel(),
       child: Consumer<AmbulanceMissionViewModel>(
         builder: (context, viewModel, child) {
-          final driverPos =
-              (viewModel.driverLat != null && viewModel.driverLng != null)
-                  ? LatLng(viewModel.driverLat!, viewModel.driverLng!)
-                  : null;
+          final driverPos = GpsCoord.isValidPair(
+                  viewModel.driverLat, viewModel.driverLng)
+              ? LatLng(viewModel.driverLat!, viewModel.driverLng!)
+              : null;
           final pickupPos =
               (viewModel.pickupLat != null && viewModel.pickupLng != null)
                   ? LatLng(viewModel.pickupLat!, viewModel.pickupLng!)
@@ -117,8 +170,10 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
                   ? LatLng(viewModel.dropoffLat!, viewModel.dropoffLng!)
                   : null;
 
-          final isTransporting = viewModel.status == MissionStatus.transporting;
-          final targetPos = (isTransporting && dropoffPos != null) ? dropoffPos : (pickupPos ?? dropoffPos);
+          final apiPhase = (viewModel.apiTripStatus ?? '').toUpperCase();
+          final targetPos = (apiPhase == 'IN_PROGRESS' && dropoffPos != null)
+              ? dropoffPos
+              : (pickupPos ?? dropoffPos);
 
           if (driverPos != null && targetPos != null) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -126,14 +181,27 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
             });
           }
 
+          if (pickupPos != null && dropoffPos != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _syncPatientToHospitalRoad(pickupPos, dropoffPos);
+            });
+          }
+
+          final driverIcon = _vehicleIcon ??
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure);
           final markers = <Marker>{
             if (driverPos != null)
               Marker(
                 markerId: const MarkerId('driver'),
                 position: driverPos,
-                icon: BitmapDescriptor.defaultMarkerWithHue(
-                    BitmapDescriptor.hueAzure),
+                icon: driverIcon,
                 rotation: viewModel.driverHeading ?? 0.0,
+                flat: true,
+                anchor: const Offset(0.5, 0.5),
+                infoWindow: const InfoWindow(
+                  title: 'Your ambulance',
+                  snippet: 'Live position',
+                ),
               ),
             if (pickupPos != null)
               Marker(
@@ -141,6 +209,10 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
                 position: pickupPos,
                 icon: BitmapDescriptor.defaultMarkerWithHue(
                     BitmapDescriptor.hueGreen),
+                infoWindow: const InfoWindow(
+                  title: 'Patient pickup',
+                  snippet: 'Patient is here',
+                ),
               ),
             if (dropoffPos != null)
               Marker(
@@ -148,14 +220,32 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
                 position: dropoffPos,
                 icon: BitmapDescriptor.defaultMarkerWithHue(
                     BitmapDescriptor.hueRed),
+                infoWindow: const InfoWindow(
+                  title: 'Destination',
+                  snippet: 'Hospital / drop-off',
+                ),
               ),
           };
 
           final polylines = <Polyline>{
-            if (driverPos != null && targetPos != null)
+            if (_patientToHospitalLeg.length >= 2)
               Polyline(
-                polylineId: PolylineId('route_${targetPos.latitude}_${targetPos.longitude}'),
-                points: _routePoints.isEmpty ? [driverPos, targetPos] : _routePoints,
+                polylineId: const PolylineId('planned_patient_hospital'),
+                points: _patientToHospitalLeg,
+                color: Colors.grey.shade500,
+                width: 4,
+                patterns: [
+                  PatternItem.dash(22),
+                  PatternItem.gap(12),
+                ],
+              ),
+            if (driverPos != null &&
+                targetPos != null &&
+                _routePoints.length >= 2)
+              Polyline(
+                polylineId: PolylineId(
+                    'drive_${targetPos.latitude}_${targetPos.longitude}'),
+                points: _routePoints,
                 color: AppColors.primary,
                 width: 6,
               ),

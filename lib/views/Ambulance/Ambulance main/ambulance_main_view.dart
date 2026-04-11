@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/views/Ambulance/Dashboard/ambulance_dashboard_view.dart';
+import 'package:medlink/views/Ambulance/Dashboard/ambulance_dashboard_view_model.dart';
 import 'package:medlink/views/Ambulance/history/ambulance_history_view.dart';
+import 'package:medlink/views/Ambulance/history/ambulance_history_view_model.dart';
 import 'package:medlink/views/Ambulance/profile/ambulance_profile_view.dart';
 import 'package:medlink/views/Ambulance/profile/ambulance_earnings_view.dart';
 import 'package:medlink/views/Ambulance/Ambulance%20main/ambulance_main_view_model.dart';
@@ -24,20 +26,26 @@ class AmbulanceMainView extends StatefulWidget {
 
 class _AmbulanceMainViewState extends State<AmbulanceMainView>
     with SingleTickerProviderStateMixin {
-  late final AmbulanceMainViewModel _viewModel;
+  /// Lazy initializers so hot reload / restored State still gets instances
+  /// (new `late` fields are not set if `initState` does not run again).
+  late final AmbulanceMainViewModel _viewModel = AmbulanceMainViewModel();
+  late final AmbulanceDashboardViewModel _dashboardViewModel =
+      AmbulanceDashboardViewModel();
+  late final AmbulanceHistoryViewModel _historyViewModel =
+      AmbulanceHistoryViewModel();
   late AnimationController _pulseController;
   StreamSubscription? _incomingCallSub;
 
   @override
   void initState() {
     super.initState();
-    _viewModel = AmbulanceMainViewModel();
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      //   Provider.of<CallViewModel>(context, listen: false).startPolling(context);
+      _viewModel.onActiveTripEnded = _historyViewModel.fetchHistory;
+      Provider.of<CallViewModel>(context, listen: false).startPolling(context);
       _viewModel.checkActiveTrip();
       final userVM = Provider.of<UserViewModel>(context, listen: false);
       final token = userVM.accessToken;
@@ -108,8 +116,14 @@ class _AmbulanceMainViewState extends State<AmbulanceMainView>
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider.value(
-      value: _viewModel,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AmbulanceMainViewModel>.value(value: _viewModel),
+        ChangeNotifierProvider<AmbulanceDashboardViewModel>.value(
+            value: _dashboardViewModel),
+        ChangeNotifierProvider<AmbulanceHistoryViewModel>.value(
+            value: _historyViewModel),
+      ],
       child: Consumer<AmbulanceMainViewModel>(
         builder: (context, viewModel, child) {
           return Scaffold(
@@ -139,7 +153,10 @@ class _AmbulanceMainViewState extends State<AmbulanceMainView>
                           MaterialPageRoute(
                             builder: (_) => const AmbulanceMissionView(),
                           ),
-                        );
+                        ).then((_) {
+                          if (!mounted) return;
+                          _historyViewModel.fetchHistory();
+                        });
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
@@ -318,9 +335,12 @@ class _AmbulanceMainViewState extends State<AmbulanceMainView>
 
   @override
   void dispose() {
+    _viewModel.onActiveTripEnded = null;
     _pulseController.dispose();
     _incomingCallSub?.cancel();
+    _dashboardViewModel.dispose();
     _viewModel.dispose();
+    _historyViewModel.dispose();
     super.dispose();
   }
 
@@ -330,6 +350,9 @@ class _AmbulanceMainViewState extends State<AmbulanceMainView>
     return GestureDetector(
       onTap: () {
         viewModel.setIndex(index);
+        if (index == 2) {
+          context.read<AmbulanceHistoryViewModel>().fetchHistory();
+        }
       },
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
