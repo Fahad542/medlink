@@ -93,6 +93,30 @@ class NetworkApiService extends BaseApiServices {
     return responseJson;
   }
 
+  /// POST JSON without attaching stored session (used for `/auth/social-login`).
+  Future<dynamic> getPostApiResponseNoAuth(String url, String body) async {
+    if (kDebugMode) print(url);
+    dynamic responseJson;
+    try {
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      };
+      final response = await http
+          .post(
+            Uri.parse(url),
+            body: body,
+            headers: headers,
+          )
+          .timeout(const Duration(seconds: 30));
+      responseJson = returnResponse(response);
+    } on SocketException catch (e) {
+      if (kDebugMode) print('SocketException for $url: $e');
+      throw FetchDataException('No Internet Connection or Server Unreachable');
+    }
+    return responseJson;
+  }
+
   @override
   Future getPutApiResponse(String url, dynamic data) async {
     print(url);

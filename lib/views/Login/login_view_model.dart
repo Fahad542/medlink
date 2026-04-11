@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:medlink/data/network/api_services.dart';
+import 'package:medlink/services/social_auth_service.dart';
 import 'package:medlink/utils/utils.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/models/user_login_model.dart';
@@ -27,9 +28,6 @@ class LoginViewModel with ChangeNotifier {
   bool _obscurePassword = true;
   bool get obscurePassword => _obscurePassword;
 
-  String _selectedRole = 'patient';
-  String get selectedRole => _selectedRole;
-
   bool _isEmailLogin = false;
   bool get isEmailLogin => _isEmailLogin;
 
@@ -50,11 +48,6 @@ class LoginViewModel with ChangeNotifier {
 
   void toggleLoginType(bool value) {
     _isEmailLogin = value;
-    notifyListeners();
-  }
-
-  void setSelectedRole(String role) {
-    _selectedRole = role;
     notifyListeners();
   }
 
@@ -87,7 +80,7 @@ class LoginViewModel with ChangeNotifier {
           // Get the role from the API response (API may return DRIVER/driver/ambulance), or fallback to selected role
           String roleToSave =
               loginModel.data?.user?.role?.toString().toLowerCase() ??
-                  _selectedRole;
+                  'patient';
           if (roleToSave == 'ambulance') roleToSave = 'driver';
 
           // Navigation logic based on role
@@ -123,43 +116,131 @@ class LoginViewModel with ChangeNotifier {
     }
   }
 
-  Future<void> socialLoginApi(
-      BuildContext context, String provider, String token) async {
+  Future<void> signInWithGoogle(BuildContext context) async {
     setLoading(true);
-
     try {
-      final response = await _apiServices.socialLogin(provider, token);
+      final google = await SocialAuthService.signInWithGoogle();
+      if (!context.mounted) return;
+      if (google == null) {
+        setLoading(false);
+        return;
+      }
+
+      const roleUpper = 'PATIENT';
+      final response = await _apiServices.socialLogin(
+        provider: 'google',
+        providerUserId: google.providerUserId,
+        role: roleUpper,
+        email: google.email,
+        fullName: google.fullName,
+        phone: '',
+      );
+
+      if (!context.mounted) return;
       setLoading(false);
 
-      if (response != null) {
-        final loginModel = UserLoginModel.fromJson(response);
+      if (response is! Map) {
+        Utils.toastMessage(context, 'Invalid response from server', isError: true);
+        return;
+      }
 
-        if (loginModel.success == true && loginModel.data != null) {
-          final userVM = Provider.of<UserViewModel>(context, listen: false);
-          await userVM.saveUserLoginSession(loginModel);
+      final loginModel =
+          UserLoginModel.fromJson(Map<String, dynamic>.from(response as Map));
+      if (loginModel.success == true && loginModel.data != null) {
+        final userVM = Provider.of<UserViewModel>(context, listen: false);
+        await userVM.saveUserLoginSession(loginModel);
 
-          String roleToSave =
-              loginModel.data?.user?.role?.toString().toLowerCase() ??
-                  'patient';
-          if (roleToSave == 'ambulance') roleToSave = 'driver';
+        String roleToSave =
+            loginModel.data?.user?.role?.toString().toLowerCase() ??
+                'patient';
+        if (roleToSave == 'ambulance') roleToSave = 'driver';
 
-          if (context.mounted) {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (_) {
-                if (roleToSave == 'doctor') return const DoctorMainScreen();
-                if (roleToSave == 'patient') return const MainScreen();
-                if (roleToSave == 'driver') return const AmbulanceMainView();
-                return const MainScreen();
-              }),
-              (route) => false,
-            );
-          }
+        if (context.mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) {
+              if (roleToSave == 'doctor') return const DoctorMainScreen();
+              if (roleToSave == 'patient') return const MainScreen();
+              if (roleToSave == 'driver') return const AmbulanceMainView();
+              return const MainScreen();
+            }),
+            (route) => false,
+          );
         }
+      } else {
+        final msg = response['message']?.toString() ?? 'Google sign-in failed';
+        Utils.toastMessage(context, msg, isError: true);
       }
     } catch (e) {
       setLoading(false);
-      Utils.toastMessage(context, e.toString(), isError: true);
+      if (context.mounted) {
+        Utils.toastMessage(context, e.toString(), isError: true);
+      }
+    }
+  }
+
+  Future<void> signInWithApple(BuildContext context) async {
+    setLoading(true);
+    try {
+      final apple = await SocialAppleAuth.signInWithApple();
+      if (!context.mounted) return;
+      if (apple == null) {
+        setLoading(false);
+        return;
+      }
+
+      const roleUpper = 'PATIENT';
+      final response = await _apiServices.socialLogin(
+        provider: 'apple',
+        providerUserId: apple.providerUserId,
+        role: roleUpper,
+        email: apple.email,
+        fullName: apple.fullName,
+        phone: '',
+      );
+
+      if (!context.mounted) return;
+      setLoading(false);
+
+      if (response is! Map) {
+        Utils.toastMessage(context, 'Invalid response from server',
+            isError: true);
+        return;
+      }
+
+      final loginModel =
+          UserLoginModel.fromJson(Map<String, dynamic>.from(response as Map));
+      if (loginModel.success == true && loginModel.data != null) {
+        final userVM = Provider.of<UserViewModel>(context, listen: false);
+        await userVM.saveUserLoginSession(loginModel);
+
+        String roleToSave =
+            loginModel.data?.user?.role?.toString().toLowerCase() ??
+                'patient';
+        if (roleToSave == 'ambulance') roleToSave = 'driver';
+
+        if (context.mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) {
+              if (roleToSave == 'doctor') return const DoctorMainScreen();
+              if (roleToSave == 'patient') return const MainScreen();
+              if (roleToSave == 'driver') return const AmbulanceMainView();
+              return const MainScreen();
+            }),
+            (route) => false,
+          );
+        }
+      } else {
+        final msg =
+            response['message']?.toString() ?? 'Apple sign-in failed';
+        Utils.toastMessage(context, msg, isError: true);
+      }
+    } catch (e) {
+      setLoading(false);
+      if (context.mounted) {
+        Utils.toastMessage(context, e.toString(), isError: true);
+      }
     }
   }
 

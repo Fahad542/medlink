@@ -10,6 +10,8 @@ class Step1Credentials extends StatefulWidget {
   final TextEditingController phoneController;
   final VoidCallback onNext;
   final bool isLoading;
+  final Future<void> Function()? onGoogleSignIn;
+  final Future<void> Function()? onAppleSignIn;
 
   const Step1Credentials({
     super.key,
@@ -19,6 +21,8 @@ class Step1Credentials extends StatefulWidget {
     required this.phoneController,
     required this.onNext,
     this.isLoading = false,
+    this.onGoogleSignIn,
+    this.onAppleSignIn,
   });
 
   @override
@@ -111,48 +115,58 @@ class _Step1CredentialsState extends State<Step1Credentials> {
 
             const SizedBox(height: 32),
 
-            Row(
-              children: [
-                Expanded(child: Divider(color: Colors.grey[200], thickness: 1)),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    "Or continue with",
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.grey[400],
+            if (widget.onGoogleSignIn != null ||
+                widget.onAppleSignIn != null) ...[
+              Row(
+                children: [
+                  Expanded(
+                      child: Divider(color: Colors.grey[200], thickness: 1)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      "Or continue with",
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.grey[400],
+                      ),
                     ),
                   ),
-                ),
-                Expanded(child: Divider(color: Colors.grey[200], thickness: 1)),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            Row(
-              children: [
-                Expanded(
-                  child: _buildSocialButton(
-                    icon: "assets/Icons/google.png",
-                    label: "Google",
-                    onTap: () {},
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildSocialButton(
-                    icon: "assets/Icons/apple.png",
-                    label: "Apple",
-                    onTap: () {},
-                    isApple: true,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
+                  Expanded(
+                      child: Divider(color: Colors.grey[200], thickness: 1)),
+                ],
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  if (widget.onGoogleSignIn != null)
+                    Expanded(
+                      child: _buildSocialButton(
+                        icon: "assets/Icons/google.png",
+                        label: "Google",
+                        onTap: () async {
+                          await widget.onGoogleSignIn!();
+                        },
+                      ),
+                    ),
+                  if (widget.onGoogleSignIn != null &&
+                      widget.onAppleSignIn != null)
+                    const SizedBox(width: 16),
+                  if (widget.onAppleSignIn != null)
+                    Expanded(
+                      child: _buildSocialButton(
+                        icon: "assets/Icons/apple.png",
+                        label: "Apple",
+                        onTap: () async {
+                          await widget.onAppleSignIn!();
+                        },
+                        isApple: true,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 24),
+            ],
 
             Center(
               child: GestureDetector(

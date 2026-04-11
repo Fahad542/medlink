@@ -162,6 +162,12 @@ class _RegisterViewState extends State<RegisterView> {
       confirmPasswordController: authViewModel.confirmPasswordController,
       isLoading: authViewModel.loading,
       onNext: () => authViewModel.submitStep1(context),
+      onGoogleSignIn: authViewModel.role != UserRole.driver
+          ? () => authViewModel.signInWithGoogleForRegistration(context)
+          : null,
+      onAppleSignIn: authViewModel.role != UserRole.driver
+          ? () => authViewModel.signInWithAppleForRegistration(context)
+          : null,
     );
 
     final commonStep2 = Step3Otp(
@@ -250,6 +256,7 @@ class _RegisterViewState extends State<RegisterView> {
           DoctorStep4Professional(
             isLoading: authViewModel.loading,
             onNext: () => authViewModel.submitDoctorStep4(context),
+            phoneController: authViewModel.phoneController,
             specializationController: authViewModel.specializationController,
             experienceController: authViewModel.experienceController,
             clinicNameController: authViewModel.clinicNameController,

@@ -5,7 +5,7 @@ class AppUrl {
 
   //static const String baseUrl = 'https://www.medlink-africa.com';
   static const String baseUrl =
-      'http://192.168.100.104:3000'; // Emulator Magic IP (points to your machine)
+      'https://www.medlink-africa.com'; // Emulator Magic IP (points to your machine)
 
   /// Common Auth Endpoints
   static const String loginEndPoint = '${baseUrl}/auth/login';
@@ -39,7 +39,7 @@ class AppUrl {
     if (path == null || path.isEmpty) return '';
     if (path.startsWith('http')) return path;
 
-    // Ensure path starts with a single slash
+
     final cleanPath = path.startsWith('/') ? path : '/$path';
     return '$baseUrl$cleanPath';
   }

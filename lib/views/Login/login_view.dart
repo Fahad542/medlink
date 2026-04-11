@@ -134,28 +134,28 @@ class LoginView extends StatelessWidget {
 
                     const SizedBox(height: 32),
 
-                    // Social Login Divider
                     Row(
                       children: [
                         Expanded(
                             child:
                                 Divider(color: Colors.grey[200], thickness: 1)),
                         Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16),
-                          child: Text("",
-                              style: GoogleFonts.inter(
-                                  color: Colors.grey[400],
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w400)),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            "Or continue with",
+                            style: GoogleFonts.inter(
+                                color: Colors.grey[400],
+                                fontSize: 13,
+                                fontWeight: FontWeight.w400),
+                          ),
                         ),
                         Expanded(
                             child:
                                 Divider(color: Colors.grey[200], thickness: 1)),
                       ],
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 24),
 
-                    // Social Icons
                     Row(
                       children: [
                         Expanded(
@@ -163,13 +163,7 @@ class LoginView extends StatelessWidget {
                             icon: "assets/google.png",
                             label: "Google",
                             onTap: () {
-                              // In real app, call GoogleSignIn() then:
-                              // viewModel.socialLoginApi(context, 'google', googleToken);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text(
-                                        "Google Sign-In integration required")),
-                              );
+                              viewModel.signInWithGoogle(context);
                             },
                           ),
                         ),
@@ -179,13 +173,7 @@ class LoginView extends StatelessWidget {
                             icon: "assets/Icons/apple.png",
                             label: "Apple",
                             onTap: () {
-                              // In real app, call SignWithApple() then:
-                              // viewModel.socialLoginApi(context, 'apple', appleToken);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text(
-                                        "Apple Sign-In integration required")),
-                              );
+                              viewModel.signInWithApple(context);
                             },
                             isApple: true,
                           ),

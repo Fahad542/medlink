@@ -62,6 +62,21 @@
 		<string>https</string>
 		<string>http</string>
 		<string>tel</string>
+		<string>googlechrome</string>
+		<string>googlechromes</string>
+	</array>
+	<key>GIDClientID</key>
+	<string>906066155445-b3gtiu3n4pllvffq0rmsg46igb653srv.apps.googleusercontent.com</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.906066155445-b3gtiu3n4pllvffq0rmsg46igb653srv</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>

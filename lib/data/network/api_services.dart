@@ -61,17 +61,34 @@ class ApiServices {
     try {
       final sp = await SharedPreferences.getInstance();
       final registerToken = sp.getString(_kPatientRegisterToken);
-      if (registerToken == null || registerToken.isEmpty) {
-        throw Exception('Register token expired. Please restart registration.');
+      String? bearer = registerToken;
+      final bool usedRegisterToken =
+          registerToken != null && registerToken.isNotEmpty;
+      if (!usedRegisterToken) {
+        final sessionStr = sp.getString('user_session_v2');
+        if (sessionStr != null && sessionStr.isNotEmpty) {
+          try {
+            final Map<String, dynamic> session =
+                jsonDecode(sessionStr) as Map<String, dynamic>;
+            final data = session['data'];
+            if (data is Map) {
+              bearer = data['access_token']?.toString();
+            }
+          } catch (_) {}
+        }
+      }
+      if (bearer == null || bearer.isEmpty) {
+        throw Exception(
+            'Register token expired. Please restart registration or sign in again.');
       }
       final response = await _apiServices.getPostMultipartWithOptionalBearer(
         AppUrl.patientRegisterStep3,
         formData,
         file,
-        bearerToken: registerToken,
+        bearerToken: bearer,
         fileKey: 'profilePic',
       );
-      await sp.remove(_kPatientRegisterToken);
+      if (usedRegisterToken) await sp.remove(_kPatientRegisterToken);
       return response;
     } catch (e) {
       rethrow;
@@ -246,8 +263,25 @@ class ApiServices {
     try {
       final sp = await SharedPreferences.getInstance();
       final registerToken = sp.getString(_kDoctorRegisterToken);
-      if (registerToken == null || registerToken.isEmpty) {
-        throw Exception('Register token expired. Please restart registration.');
+      String? bearer = registerToken;
+      final bool usedRegisterToken =
+          registerToken != null && registerToken.isNotEmpty;
+      if (!usedRegisterToken) {
+        final sessionStr = sp.getString('user_session_v2');
+        if (sessionStr != null && sessionStr.isNotEmpty) {
+          try {
+            final Map<String, dynamic> session =
+                jsonDecode(sessionStr) as Map<String, dynamic>;
+            final data = session['data'];
+            if (data is Map) {
+              bearer = data['access_token']?.toString();
+            }
+          } catch (_) {}
+        }
+      }
+      if (bearer == null || bearer.isEmpty) {
+        throw Exception(
+            'Register token expired. Please restart registration or sign in again.');
       }
       final response = await _apiServices.getPostMultipartWithBearerTwoFiles(
         AppUrl.doctorRegisterStep3,
@@ -256,9 +290,9 @@ class ApiServices {
         fileKey1: 'profilePic',
         file2: medicalLicenseFile,
         fileKey2: 'medicalLicenseDocument',
-        bearerToken: registerToken,
+        bearerToken: bearer,
       );
-      await sp.remove(_kDoctorRegisterToken);
+      if (usedRegisterToken) await sp.remove(_kDoctorRegisterToken);
       return response;
     } catch (e) {
       rethrow;
@@ -474,11 +508,27 @@ class ApiServices {
     }
   }
 
-  Future<dynamic> socialLogin(String provider, String token) async {
+  /// Unified social login/register: `POST /auth/social-login`.
+  Future<dynamic> socialLogin({
+    required String provider,
+    required String providerUserId,
+    required String role,
+    required String email,
+    required String fullName,
+    String phone = '',
+  }) async {
     try {
-      return await _apiServices.getPostApiResponse(
+      final body = <String, dynamic>{
+        'provider': provider,
+        'providerUserId': providerUserId,
+        'role': role,
+        'email': email,
+        'fullName': fullName,
+        'phone': phone.trim().isNotEmpty ? phone.trim() : '',
+      };
+      return await _apiServices.getPostApiResponseNoAuth(
         AppUrl.socialLogin,
-        jsonEncode({'provider': provider, 'token': token}),
+        jsonEncode(body),
       );
     } catch (e) {
       rethrow;

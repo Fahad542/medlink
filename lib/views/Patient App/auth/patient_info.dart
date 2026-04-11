@@ -64,7 +64,80 @@ class Step4Info extends StatelessWidget {
                   height: 1.5,
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+              StatefulBuilder(
+                builder: (context, setLocal) {
+                  final needPhone =
+                      authVM.phoneController.text.trim().length < 10;
+                  if (!needPhone) return const SizedBox.shrink();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Phone number",
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.06),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: TextField(
+                          controller: authVM.phoneController,
+                          keyboardType: TextInputType.phone,
+                          onChanged: (_) => setLocal(() {}),
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.black87,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: "Enter your phone number",
+                            hintStyle: GoogleFonts.inter(
+                              color: Colors.grey[500],
+                              fontSize: 13,
+                            ),
+                            prefixIcon: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(Icons.phone_android_rounded,
+                                    color: AppColors.primary, size: 18),
+                              ),
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide.none,
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(
+                                vertical: 18, horizontal: 20),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
 
               Text(
                 "Gender",

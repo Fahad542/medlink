@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:medlink/models/user_login_model.dart';
 import 'package:medlink/data/network/api_services.dart';
+import 'package:medlink/services/social_auth_service.dart';
 import 'package:medlink/utils/utils.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:provider/provider.dart';
@@ -248,7 +249,150 @@ class RegisterViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _ensurePasswordForProfileApis() {
+    if (passwordController.text.length < 6) {
+      final p = 'Sl_${DateTime.now().microsecondsSinceEpoch}';
+      passwordController.text = p;
+      confirmPasswordController.text = p;
+    }
+  }
+
+  /// Google → `/auth/social-login` with this flow’s role, then jump to profile details (step index 2).
+  Future<void> signInWithGoogleForRegistration(BuildContext context) async {
+    if (_role == UserRole.driver) return;
+
+    setLoading(true);
+    try {
+      final google = await SocialAuthService.signInWithGoogle();
+      if (!context.mounted) return;
+      if (google == null) {
+        setLoading(false);
+        return;
+      }
+
+      final roleUpper = _role == UserRole.patient ? 'PATIENT' : 'DOCTOR';
+      final phone = phoneController.text.trim();
+      final response = await _apiServices.socialLogin(
+        provider: 'google',
+        providerUserId: google.providerUserId,
+        role: roleUpper,
+        email: google.email,
+        fullName: google.fullName,
+        phone: phone,
+      );
+
+      if (!context.mounted) return;
+      setLoading(false);
+
+      if (response is! Map) {
+        Utils.toastMessage(context, 'Invalid response from server',
+            isError: true);
+        return;
+      }
+
+      final loginModel = UserLoginModel.fromJson(
+          Map<String, dynamic>.from(response as Map));
+      if (loginModel.success == true && loginModel.data != null) {
+        final userVM = Provider.of<UserViewModel>(context, listen: false);
+        await userVM.saveUserLoginSession(loginModel);
+        _ensurePasswordForProfileApis();
+        nameController.text = google.fullName;
+        emailController.text = google.email;
+        final apiPhone = loginModel.data?.user?.phone?.trim();
+        if (phone.isEmpty &&
+            apiPhone != null &&
+            apiPhone.isNotEmpty) {
+          phoneController.text = apiPhone;
+        }
+        setStep(2);
+        Utils.toastMessage(
+            context, 'Signed in with Google. Complete your profile.');
+      } else {
+        final msg =
+            response['message']?.toString() ?? 'Google sign-in failed';
+        Utils.toastMessage(context, msg, isError: true);
+      }
+    } catch (e, stack) {
+      setLoading(false);
+      if (kDebugMode) print('signInWithGoogleForRegistration: $stack');
+      if (context.mounted) {
+        Utils.toastMessage(context, e.toString(), isError: true);
+      }
+    }
+  }
+
+  /// Apple → `/auth/social-login`, then same as Google (step 2 = profile details).
+  Future<void> signInWithAppleForRegistration(BuildContext context) async {
+    if (_role == UserRole.driver) return;
+
+    setLoading(true);
+    try {
+      final apple = await SocialAppleAuth.signInWithApple();
+      if (!context.mounted) return;
+      if (apple == null) {
+        setLoading(false);
+        return;
+      }
+
+      final roleUpper = _role == UserRole.patient ? 'PATIENT' : 'DOCTOR';
+      final phone = phoneController.text.trim();
+      final response = await _apiServices.socialLogin(
+        provider: 'apple',
+        providerUserId: apple.providerUserId,
+        role: roleUpper,
+        email: apple.email,
+        fullName: apple.fullName,
+        phone: phone,
+      );
+
+      if (!context.mounted) return;
+      setLoading(false);
+
+      if (response is! Map) {
+        Utils.toastMessage(context, 'Invalid response from server',
+            isError: true);
+        return;
+      }
+
+      final loginModel = UserLoginModel.fromJson(
+          Map<String, dynamic>.from(response as Map));
+      if (loginModel.success == true && loginModel.data != null) {
+        final userVM = Provider.of<UserViewModel>(context, listen: false);
+        await userVM.saveUserLoginSession(loginModel);
+        _ensurePasswordForProfileApis();
+        nameController.text = apple.fullName;
+        if (apple.email.isNotEmpty) {
+          emailController.text = apple.email;
+        }
+        final apiPhone = loginModel.data?.user?.phone?.trim();
+        if (phone.isEmpty &&
+            apiPhone != null &&
+            apiPhone.isNotEmpty) {
+          phoneController.text = apiPhone;
+        }
+        setStep(2);
+        Utils.toastMessage(
+            context, 'Signed in with Apple. Complete your profile.');
+      } else {
+        final msg =
+            response['message']?.toString() ?? 'Apple sign-in failed';
+        Utils.toastMessage(context, msg, isError: true);
+      }
+    } catch (e, stack) {
+      setLoading(false);
+      if (kDebugMode) print('signInWithAppleForRegistration: $stack');
+      if (context.mounted) {
+        Utils.toastMessage(context, e.toString(), isError: true);
+      }
+    }
+  }
+
   Future<void> submitStep4(BuildContext context) async {
+    if (phoneController.text.trim().length < 10) {
+      Utils.toastMessage(context, "Please enter a valid phone number",
+          isError: true);
+      return;
+    }
     // Validation
     if (selectedGender == null) {
       Utils.toastMessage(context, "Please select gender", isError: true);
@@ -488,6 +632,11 @@ class RegisterViewModel extends ChangeNotifier {
 
   // --- Doctor Methods ---
   Future<void> submitDoctorStep4(BuildContext context) async {
+    if (phoneController.text.trim().length < 10) {
+      Utils.toastMessage(context, "Please enter a valid phone number",
+          isError: true);
+      return;
+    }
     if (specializationController.text.isEmpty) {
       Utils.toastMessage(context, "Please enter specialization", isError: true);
       return;
