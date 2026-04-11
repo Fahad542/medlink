@@ -3,10 +3,10 @@ class AppUrl {
   /// Base URL
   ///static const String baseUrl = 'https://medlink-be-production.up.railway.app';
 
-  // static const String baseUrl =
-  //     'https://www.medlink-africa.com';
   static const String baseUrl =
-      'http://192.168.100.104:3000'; // Emulator Magic IP (points to your machine)
+      'https://www.medlink-africa.com';
+//   static const String baseUrl =
+//       'http://192.168.0.101:3000'; // Emulator Magic IP (points to your machine)
 
   /// Common Auth Endpoints
   static const String loginEndPoint = '${baseUrl}/auth/login';

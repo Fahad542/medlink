@@ -31,6 +31,7 @@ class _MainScreenState extends State<MainScreen>
   late AnimationController _pulseController;
   StreamSubscription? _incomingCallSub;
   StreamSubscription? _appointmentSub;
+  StreamSubscription? _emergencyToastSub;
 
   @override
   void initState() {
@@ -50,11 +51,27 @@ class _MainScreenState extends State<MainScreen>
 
       emergencyVM.checkActiveSos();
       final token = userVM.accessToken;
-      final patientId = int.tryParse(userVM.patient?.id ?? '');
-      
-      if (token != null && token.isNotEmpty && patientId != null) {
-        emergencyVM.startRealtime(userId: patientId, token: token);
-        
+      final patientIdStr = (userVM.patient?.id ?? '').trim();
+      final patientIdNum = int.tryParse(patientIdStr);
+
+      if (token != null &&
+          token.isNotEmpty &&
+          patientIdStr.isNotEmpty) {
+        emergencyVM.startRealtime(
+            patientUserId: patientIdStr, token: token);
+
+        _emergencyToastSub?.cancel();
+        _emergencyToastSub = emergencyVM.toastStream.listen((t) {
+          if (!mounted) return;
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+            SnackBar(
+              content: Text(t.message),
+              backgroundColor: t.backgroundColor,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        });
+
         // Initial load
         appointmentVM.loadUpcomingAppointments();
 
@@ -72,7 +89,9 @@ class _MainScreenState extends State<MainScreen>
         // Connect to dedicated Call Socket
         final callSocket =
             Provider.of<CallSocketService>(context, listen: false);
-        callSocket.connect(token: token, userId: patientId);
+        if (patientIdNum != null) {
+          callSocket.connect(token: token, userId: patientIdNum);
+        }
 
         // Listen for real-time incoming calls via Socket
         _incomingCallSub = callSocket.incomingCallStream.listen((data) {
@@ -134,6 +153,7 @@ class _MainScreenState extends State<MainScreen>
     _pulseController.dispose();
     _incomingCallSub?.cancel();
     _appointmentSub?.cancel();
+    _emergencyToastSub?.cancel();
     super.dispose();
   }
 

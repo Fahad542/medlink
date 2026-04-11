@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:medlink/data/network/api_services.dart';
+import 'package:medlink/utils/trip_fare_format.dart';
 import 'package:intl/intl.dart';
 
 class AmbulanceHistoryViewModel extends ChangeNotifier {
@@ -11,9 +12,7 @@ class AmbulanceHistoryViewModel extends ChangeNotifier {
   List<Map<String, dynamic>> get trips => _trips;
   bool get isLoading => _isLoading;
 
-  AmbulanceHistoryViewModel() {
-    fetchHistory();
-  }
+  AmbulanceHistoryViewModel();
 
   Future<void> fetchHistory() async {
     _isLoading = true;
@@ -24,20 +23,36 @@ class AmbulanceHistoryViewModel extends ChangeNotifier {
       if (response != null && response['success'] == true) {
         final data = response['data'];
         if (data is List) {
-          _trips = List<Map<String, dynamic>>.from(data.map((trip) {
+          _trips = data.whereType<Map>().map<Map<String, dynamic>>((raw) {
+            final trip = Map<String, dynamic>.from(raw);
+            final at = trip['requestedAt'] ??
+                trip['createdAt'] ??
+                trip['completedAt'] ??
+                trip['updatedAt'];
+            final patient = trip['patient'];
+            final patientName = trip['patientName']?.toString() ??
+                (patient is Map
+                    ? (patient['fullName'] ?? patient['name'])?.toString()
+                    : null) ??
+                'Unknown';
+
             return {
-              "id": trip['id'],
-              "tripNumber": trip['tripNumber'] ?? '#${trip['id']}',
-              "patientName": trip['patientName'] ?? 'Unknown',
-              "date": _formatDate(trip['requestedAt']),
-              "time": _formatTime(trip['requestedAt']),
-              "status": trip['status'] ?? 'Unknown',
-              "location": trip['pickupAddress'] ?? 'Pickup',
-              "earnings":
-                  trip['fareAmount'] != null ? '\$${trip['fareAmount']}' : '—',
-              "rawStatus": trip['status'] // For logic checks
+              ...trip,
+              'tripNumber':
+                  trip['tripNumber']?.toString() ?? '#${trip['id']}',
+              'patientName': patientName,
+              'date': _formatDate(at?.toString()),
+              'time': _formatTime(at?.toString()),
+              'status': trip['status']?.toString() ?? 'Unknown',
+              'location': trip['pickupAddress']?.toString() ??
+                  trip['pickup_address']?.toString() ??
+                  'Pickup',
+              'dropoffLabel': trip['dropoffAddress']?.toString() ??
+                  trip['dropoff_address']?.toString(),
+              'earnings': TripFareFormat.display(trip),
+              'rawStatus': trip['status'],
             };
-          }));
+          }).toList();
         }
       }
     } catch (e) {

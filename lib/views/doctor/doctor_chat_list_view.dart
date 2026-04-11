@@ -183,7 +183,7 @@ class _DoctorChatListViewState extends State<DoctorChatListView> {
                                             profileImage:
                                                 chat.patient?.profilePhotoUrl ?? "",
                                             appointmentId:
-                                                "0", // Using 0 as we don't have appointmentId in the response yet
+                                                "", // Pass empty string so viewmodel can extract it from the chat history
                                             doctorId:
                                                 currentUserId.toString(),
                                             patientId:

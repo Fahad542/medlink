@@ -14,6 +14,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:medlink/services/google_maps_service.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/utils/utils.dart';
+import 'package:medlink/utils/gps_coord.dart';
+import 'package:medlink/utils/trip_driver_location.dart';
+import 'package:medlink/utils/vehicle_map_marker.dart';
 
 class AmbulanceTrackingView extends StatefulWidget {
   final AmbulanceModel ambulance;
@@ -35,10 +38,18 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
   bool _reviewPromptShown = false;
 
   List<LatLng> _routePoints = [];
+  List<LatLng> _pickupToDestinationLeg = [];
+  String? _pickupToDestinationKey;
+  bool _pickupToDestinationFetching = false;
   LatLng? _lastRoutedTargetPos;
   LatLng? _lastRoutedDriverPos;
   bool _isFetchingRoute = false;
   String _etaText = "";
+
+  LatLng? _lastCameraDriverPos;
+  DateTime _lastCameraFollowAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  BitmapDescriptor? _vehicleIcon;
 
   @override
   void initState() {
@@ -51,6 +62,21 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
     _pulseAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),
     );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      Provider.of<EmergencyViewModel>(context, listen: false)
+          .ensurePatientTripTracking();
+      try {
+        final icon = await VehicleMapMarker.forContext(context);
+        if (mounted) setState(() => _vehicleIcon = icon);
+      } catch (_) {
+        if (mounted) {
+          setState(() => _vehicleIcon =
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure));
+        }
+      }
+    });
   }
 
   @override
@@ -97,6 +123,51 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
     );
   }
 
+  bool _shouldSmoothFollowCamera(LatLng driverPos) {
+    if (_lastCameraDriverPos == null) return true;
+    final moved = Geolocator.distanceBetween(
+      _lastCameraDriverPos!.latitude,
+      _lastCameraDriverPos!.longitude,
+      driverPos.latitude,
+      driverPos.longitude,
+    );
+    final elapsed = DateTime.now().difference(_lastCameraFollowAt);
+    return moved > 40 || elapsed.inSeconds >= 6;
+  }
+
+  void _markCameraFollowed(LatLng driverPos) {
+    _lastCameraDriverPos = driverPos;
+    _lastCameraFollowAt = DateTime.now();
+  }
+
+  DateTime? _parseLocationTime(Map<String, dynamic>? loc) {
+    if (loc == null) return null;
+    final raw = loc['createdAt'];
+    if (raw == null) return null;
+    try {
+      return DateTime.parse(raw.toString()).toLocal();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _trackingPhaseSubtitle(String tripPhase, String sosSt) {
+    switch (tripPhase) {
+      case 'IN_PROGRESS':
+        return 'Ambulance is taking you to the hospital';
+      case 'ARRIVED':
+        return 'Ambulance has reached your pickup point';
+      case 'ACCEPTED':
+        return 'Crew is on the way to your location';
+      case 'REQUESTED':
+        return 'Trip is being confirmed';
+      default:
+        if (sosSt == 'OPEN') return 'Searching for the nearest ambulance';
+        if (sosSt == 'ASSIGNED') return 'Live location updates below';
+        return 'Live tracking';
+    }
+  }
+
   void _updateRouteIfNeeded(LatLng driverPos, LatLng targetPos) async {
     if (_isFetchingRoute) return;
     
@@ -115,25 +186,55 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
     // 1. No route yet
     // 2. Target changed (e.g. from pickup to dropoff)
     // 3. Driver moved significantly (more than 50 meters)
-    bool shouldFetch = _routePoints.isEmpty || 
-          _lastRoutedTargetPos == null || 
-          _lastRoutedTargetPos!.latitude != targetPos.latitude || 
-          _lastRoutedTargetPos!.longitude != targetPos.longitude ||
-          distanceMoved > 50;
-    
+    final targetChanged = _lastRoutedTargetPos == null ||
+        _lastRoutedTargetPos!.latitude != targetPos.latitude ||
+        _lastRoutedTargetPos!.longitude != targetPos.longitude;
+    bool shouldFetch = _routePoints.isEmpty ||
+        targetChanged ||
+        distanceMoved > 50;
+
     if (shouldFetch) {
+      if (targetChanged && mounted) {
+        setState(() => _routePoints = []);
+      }
       _isFetchingRoute = true;
       final routeData = await GoogleMapsService.getRouteCoordinates(driverPos, targetPos);
       if (routeData != null && mounted) {
-        setState(() {
-           _routePoints = routeData['points'];
-           _etaText = routeData['durationText'];
-           _lastRoutedTargetPos = targetPos;
-           _lastRoutedDriverPos = driverPos;
-        });
+        final pts = routeData['points'];
+        if (pts is List<LatLng> && pts.length >= 2) {
+          setState(() {
+            _routePoints = List<LatLng>.from(pts);
+            _etaText = routeData['durationText']?.toString() ?? '';
+            _lastRoutedTargetPos = targetPos;
+            _lastRoutedDriverPos = driverPos;
+          });
+        }
       }
       _isFetchingRoute = false;
     }
+  }
+
+  Future<void> _syncPickupToDestinationRoad(
+      LatLng? pickup, LatLng? drop) async {
+    if (pickup == null || drop == null) return;
+    final key =
+        '${pickup.latitude.toStringAsFixed(5)}_${pickup.longitude.toStringAsFixed(5)}_'
+        '${drop.latitude.toStringAsFixed(5)}_${drop.longitude.toStringAsFixed(5)}';
+    if (_pickupToDestinationKey == key && _pickupToDestinationLeg.isNotEmpty) {
+      return;
+    }
+    if (_pickupToDestinationFetching) return;
+    _pickupToDestinationFetching = true;
+    final routeData =
+        await GoogleMapsService.getRouteCoordinates(pickup, drop);
+    _pickupToDestinationFetching = false;
+    if (!mounted || routeData == null) return;
+    final raw = routeData['points'];
+    if (raw is! List<LatLng>) return;
+    setState(() {
+      _pickupToDestinationKey = key;
+      _pickupToDestinationLeg = List<LatLng>.from(raw);
+    });
   }
 
   @override
@@ -149,9 +250,18 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
         ? Map<String, dynamic>.from(trip?['latestLocation'])
         : null;
     
-    // Driver current position
-    final driverLat = _toDouble(latestLocation?['lat']) ?? _toDouble(emergencyVM.assignedAmbulance?.currentLat);
-    final driverLng = _toDouble(latestLocation?['lng']) ?? _toDouble(emergencyVM.assignedAmbulance?.currentLng);
+    // Driver position: live socket map first, then REST trip shapes, then assigned driver.
+    double? driverLat = GpsCoord.latFromMap(latestLocation);
+    double? driverLng = GpsCoord.lngFromMap(latestLocation);
+    if (!GpsCoord.isValidPair(driverLat, driverLng) && trip != null) {
+      final fromTrip = TripDriverLocation.latestFromTrip(trip);
+      if (fromTrip != null) {
+        driverLat = GpsCoord.tryParse(fromTrip['lat']);
+        driverLng = GpsCoord.tryParse(fromTrip['lng']);
+      }
+    }
+    driverLat ??= emergencyVM.assignedAmbulance?.currentLat ?? ambulance.currentLat;
+    driverLng ??= emergencyVM.assignedAmbulance?.currentLng ?? ambulance.currentLng;
 
     // Pickup Pos (where the patient is)
     final pickupLat = _toDouble(trip?['pickupLat']) ?? _toDouble(trip?['sos']?['latitude']);
@@ -161,15 +271,21 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
     final dropoffLat = _toDouble(trip?['dropoffLat']) ?? _toDouble(trip?['sos']?['destinationLat']);
     final dropoffLng = _toDouble(trip?['dropoffLng']) ?? _toDouble(trip?['sos']?['destinationLng']);
 
-    final status = emergencyVM.sosStatus?.toUpperCase() ?? '';
-    final isTransporting = status == 'ARRIVED' || status == 'TRANSPORTING' || status == 'IN_PROGRESS';
+    final sosSt = emergencyVM.sosStatus?.toUpperCase() ?? '';
+    final tripPhase = (trip?['status']?.toString() ?? '').toUpperCase();
 
-    LatLng? driverPos = (driverLat != null && driverLng != null) ? LatLng(driverLat, driverLng) : null;
+    LatLng? driverPos = GpsCoord.isValidPair(driverLat, driverLng)
+        ? LatLng(driverLat!, driverLng!)
+        : null;
     LatLng? pickupPos = (pickupLat != null && pickupLng != null) ? LatLng(pickupLat, pickupLng) : null;
     LatLng? dropoffPos = (dropoffLat != null && dropoffLng != null) ? LatLng(dropoffLat, dropoffLng) : null;
 
-    // Determine target based on status (Indrive style)
-    final targetPos = (isTransporting && dropoffPos != null) ? dropoffPos : (pickupPos ?? dropoffPos);
+    // Route to hospital only when trip status is IN_PROGRESS (not SOS status).
+    final LatLng? targetPos = tripPhase == 'IN_PROGRESS' && dropoffPos != null
+        ? dropoffPos
+        : (pickupPos ?? dropoffPos);
+
+    final driverHeading = _toDouble(latestLocation?['heading']);
 
     if (driverPos != null && targetPos != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -177,13 +293,27 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
       });
     }
 
+    if (pickupPos != null && dropoffPos != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _syncPickupToDestinationRoad(pickupPos, dropoffPos);
+      });
+    }
+
+    final driverIcon = _vehicleIcon ??
+        BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure);
     final markers = <Marker>{
       if (driverPos != null)
         Marker(
           markerId: const MarkerId('driver'),
           position: driverPos,
-          icon:
-              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+          rotation: driverHeading ?? 0,
+          flat: true,
+          anchor: const Offset(0.5, 0.5),
+          icon: driverIcon,
+          infoWindow: const InfoWindow(
+            title: 'Ambulance',
+            snippet: 'Live position',
+          ),
         ),
       if (pickupPos != null)
         Marker(
@@ -191,20 +321,42 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
           position: pickupPos,
           icon:
               BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+          infoWindow: const InfoWindow(
+            title: 'Your pickup',
+            snippet: 'Where the crew meets you',
+          ),
         ),
       if (dropoffPos != null)
         Marker(
           markerId: const MarkerId('dropoff'),
           position: dropoffPos,
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+          infoWindow: const InfoWindow(
+            title: 'Destination',
+            snippet: 'Hospital / drop-off',
+          ),
         ),
     };
 
     final polylines = <Polyline>{
-      if (driverPos != null && targetPos != null)
+      if (_pickupToDestinationLeg.length >= 2)
         Polyline(
-          polylineId: PolylineId('route_${targetPos.latitude}_${targetPos.longitude}'),
-          points: _routePoints.isEmpty ? [driverPos, targetPos] : _routePoints,
+          polylineId: const PolylineId('planned_pickup_destination'),
+          points: _pickupToDestinationLeg,
+          color: Colors.grey.shade500,
+          width: 4,
+          patterns: [
+            PatternItem.dash(22),
+            PatternItem.gap(12),
+          ],
+        ),
+      if (driverPos != null &&
+          targetPos != null &&
+          _routePoints.length >= 2)
+        Polyline(
+          polylineId: PolylineId(
+              'drive_${targetPos.latitude}_${targetPos.longitude}'),
+          points: _routePoints,
           color: AppColors.primary,
           width: 6,
         ),
@@ -244,10 +396,20 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
       if (!hasInitialFit) {
         _fitCamera(points);
         hasInitialFit = true;
-      } else if (driverPos != null) {
+        if (driverPos != null) _markCameraFollowed(driverPos);
+      } else if (driverPos != null && _shouldSmoothFollowCamera(driverPos)) {
         controller.animateCamera(CameraUpdate.newLatLng(driverPos));
+        _markCameraFollowed(driverPos);
       }
     });
+
+    final locUpdatedAt = _parseLocationTime(latestLocation);
+    final liveAge = locUpdatedAt != null
+        ? DateTime.now().difference(locUpdatedAt)
+        : null;
+    final isLiveFresh =
+        liveAge != null && liveAge.inSeconds < 45;
+    final phaseSubtitle = _trackingPhaseSubtitle(tripPhase, sosSt);
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -270,6 +432,95 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
             zoomControlsEnabled: false,
             markers: markers,
             polylines: polylines,
+          ),
+
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 52,
+            left: 16,
+            right: 16,
+            child: Material(
+              elevation: 6,
+              shadowColor: Colors.black26,
+              borderRadius: BorderRadius.circular(14),
+              color: Colors.white.withValues(alpha: 0.96),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isLiveFresh
+                              ? const Color(0xFF22C55E)
+                              : Colors.orange.shade600,
+                          boxShadow: isLiveFresh
+                              ? [
+                                  BoxShadow(
+                                    color: const Color(0xFF22C55E)
+                                        .withValues(alpha: 0.5),
+                                    blurRadius: 8,
+                                    spreadRadius: 1,
+                                  ),
+                                ]
+                              : null,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            isLiveFresh
+                                ? 'Live location'
+                                : (driverPos != null
+                                    ? 'Location may be delayed'
+                                    : 'Waiting for driver GPS…'),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            phaseSubtitle,
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.25,
+                              color: Colors.grey.shade600,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (liveAge != null && !isLiveFresh && driverPos != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Text(
+                                liveAge.inMinutes >= 1
+                                    ? 'Last update ${liveAge.inMinutes} min ago'
+                                    : 'Last update ${liveAge.inSeconds} s ago',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
 
           // 2. Premium Bottom Sheet
@@ -327,12 +578,16 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "ARRIVING IN",
+                                tripPhase == 'IN_PROGRESS'
+                                    ? 'EN ROUTE TO HOSPITAL'
+                                    : tripPhase == 'ARRIVED'
+                                        ? 'AT PICKUP POINT'
+                                        : 'ARRIVING IN',
                                 style: TextStyle(
                                   color: Colors.grey[500],
-                                  fontSize: 11, // Reduced
+                                  fontSize: 11,
                                   fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.0,
+                                  letterSpacing: 0.8,
                                 ),
                               ),
                               const SizedBox(height: 2), // Tighter spacing
@@ -349,27 +604,41 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
+                                horizontal: 14, vertical: 8),
                             decoration: BoxDecoration(
-                              color:
-                                  const Color(0xFFECFDF5), // Very light green
+                              color: isLiveFresh
+                                  ? const Color(0xFFECFDF5)
+                                  : const Color(0xFFFFF7ED),
                               borderRadius: BorderRadius.circular(30),
                               border: Border.all(
-                                  color:
-                                      const Color(0xFF10B981).withOpacity(0.2)),
+                                color: isLiveFresh
+                                    ? const Color(0xFF10B981)
+                                        .withValues(alpha: 0.25)
+                                    : Colors.orange.withValues(alpha: 0.35),
+                              ),
                             ),
-                            child: const Row(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.check_circle_rounded,
-                                    size: 16, color: Color(0xFF10B981)),
-                                SizedBox(width: 6),
+                                Icon(
+                                  isLiveFresh
+                                      ? Icons.radar_rounded
+                                      : Icons.schedule_rounded,
+                                  size: 16,
+                                  color: isLiveFresh
+                                      ? const Color(0xFF10B981)
+                                      : Colors.orange.shade800,
+                                ),
+                                const SizedBox(width: 6),
                                 Text(
-                                  "ON TIME",
+                                  isLiveFresh ? 'LIVE ETA' : 'ETA EST.',
                                   style: TextStyle(
-                                    color: Color(0xFF10B981), // Emerald 500
+                                    color: isLiveFresh
+                                        ? const Color(0xFF10B981)
+                                        : Colors.orange.shade900,
                                     fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                    letterSpacing: 0.5,
+                                    fontSize: 11,
+                                    letterSpacing: 0.6,
                                   ),
                                 ),
                               ],
@@ -488,7 +757,10 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                           Provider.of<EmergencyViewModel>(
                                               context,
                                               listen: false);
-                                      final sosId = emergencyVM.sosId;
+                                      final trip = emergencyVM.activeTrip;
+                                      final sosId = emergencyVM.sosId ??
+                                          trip?['sosId']?.toString();
+                                      final tripId = trip?['id']?.toString();
 
                                       Navigator.push(
                                         context,
@@ -499,6 +771,7 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                             doctorId: widget.ambulance.id,
                                             patientId: currentUserId,
                                             sosId: sosId,
+                                            tripId: tripId,
                                           ),
                                         ),
                                       );

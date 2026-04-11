@@ -34,8 +34,100 @@ class ChatView extends StatefulWidget {
   State<ChatView> createState() => _ChatViewState();
 }
 
-class _ChatViewState extends State<ChatView> {
+class _ChatViewState extends State<ChatView> with SingleTickerProviderStateMixin {
   final TextEditingController _msgController = TextEditingController();
+  late final AnimationController _emptyAnimController;
+  late final Animation<double> _emptyPulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _emptyAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
+    _emptyPulse = Tween<double>(begin: 0.94, end: 1.06).animate(
+      CurvedAnimation(
+        parent: _emptyAnimController,
+        curve: Curves.easeInOut,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _emptyAnimController.dispose();
+    _msgController.dispose();
+    super.dispose();
+  }
+
+  Widget _buildEmptyChatBody(BuildContext context) {
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      slivers: [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ScaleTransition(
+                scale: _emptyPulse,
+                child: Container(
+                  width: 112,
+                  height: 112,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.12),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.all(24),
+                  child: Image.asset(
+                    'assets/Icons/chat.png',
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => Icon(
+                      Icons.chat_bubble_rounded,
+                      size: 56,
+                      color: AppColors.primary.withValues(alpha: 0.9),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 28),
+              Text(
+                'Start the conversation',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade800,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 48),
+                child: Text(
+                  'Messages are private and delivered instantly. Send a message below.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.4,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -117,7 +209,9 @@ class _ChatViewState extends State<ChatView> {
                       ? const ChatMessageShimmer()
                       : RefreshIndicator(
                           onRefresh: () => viewModel.fetchMessages(),
-                          child: ListView.builder(
+                          child: viewModel.messages.isEmpty
+                              ? _buildEmptyChatBody(context)
+                              : ListView.builder(
                             reverse: true, // Show latest messages at bottom
                             physics: const AlwaysScrollableScrollPhysics(
                                 parent: BouncingScrollPhysics()),
@@ -131,15 +225,18 @@ class _ChatViewState extends State<ChatView> {
                                   ?.toString();
                               final dId = userVM.doctor?.id;
                               final pId = userVM.patient?.id;
+                              final ambId = userVM.driver?.id;
 
                               final currentUserIdStr =
                                   (uId != null && uId.isNotEmpty)
                                       ? uId
-                                      : (dId != null && dId.isNotEmpty)
-                                          ? dId
-                                          : (pId != null && pId.isNotEmpty)
-                                              ? pId
-                                              : "0";
+                                      : (ambId != null && ambId.isNotEmpty)
+                                          ? ambId
+                                          : (dId != null && dId.isNotEmpty)
+                                              ? dId
+                                              : (pId != null && pId.isNotEmpty)
+                                                  ? pId
+                                                  : "0";
                               final currentUserId =
                                   int.tryParse(currentUserIdStr) ?? 0;
 
@@ -216,8 +313,9 @@ class _ChatViewState extends State<ChatView> {
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Text(
-                                            DateFormat('hh:mm a')
-                                                .format(message.sentAt),
+                                            DateFormat('hh:mm a').format(
+                                              message.sentAt.toLocal(),
+                                            ),
                                             style: TextStyle(
                                               color: isMe
                                                   ? Colors.white70
@@ -296,15 +394,18 @@ class _ChatViewState extends State<ChatView> {
                                   ?.toString();
                               final dId = userVM.doctor?.id;
                               final pId = userVM.patient?.id;
+                              final ambId = userVM.driver?.id;
 
                               final currentUserId =
                                   (uId != null && uId.isNotEmpty)
                                       ? uId
-                                      : (dId != null && dId.isNotEmpty)
-                                          ? dId
-                                          : (pId != null && pId.isNotEmpty)
-                                              ? pId
-                                              : "0";
+                                      : (ambId != null && ambId.isNotEmpty)
+                                          ? ambId
+                                          : (dId != null && dId.isNotEmpty)
+                                              ? dId
+                                              : (pId != null && pId.isNotEmpty)
+                                                  ? pId
+                                                  : "0";
                               viewModel.sendMessage(
                                   _msgController.text, currentUserId);
                               _msgController.clear();

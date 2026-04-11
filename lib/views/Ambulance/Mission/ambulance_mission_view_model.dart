@@ -23,6 +23,7 @@ class AmbulanceMissionViewModel extends ChangeNotifier {
   double? _pickupLng;
   double? _dropoffLat;
   double? _dropoffLng;
+  String? _apiTripStatus;
 
   Map<String, dynamic> _missionData = {
     'patientName': 'Loading...',
@@ -41,6 +42,7 @@ class AmbulanceMissionViewModel extends ChangeNotifier {
   double? get pickupLng => _pickupLng;
   double? get dropoffLat => _dropoffLat;
   double? get dropoffLng => _dropoffLng;
+  String? get apiTripStatus => _apiTripStatus;
 
   AmbulanceMissionViewModel() {
     _loadCurrentTrip();
@@ -63,11 +65,11 @@ class AmbulanceMissionViewModel extends ChangeNotifier {
         final data = response['data'];
         if (data != null) {
           _updateStateFromData(data);
-          final tripIdNum = int.tryParse(_tripId ?? '');
-          if (tripIdNum != null) {
-            _socket.joinTrip(tripIdNum);
-            _startTripRealtime(tripIdNum);
-            await _startLocationSharing(tripIdNum);
+          final tid = _tripId;
+          if (tid != null && tid.isNotEmpty) {
+            _socket.joinTrip(tid);
+            _startTripRealtime(tid);
+            await _startLocationSharing(tid);
           }
         }
       }
@@ -79,14 +81,15 @@ class AmbulanceMissionViewModel extends ChangeNotifier {
     }
   }
 
-  void _startTripRealtime(int tripId) {
+  void _startTripRealtime(String tripIdKey) {
     _tripSub ??= _socket.tripUpdatedStream.listen((payload) {
-      if (payload['id']?.toString() != tripId.toString()) return;
+      if (payload['id']?.toString() != tripIdKey) return;
       _updateStateFromData(payload);
     });
 
     _locSub ??= _socket.tripLocationUpdatedStream.listen((payload) {
-      if (payload['tripId']?.toString() != tripId.toString()) return;
+      final tid = payload['tripId'] ?? payload['trip_id'];
+      if (tid?.toString() != tripIdKey) return;
       final etaMinutes = payload['etaMinutes'];
       final distanceKm = payload['distanceKm'];
       final etaText = etaMinutes != null
@@ -101,7 +104,7 @@ class AmbulanceMissionViewModel extends ChangeNotifier {
     });
   }
 
-  Future<void> _startLocationSharing(int tripId) async {
+  Future<void> _startLocationSharing(Object tripId) async {
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) return;
 
@@ -157,6 +160,7 @@ class AmbulanceMissionViewModel extends ChangeNotifier {
   void _updateStateFromData(Map<String, dynamic> data) {
     _tripId = data['id']?.toString();
     final statusStr = data['status'];
+    _apiTripStatus = statusStr?.toString();
 
     // Map backend status to UI status
     if (statusStr == 'ACCEPTED') {
