@@ -33,8 +33,10 @@ class AmbulanceHistoryViewModel extends ChangeNotifier {
               "time": _formatTime(trip['requestedAt']),
               "status": trip['status'] ?? 'Unknown',
               "location": trip['pickupAddress'] ?? 'Pickup',
-              "earnings":
-                  trip['fareAmount'] != null ? '\$${trip['fareAmount']}' : '—',
+              "earnings": trip['fareAmount'] != null
+                  ? '${trip['currency'] ?? 'CFA'} ${trip['fareAmount']}'
+                  : '—',
+              "currency": trip['currency'] ?? 'CFA',
               "rawStatus": trip['status'] // For logic checks
             };
           }));

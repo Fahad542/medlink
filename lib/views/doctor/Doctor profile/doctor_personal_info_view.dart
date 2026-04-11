@@ -36,16 +36,15 @@ class DoctorPersonalInfoView extends StatelessWidget {
                                 height: 90,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  border: Border.all(
-                                      color: Colors.white, width: 4),
+                                  border:
+                                      Border.all(color: Colors.white, width: 4),
                                   image: (viewModel.imageFile != null ||
                                           (viewModel.profileImage != null &&
                                               viewModel
                                                   .profileImage!.isNotEmpty))
                                       ? DecorationImage(
                                           image: viewModel.imageFile != null
-                                              ? FileImage(
-                                                      viewModel.imageFile!)
+                                              ? FileImage(viewModel.imageFile!)
                                                   as ImageProvider
                                               : (viewModel.profileImage!
                                                       .startsWith('http')
@@ -116,12 +115,54 @@ class DoctorPersonalInfoView extends StatelessWidget {
                           Icons.business_rounded),
                       const SizedBox(height: 16),
                       _buildModernTextField(
-                          "Clinic Address",
-                          viewModel.clinicAddressController,
-                          Icons.location_on_rounded),
+                        "Clinic Address",
+                        viewModel.clinicAddressController,
+                        Icons.location_on_rounded,
+                        onChanged: (val) => viewModel.onAddressChanged(val),
+                      ),
+                      if (viewModel.addressSuggestions.isNotEmpty)
+                        Container(
+                          margin: const EdgeInsets.only(top: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 15,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: viewModel.addressSuggestions.length,
+                            separatorBuilder: (context, index) =>
+                                Divider(height: 1, color: Colors.grey[100]),
+                            itemBuilder: (context, index) {
+                              final suggestion =
+                                  viewModel.addressSuggestions[index];
+                              return ListTile(
+                                leading: const Icon(Icons.location_on_outlined,
+                                    size: 20, color: AppColors.primary),
+                                title: Text(
+                                  suggestion['description'],
+                                  style: GoogleFonts.inter(
+                                      fontSize: 14, color: Colors.black87),
+                                ),
+                                onTap: () {
+                                  viewModel
+                                      .selectAddress(suggestion['description']);
+                                  FocusScope.of(context).unfocus();
+                                },
+                              );
+                            },
+                          ),
+                        ),
                       const SizedBox(height: 16),
-                      _buildModernTextField("About Me",
-                          viewModel.bioController, Icons.info_rounded,
+                      _buildModernTextField("About Me", viewModel.bioController,
+                          Icons.info_rounded,
                           maxLines: 3),
                       const SizedBox(height: 100),
                     ],
@@ -159,7 +200,10 @@ class DoctorPersonalInfoView extends StatelessWidget {
 
   Widget _buildModernTextField(
       String label, TextEditingController controller, IconData icon,
-      {bool readOnly = false, int maxLines = 1, TextInputType? keyboardType}) {
+      {bool readOnly = false,
+      int maxLines = 1,
+      TextInputType? keyboardType,
+      Function(String)? onChanged}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -189,6 +233,7 @@ class DoctorPersonalInfoView extends StatelessWidget {
             readOnly: readOnly,
             maxLines: maxLines,
             keyboardType: keyboardType,
+            onChanged: onChanged,
             style: GoogleFonts.inter(fontWeight: FontWeight.w400, fontSize: 15),
             decoration: InputDecoration(
               filled: true,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:medlink/widgets/custom_network_image.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/models/doctor_model.dart';
 
@@ -41,35 +42,12 @@ class DoctorCard extends StatelessWidget {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Builder(builder: (context) {
-                    final String url = doctor.imageUrl.toLowerCase();
-                    final bool isPlaceholder = url.isEmpty || 
-                        url.contains('unsplash.com') ||
-                        url.contains('randomuser.me') ||
-                        url.contains('pravatar.cc') ||
-                        url.contains('placeholder.com');
-
-                    if (isPlaceholder) {
-                      return Container(
-                        height: 70,
-                        width: 70,
-                        color: Colors.grey[200],
-                        child: const Icon(Icons.person, color: Colors.grey),
-                      );
-                    }
-                    return Image.network(
-                      doctor.imageUrl,
-                      height: 70, // Reduced from 80
-                      width: 70,
-                      fit: BoxFit.cover,
-                      errorBuilder: (c, e, s) => Container(
-                        height: 70,
-                        width: 70,
-                        color: Colors.grey[200],
-                        child: const Icon(Icons.person, color: Colors.grey),
-                      ),
-                    );
-                  }),
+                  child: CustomNetworkImage(
+                  imageUrl: doctor.imageUrl,
+                  height: 70,
+                  width: 70,
+                  fit: BoxFit.cover,
+                ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -112,8 +90,8 @@ class DoctorCard extends StatelessWidget {
                             doctor.rating.toString(),
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                           ),
-                          Text(
-                            " (120+)", // Fixed this to static as per previous fix
+                           Text(
+                            " (${doctor.totalReviews})",
                             style: TextStyle(color: Colors.grey[400], fontSize: 11),
                           ),
                           const Spacer(),

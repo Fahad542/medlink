@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:medlink/widgets/custom_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/core/constants/app_url.dart';
@@ -277,33 +278,12 @@ class _PrescriptionListViewState extends State<PrescriptionListView> {
 
     if (photoUrl.isEmpty) return fallback;
 
-    return ClipOval(
-      child: Image.network(
-        photoUrl,
-        width: 56,
-        height: 56,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => fallback,
-        loadingBuilder: (_, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return CircleAvatar(
-            radius: 28,
-            backgroundColor: AppColors.primary.withOpacity(0.08),
-            child: SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: AppColors.primary,
-                value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded /
-                        loadingProgress.expectedTotalBytes!
-                    : null,
-              ),
-            ),
-          );
-        },
-      ),
+    return CustomNetworkImage(
+      imageUrl: photoUrl,
+      width: 56,
+      height: 56,
+      fit: BoxFit.cover,
+      shape: BoxShape.circle,
     );
   }
 

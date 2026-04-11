@@ -16,6 +16,7 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
   int _totalTrips = 0;
   num _totalEarnings = 0;
   String _profilePhotoUrl = '';
+  String _currency = 'CFA';
 
   bool _isLoadingDashboard = true;
   bool get isLoadingDashboard => _isLoadingDashboard;
@@ -40,6 +41,7 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
       .toStringAsFixed(_totalEarnings == _totalEarnings.round() ? 0 : 2);
   double get rating => 4.8;
   String get profilePhotoUrl => _profilePhotoUrl;
+  String get currency => _currency;
 
   Future<void> _loadProfile() async {
     try {
@@ -73,6 +75,7 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
           } else {
             _totalEarnings = num.tryParse(earningsRaw?.toString() ?? '0') ?? 0;
           }
+          _currency = data['currency'] ?? 'CFA';
         }
       }
     } catch (e) {

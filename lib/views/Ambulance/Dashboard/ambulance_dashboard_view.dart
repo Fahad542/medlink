@@ -227,7 +227,7 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView> {
           children: [
             _buildKPIItem(
               "Total Earnings",
-              "\$${viewModel.earnings}",
+              "${viewModel.currency} ${viewModel.earnings}",
               Icons.account_balance_wallet_rounded,
               Colors.green,
             ),

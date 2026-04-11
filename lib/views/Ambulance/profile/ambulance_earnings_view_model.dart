@@ -7,6 +7,7 @@ class AmbulanceEarningsViewModel extends ChangeNotifier {
   num _totalBalance = 0;
   num _earningsToday = 0;
   num _earningsThisWeek = 0;
+  String _currency = 'CFA';
 
   List<Map<String, dynamic>> _transactions = [];
   bool _isLoading = true;
@@ -16,10 +17,12 @@ class AmbulanceEarningsViewModel extends ChangeNotifier {
 
   bool get isLoading => _isLoading;
   bool get isLoadingTransactions => _isLoadingTransactions;
-  List<Map<String, dynamic>> get transactions => List.unmodifiable(_transactions);
+  List<Map<String, dynamic>> get transactions =>
+      List.unmodifiable(_transactions);
   String? get maskedPayoutCard => _maskedPayoutCard;
   bool get hasPayoutAccount => _hasPayoutAccount;
 
+  String get currency => _currency;
   String get totalBalanceFormatted => _formatAmount(_totalBalance);
   String get earningsTodayFormatted => _formatAmount(_earningsToday);
   String get earningsThisWeekFormatted => _formatAmount(_earningsThisWeek);
@@ -29,10 +32,13 @@ class AmbulanceEarningsViewModel extends ChangeNotifier {
   }
 
   String _formatAmount(num value) {
+    String formattedValue = '';
     if (value == value.roundToDouble()) {
-      return value.toInt().toString();
+      formattedValue = value.toInt().toString();
+    } else {
+      formattedValue = value.toStringAsFixed(2);
     }
-    return value.toStringAsFixed(2);
+    return '$_currency $formattedValue';
   }
 
   Future<void> fetchEarningsSummary() async {
@@ -59,11 +65,17 @@ class AmbulanceEarningsViewModel extends ChangeNotifier {
         final data = response['data'];
         if (data is Map) {
           final balance = data['totalBalance'];
-          _totalBalance = balance is num ? balance : (num.tryParse(balance?.toString() ?? '0') ?? 0);
+          _totalBalance = balance is num
+              ? balance
+              : (num.tryParse(balance?.toString() ?? '0') ?? 0);
           final today = data['earningsToday'];
-          _earningsToday = today is num ? today : (num.tryParse(today?.toString() ?? '0') ?? 0);
+          _earningsToday = today is num
+              ? today
+              : (num.tryParse(today?.toString() ?? '0') ?? 0);
           final week = data['earningsThisWeek'];
-          _earningsThisWeek = week is num ? week : (num.tryParse(week?.toString() ?? '0') ?? 0);
+          _earningsThisWeek =
+              week is num ? week : (num.tryParse(week?.toString() ?? '0') ?? 0);
+          _currency = data['currency'] ?? 'CFA';
         }
       }
     } catch (e) {
@@ -73,12 +85,15 @@ class AmbulanceEarningsViewModel extends ChangeNotifier {
 
   Future<void> _fetchTransactions() async {
     try {
-      final response = await _apiServices.getDriverEarningsTransactions(limit: 20, offset: 0);
+      final response = await _apiServices.getDriverEarningsTransactions(
+          limit: 20, offset: 0);
       if (response != null && response['success'] == true) {
         final data = response['data'];
         if (data is List) {
           _transactions = data
-              .map((e) => e is Map<String, dynamic> ? e : Map<String, dynamic>.from(e as Map))
+              .map((e) => e is Map<String, dynamic>
+                  ? e
+                  : Map<String, dynamic>.from(e as Map))
               .toList();
         } else {
           _transactions = [];
@@ -135,8 +150,8 @@ class AmbulanceEarningsViewModel extends ChangeNotifier {
     String? note,
   }) async {
     try {
-      final response =
-          await _apiServices.requestDriverWithdrawal(amount: amount, note: note);
+      final response = await _apiServices.requestDriverWithdrawal(
+          amount: amount, note: note);
       return response != null && response['success'] == true;
     } catch (e) {
       debugPrint('AmbulanceEarningsViewModel requestWithdrawal error: $e');

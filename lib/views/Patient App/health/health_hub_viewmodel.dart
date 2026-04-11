@@ -221,16 +221,32 @@ class HealthHubViewModel extends ChangeNotifier {
     }
   }
 
+  Future<void> toggleLikeReel(int reelId, bool currentlyLiked) async {
+    try {
+      if (currentlyLiked) {
+        await _apiServices.unlikePatientReel(reelId.toString());
+      } else {
+        await _apiServices.likePatientReel(reelId.toString());
+      }
+    } catch (e) {
+      debugPrint("Error toggling like for reel $reelId: $e");
+    }
+  }
+
   HealthVideo _mapReelToVideo(dynamic json) {
-    final Map<String, dynamic> data = json is Map<String, dynamic>
-        ? json
-        : <String, dynamic>{};
+    final Map<String, dynamic> data =
+        json is Map<String, dynamic> ? json : <String, dynamic>{};
     return HealthVideo(
       id: data['id'] ?? 0,
       title: (data['title'] ?? data['caption'] ?? '').toString(),
+      description: data['description']?.toString(),
       videoUrl: (data['videoUrl'] ?? data['video_url'] ?? '').toString(),
+      thumbnailUrl: data['thumbnailUrl']?.toString(),
       category: (data['category'] ?? 'Health').toString(),
+      viewCount: data['viewCount'] ?? 0,
+      likeCount: data['likeCount'] ?? 0,
       createdAt: (data['createdAt'] ?? data['created_at'] ?? '').toString(),
+      likedByMe: data['likedByMe'] ?? false,
     );
   }
 

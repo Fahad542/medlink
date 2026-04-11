@@ -5,6 +5,8 @@ import 'package:medlink/models/doctor_model.dart';
 import 'package:medlink/models/user_login_model.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/data/network/api_services.dart';
+import 'dart:async';
+import 'package:medlink/services/google_maps_service.dart';
 
 class DoctorPersonalInfoViewModel extends ChangeNotifier {
   final UserViewModel _userViewModel;
@@ -27,6 +29,10 @@ class DoctorPersonalInfoViewModel extends ChangeNotifier {
   final TextEditingController bioController = TextEditingController();
   final TextEditingController clinicNameController = TextEditingController();
   final TextEditingController clinicAddressController = TextEditingController();
+
+  List<dynamic> _addressSuggestions = [];
+  List<dynamic> get addressSuggestions => _addressSuggestions;
+  Timer? _debounce;
 
   DoctorPersonalInfoViewModel(this._userViewModel) {
     _initializeFields();
@@ -183,7 +189,13 @@ class DoctorPersonalInfoViewModel extends ChangeNotifier {
 
     try {
       final Map<String, int> dayToNum = {
-        "Sun": 0, "Mon": 1, "Tue": 2, "Wed": 3, "Thu": 4, "Fri": 5, "Sat": 6
+        "Sun": 0,
+        "Mon": 1,
+        "Tue": 2,
+        "Wed": 3,
+        "Thu": 4,
+        "Fri": 5,
+        "Sat": 6
       };
 
       String? formatTime(TimeOfDay? tod) {
@@ -232,5 +244,32 @@ class DoctorPersonalInfoViewModel extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  void onAddressChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () async {
+      if (query.length > 2) {
+        final suggestions = await GoogleMapsService.searchPlaces(query);
+
+        _addressSuggestions = suggestions;
+        notifyListeners();
+      } else {
+        _addressSuggestions = [];
+        notifyListeners();
+      }
+    });
+  }
+
+  void selectAddress(String address) {
+    clinicAddressController.text = address;
+    _addressSuggestions = [];
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
   }
 }

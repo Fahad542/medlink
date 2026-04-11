@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:medlink/widgets/custom_network_image.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
@@ -216,30 +217,12 @@ class _PrescriptionViewState extends State<PrescriptionView> {
 
     if (photoUrl.isEmpty) return fallback;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: Image.network(
-        photoUrl,
-        width: 46,
-        height: 46,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => fallback,
-        loadingBuilder: (_, child, progress) {
-          if (progress == null) return child;
-          return Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(14)),
-            child: Center(
-              child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
-              ),
-            ),
-          );
-        },
-      ),
+    return CustomNetworkImage(
+      imageUrl: photoUrl,
+      width: 46,
+      height: 46,
+      fit: BoxFit.cover,
+      borderRadius: 14,
     );
   }
 

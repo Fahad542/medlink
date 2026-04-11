@@ -8,6 +8,8 @@ import 'package:medlink/data/network/api_services.dart';
 import 'package:provider/provider.dart';
 import 'package:medlink/widgets/shimmer_widgets.dart';
 import 'package:medlink/views/Register/register_viewmodel.dart';
+import 'dart:async';
+import 'package:medlink/services/google_maps_service.dart';
 
 class DoctorStep4Professional extends StatefulWidget {
   final VoidCallback onNext;
@@ -43,11 +45,19 @@ class _DoctorStep4ProfessionalState extends State<DoctorStep4Professional> {
   final ImagePicker _picker = ImagePicker();
   List<Map<String, dynamic>> _categories = [];
   bool _isLoadingCategories = true;
+  List<dynamic> _suggestions = [];
+  Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
     _fetchCategories();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
   }
 
   Future<void> _fetchCategories() async {
@@ -66,6 +76,22 @@ class _DoctorStep4ProfessionalState extends State<DoctorStep4Professional> {
       debugPrint("Error fetching categories: $e");
       setState(() => _isLoadingCategories = false);
     }
+  }
+
+  void _onAddressChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () async {
+      if (query.length > 2) {
+        final suggestions = await GoogleMapsService.searchPlaces(query);
+        setState(() {
+          _suggestions = suggestions;
+        });
+      } else {
+        setState(() {
+          _suggestions = [];
+        });
+      }
+    });
   }
 
   Future<void> _pickFile() async {
@@ -237,7 +263,49 @@ class _DoctorStep4ProfessionalState extends State<DoctorStep4Professional> {
               icon: Icons.location_on_rounded,
               controller: widget.clinicAddressController,
               validator: (v) => v!.isEmpty ? "Required" : null,
+              onChanged: (text) {
+                _onAddressChanged(text);
+              },
             ),
+
+            if (_suggestions.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 15,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _suggestions.length,
+                  separatorBuilder: (context, index) => Divider(height: 1, color: Colors.grey[100]),
+                  itemBuilder: (context, index) {
+                    final suggestion = _suggestions[index];
+                    return ListTile(
+                      leading: const Icon(Icons.location_on_outlined, size: 20, color: AppColors.primary),
+                      title: Text(
+                        suggestion['description'],
+                        style: GoogleFonts.inter(fontSize: 14, color: Colors.black87),
+                      ),
+                      onTap: () {
+                        setState(() {
+                          widget.clinicAddressController.text = suggestion['description'];
+                          _suggestions = [];
+                        });
+                        FocusScope.of(context).unfocus();
+                      },
+                    );
+                  },
+                ),
+              ),
 
             const SizedBox(height: 24),
 
@@ -371,6 +439,7 @@ class _DoctorStep4ProfessionalState extends State<DoctorStep4Professional> {
     required TextEditingController controller,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
+    void Function(String)? onChanged,
     int maxLines = 1,
   }) {
     return FormField<String>(
@@ -405,6 +474,7 @@ class _DoctorStep4ProfessionalState extends State<DoctorStep4Professional> {
                 onChanged: (text) {
                   state.didChange(text);
                   state.validate();
+                  if (onChanged != null) onChanged(text);
                 },
                 style: GoogleFonts.inter(
                   fontSize: 15,

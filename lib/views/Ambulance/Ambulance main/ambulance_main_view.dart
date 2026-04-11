@@ -37,7 +37,7 @@ class _AmbulanceMainViewState extends State<AmbulanceMainView>
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<CallViewModel>(context, listen: false).startPolling(context);
+      //   Provider.of<CallViewModel>(context, listen: false).startPolling(context);
       _viewModel.checkActiveTrip();
       final userVM = Provider.of<UserViewModel>(context, listen: false);
       final token = userVM.accessToken;
@@ -65,7 +65,7 @@ class _AmbulanceMainViewState extends State<AmbulanceMainView>
       debugPrint('[AmbulanceMainView] Incoming call skipped — already active');
       return;
     }
-    
+
     final callerId = data['callerId'] is int
         ? data['callerId'] as int
         : int.tryParse(data['callerId']?.toString() ?? '');

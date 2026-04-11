@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:medlink/widgets/custom_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/models/appointment_model.dart';
@@ -8,7 +9,6 @@ import 'package:medlink/views/doctor/Doctor%20profile/doctor_profile_view.dart';
 import 'package:provider/provider.dart';
 import 'package:medlink/views/Patient App/appointment/appointment_viewmodel.dart';
 import 'package:medlink/utils/utils.dart';
-import 'package:medlink/widgets/custom_network_image.dart';
 import 'package:medlink/data/network/api_services.dart';
 
 import 'package:medlink/views/services/session_view_model.dart';
@@ -1350,16 +1350,9 @@ class AppointmentInfoCard extends StatelessWidget {
                     border: Border.all(color: Colors.grey.withOpacity(0.1)),
                   ),
                   child: ClipOval(
-                    child: Image.network(
-                      appointment.doctor?.imageUrl ??
-                          'https://via.placeholder.com/150',
+                    child: CustomNetworkImage(
+                      imageUrl: appointment.doctor?.imageUrl ?? '',
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: Colors.grey[200],
-                          child: const Icon(Icons.person, color: Colors.grey),
-                        );
-                      },
                     ),
                   ),
                 ),

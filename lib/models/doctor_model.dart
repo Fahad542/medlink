@@ -20,6 +20,7 @@ class DoctorModel {
   final List<dynamic> rawAvailability;
   final int totalReviews;
   final List<Map<String, dynamic>> recentReviews;
+  final int patientsCount;
 
   DoctorModel({
     required this.id,
@@ -40,6 +41,7 @@ class DoctorModel {
     this.rawAvailability = const [],
     this.totalReviews = 0,
     this.recentReviews = const [],
+    this.patientsCount = 0,
   });
   factory DoctorModel.fromJson(Map<String, dynamic> json) {
     String getImageUrl(String? path) {
@@ -78,11 +80,10 @@ class DoctorModel {
     }
 
     final rawAvailability = (getField('availability') as List<dynamic>?) ?? [];
-    final parsedRecentReviewsRaw =
-        (json['recentReviews'] ??
-            json['reviews'] ??
-            getField('recentReviews') ??
-            getField('reviews')) as List<dynamic>?;
+    final parsedRecentReviewsRaw = (json['recentReviews'] ??
+        json['reviews'] ??
+        getField('recentReviews') ??
+        getField('reviews')) as List<dynamic>?;
     final parsedRecentReviews = (parsedRecentReviewsRaw ?? [])
         .whereType<Map>()
         .map((e) => Map<String, dynamic>.from(e))
@@ -91,20 +92,18 @@ class DoctorModel {
     double parsedRating =
         double.tryParse(getField('rating')?.toString() ?? '0') ?? 0.0;
     if (parsedRating == 0) {
-      parsedRating = double.tryParse(
-              getField('averageRating')?.toString() ??
-                  getField('avgRating')?.toString() ??
-                  '0') ??
+      parsedRating = double.tryParse(getField('averageRating')?.toString() ??
+              getField('avgRating')?.toString() ??
+              '0') ??
           0.0;
     }
 
     int parsedTotalReviews =
         int.tryParse(getField('reviewCount')?.toString() ?? '0') ?? 0;
     if (parsedTotalReviews == 0) {
-      parsedTotalReviews = int.tryParse(
-              getField('totalReviews')?.toString() ??
-                  getField('reviewsCount')?.toString() ??
-                  '0') ??
+      parsedTotalReviews = int.tryParse(getField('totalReviews')?.toString() ??
+              getField('reviewsCount')?.toString() ??
+              '0') ??
           0;
     }
     if (parsedTotalReviews == 0 && parsedRecentReviews.isNotEmpty) {
@@ -113,6 +112,10 @@ class DoctorModel {
     if (parsedTotalReviews == 0 && parsedRecentReviewsRaw != null) {
       parsedTotalReviews = parsedRecentReviewsRaw.length;
     }
+
+    int parsedPatientsCount = int.tryParse(getField('patientsCount')?.toString() ?? 
+        getField('totalPatients')?.toString() ?? 
+        getField('patientCount')?.toString() ?? '0') ?? 0;
 
     String extractTime(bool isStart) {
       if (rawAvailability.isEmpty) return isStart ? "09:00 AM" : "05:00 PM";
@@ -126,7 +129,7 @@ class DoctorModel {
       if (val.contains('T')) {
         return DateFormat("hh:mm a").format(DateTime.parse(val).toLocal());
       }
-      
+
       try {
         final parts = val.split(':');
         final hr = int.parse(parts[0]);
@@ -155,9 +158,10 @@ class DoctorModel {
           getField('profilePhotoUrl') ??
           getField('imageUrl')),
       isAvailable: getField('isAvailable') ?? getField('isActive') ?? true,
-      consultationFee: double.tryParse(getField('consultation_fee')?.toString() ??
-              getField('consultationFee')?.toString() ??
-              '0') ??
+      consultationFee: double.tryParse(
+              getField('consultation_fee')?.toString() ??
+                  getField('consultationFee')?.toString() ??
+                  '0') ??
           0.0,
       about: getField('about') ??
           getField('bio') ??
@@ -187,17 +191,19 @@ class DoctorModel {
                 6: "Sat"
               }[e['dayOfWeek']])
           .whereType<String>()
-          .toSet() 
+          .toSet()
           .toList(),
       startTime: extractTime(true),
       endTime: extractTime(false),
-      sessionDuration: int.tryParse(getField('sessionDurationMin')?.toString() ??
-              getField('sessionDuration')?.toString() ??
-              '30') ??
+      sessionDuration: int.tryParse(
+              getField('sessionDurationMin')?.toString() ??
+                  getField('sessionDuration')?.toString() ??
+                  '30') ??
           30,
       rawAvailability: rawAvailability,
       totalReviews: parsedTotalReviews,
       recentReviews: parsedRecentReviews,
+      patientsCount: parsedPatientsCount,
     );
   }
 
@@ -221,6 +227,7 @@ class DoctorModel {
       'rawAvailability': rawAvailability,
       'totalReviews': totalReviews,
       'recentReviews': recentReviews,
+      'patientsCount': patientsCount,
     };
   }
 }

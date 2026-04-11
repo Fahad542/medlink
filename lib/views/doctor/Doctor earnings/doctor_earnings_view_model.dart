@@ -9,7 +9,7 @@ class DoctorEarningsViewModel extends ChangeNotifier {
   double _totalBalance = 0.0;
   double _todayEarning = 0.0;
   double _thisWeekEarning = 0.0;
-  String _currency = "PKR";
+  String _currency = "CFA";
   List<dynamic> _recentTransactions = [];
   String? _maskedPayoutCard;
   bool _hasPayoutAccount = false;
@@ -39,7 +39,7 @@ class DoctorEarningsViewModel extends ChangeNotifier {
           _totalBalance = (data['totalBalance'] ?? 0).toDouble();
           _todayEarning = (data['todayEarning'] ?? 0).toDouble();
           _thisWeekEarning = (data['thisWeekEarning'] ?? 0).toDouble();
-          _currency = data['currency'] ?? "PKR";
+          _currency = data['currency'] ?? "CFA";
           _recentTransactions = data['recentTransactions'] ?? [];
         }
       }

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/core/constants/app_url.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class CustomNetworkImage extends StatelessWidget {
   final String? imageUrl;
@@ -32,6 +33,8 @@ class CustomNetworkImage extends StatelessWidget {
       return _buildErrorWidget();
     }
 
+    final String fullUrl = AppUrl.getFullUrl(imageUrl!);
+
     return Container(
       width: width,
       height: height,
@@ -41,17 +44,14 @@ class CustomNetworkImage extends StatelessWidget {
         shape: shape,
         borderRadius: shape == BoxShape.circle ? null : BorderRadius.circular(borderRadius),
       ),
-      child: Image.network(
-        AppUrl.getFullUrl(imageUrl!),
+      child: CachedNetworkImage(
+        imageUrl: fullUrl,
         width: width,
         height: height,
         fit: fit,
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return _buildLoadingWidget();
-        },
-        errorBuilder: (context, error, stackTrace) {
-          debugPrint("Image Load Error: $error");
+        placeholder: (context, url) => _buildLoadingWidget(),
+        errorWidget: (context, url, error) {
+          debugPrint("Image Load Error: $error for URL: $url");
           return _buildErrorWidget();
         },
       ),

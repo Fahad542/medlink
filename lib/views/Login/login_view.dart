@@ -642,7 +642,7 @@ class LoginView extends StatelessWidget {
                 },
               ),
               const SizedBox(height: 16),
-              _buildRegistrationOption(
+/*              _buildRegistrationOption(
                 context,
                 title: "Register as Driver",
                 subtitle: "Join emergency response team",
@@ -656,7 +656,7 @@ class LoginView extends StatelessWidget {
                           builder: (_) => const RegisterView(
                               initialRole: UserRole.driver)));
                 },
-              ),
+              ),*/
               const SizedBox(height: 16),
             ],
           ),

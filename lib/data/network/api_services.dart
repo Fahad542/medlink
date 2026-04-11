@@ -12,6 +12,14 @@ const String _kDriverRegisterToken = 'driver_register_token';
 class ApiServices {
   final _apiServices = NetworkApiService();
 
+  Future<dynamic> getSystemSettings() async {
+    try {
+      return await _apiServices.getGetApiResponse(AppUrl.systemSettings);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // --- Auth & Patient Methods ---
 
   /// Patient registration Step 1: send OTP to phone. Body: {"phone": "+..."}

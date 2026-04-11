@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:medlink/widgets/custom_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/views/services/session_view_model.dart';
@@ -989,36 +990,15 @@ class _HomeViewState extends State<HomeView> {
     }
 
     // Network image — use Image.network with errorBuilder
-    final fallback = CircleAvatar(
-      radius: 26,
-      backgroundColor: Colors.grey.shade200,
-      child: Icon(Icons.person_rounded, color: Colors.grey.shade500, size: 28),
-    );
-
     final imageUrl = hasImage
         ? profileImage
         : "https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=400&auto=format&fit=crop&q=60";
 
-    return ClipOval(
-      child: Image.network(
-        imageUrl,
-        width: 52,
-        height: 52,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => fallback,
-        loadingBuilder: (_, child, progress) {
-          if (progress == null) return child;
-          return CircleAvatar(
-            radius: 26,
-            backgroundColor: Colors.grey.shade200,
-            child: const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          );
-        },
-      ),
+    return CustomNetworkImage(
+      imageUrl: imageUrl,
+      width: 52,
+      height: 52,
+      fit: BoxFit.cover,
     );
   }
 }

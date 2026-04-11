@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_payment_view.dart';
+import 'package:medlink/views/services/settings_view_model.dart';
 import 'package:medlink/views/main/main_screen.dart';
 
 class AppointmentDetailsView extends StatelessWidget {
@@ -109,7 +110,7 @@ class AppointmentDetailsView extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                     child: _buildDetailCard(
-                        "Price", "PKR ${doctor.consultationFee.toInt()}")),
+                        "Price", "${context.watch<SettingsViewModel>().currency} ${doctor.consultationFee.toInt()}")),
               ],
             ),
 

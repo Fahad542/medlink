@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/views/services/settings_view_model.dart';
+import 'package:provider/provider.dart';
 
 class DoctorStep5PracticeDetails extends StatefulWidget {
   final VoidCallback onNext;
@@ -153,11 +155,11 @@ class _DoctorStep5PracticeDetailsState extends State<DoctorStep5PracticeDetails>
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        "\$",
+                        context.watch<SettingsViewModel>().currency,
                         style: GoogleFonts.inter(
                           color: AppColors.primary,
                           fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                          fontSize: 14,
                         ),
                       ),
                     ),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:medlink/models/appointment_model.dart';
-import 'package:medlink/models/user_model.dart';
 import 'package:medlink/data/network/api_services.dart';
 
 class DoctorDashboardViewModel extends ChangeNotifier {
@@ -8,10 +7,10 @@ class DoctorDashboardViewModel extends ChangeNotifier {
 
   bool _isOnline = true;
   String _earnings = "0";
-  String _currency = "PKR";
+  String _currency = "CFA";
   bool _isLoadingEarnings = false;
   bool _isLoadingAppointments = false;
-  
+
   int _patientsCount = 0;
   int _appointmentsCount = 0;
   List<AppointmentModel> _upcomingAppointments = [];
@@ -25,7 +24,7 @@ class DoctorDashboardViewModel extends ChangeNotifier {
   String get currency => _currency;
   bool get isLoadingEarnings => _isLoadingEarnings;
   bool get isLoadingAppointments => _isLoadingAppointments;
-  
+
   int get patientsCount => _patientsCount;
   int get appointmentsCount => _appointmentsCount;
   List<AppointmentModel> get upcomingAppointments => _upcomingAppointments;
@@ -81,13 +80,14 @@ class DoctorDashboardViewModel extends ChangeNotifier {
 
     try {
       final now = DateTime.now();
-      final response = await _apiServices.getDoctorMonthlyEarnings(now.year, now.month);
-      
+      final response =
+          await _apiServices.getDoctorMonthlyEarnings(now.year, now.month);
+
       if (response != null && response['success'] == true) {
         final data = response['data'];
         if (data != null) {
           _earnings = data['totalAmount']?.toString() ?? "0";
-          _currency = data['currency'] ?? "PKR";
+          _currency = data['currency'] ?? "CFA";
         }
       }
     } catch (e) {

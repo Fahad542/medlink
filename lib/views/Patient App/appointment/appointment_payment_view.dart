@@ -8,6 +8,8 @@ import 'package:medlink/widgets/custom_button.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:medlink/views/main/main_screen.dart';
+import 'package:medlink/views/services/settings_view_model.dart';
+import 'package:provider/provider.dart';
 
 class AppointmentPaymentView extends StatefulWidget {
   final DoctorModel doctor;
@@ -214,7 +216,7 @@ class _AppointmentPaymentViewState extends State<AppointmentPaymentView> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    "PKR ${widget.doctor.consultationFee}",
+                    "${context.watch<SettingsViewModel>().currency} ${widget.doctor.consultationFee}",
                     style: GoogleFonts.inter(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,

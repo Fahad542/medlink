@@ -37,8 +37,6 @@ class _DoctorMainScreenState extends State<DoctorMainScreen> {
       final token = userVM.accessToken;
       final doctorIdNum = int.tryParse(userVM.doctor?.id ?? '');
       
-      // Start polling as backup
-      Provider.of<CallViewModel>(context, listen: false).startPolling(context);
 
       if (token != null && token.isNotEmpty && doctorIdNum != null) {
         // Connect to Appointment Socket

@@ -35,6 +35,7 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'firebase_options.dart';
 
 import 'package:medlink/views/doctor/Doctor%20profile/doctor_personal_info_viewmodel.dart';
+import 'package:medlink/views/services/settings_view_model.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -113,6 +114,7 @@ class MedLinkApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PrescriptionViewModel()),
         ChangeNotifierProvider(create: (_) => DoctorDashboardViewModel()),
         ChangeNotifierProvider(create: (_) => CallViewModel()),
+        ChangeNotifierProvider(create: (_) => SettingsViewModel()),
         ChangeNotifierProvider.value(value: WaitingRoomSocketService.instance),
         ChangeNotifierProvider.value(value: CallSocketService.instance),
         Provider(create: (_) => AppointmentSocketService.instance),

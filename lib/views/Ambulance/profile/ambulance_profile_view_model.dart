@@ -83,12 +83,26 @@ class AmbulanceProfileViewModel extends ChangeNotifier {
 
   Future<void> fetchDriverDashboard() async {
     try {
-      final response = await _apiServices.getDriverDashboard();
-      if (response != null && response['success'] == true) {
-        final data = response['data'];
+      final responses = await Future.wait([
+        _apiServices.getDriverDashboard(),
+        _apiServices.getDriverReviews(),
+      ]);
+
+      final dashboardResponse = responses[0];
+      final reviewsResponse = responses[1];
+
+      if (dashboardResponse != null && dashboardResponse['success'] == true) {
+        final data = dashboardResponse['data'];
         if (data is Map) {
           _totalTrips = data['totalTrips']?.toString() ?? '0';
-          // _rating = data['rating']?.toString() ?? '4.8'; // If rating API exists
+        }
+      }
+
+      if (reviewsResponse != null && reviewsResponse['success'] == true) {
+        final data = reviewsResponse['data'];
+        if (data is Map) {
+          final avg = data['averageRating'];
+          _rating = avg != null ? avg.toString() : '0.0';
         }
       }
     } catch (e) {

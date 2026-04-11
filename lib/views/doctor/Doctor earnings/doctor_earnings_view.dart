@@ -8,9 +8,22 @@ import 'package:shimmer/shimmer.dart';
 import 'package:medlink/views/doctor/Doctor%20earnings/doctor_earnings_view_model.dart';
 import 'package:medlink/widgets/no_data_widget.dart';
 
-class DoctorEarningsView extends StatelessWidget {
+class DoctorEarningsView extends StatefulWidget {
   final bool showBackButton;
   const DoctorEarningsView({super.key, this.showBackButton = false});
+
+  @override
+  State<DoctorEarningsView> createState() => _DoctorEarningsViewState();
+}
+
+class _DoctorEarningsViewState extends State<DoctorEarningsView> {
+  final ScrollController _transactionScrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _transactionScrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +48,8 @@ class DoctorEarningsView extends StatelessWidget {
     );
   }
 
-  Widget _buildPremiumHeader(BuildContext context, DoctorEarningsViewModel viewModel) {
+  Widget _buildPremiumHeader(
+      BuildContext context, DoctorEarningsViewModel viewModel) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -64,7 +78,7 @@ class DoctorEarningsView extends StatelessWidget {
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  if (showBackButton)
+                  if (widget.showBackButton)
                     Positioned(
                       left: 0,
                       child: InkWell(
@@ -76,7 +90,8 @@ class DoctorEarningsView extends StatelessWidget {
                             color: Colors.white.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 16),
+                          child: const Icon(Icons.arrow_back_ios_new_rounded,
+                              color: Colors.white, size: 16),
                         ),
                       ),
                     ),
@@ -114,13 +129,23 @@ class DoctorEarningsView extends StatelessWidget {
                     ),
                   ),
             const SizedBox(height: 20),
-            
+
             // Stat Cards
             Row(
               children: [
-                _buildStatCard("Today", viewModel.isLoading ? "..." : viewModel.formatCurrency(viewModel.todayEarning), Icons.today_rounded),
+                _buildStatCard(
+                    "Today",
+                    viewModel.isLoading
+                        ? "..."
+                        : viewModel.formatCurrency(viewModel.todayEarning),
+                    Icons.today_rounded),
                 const SizedBox(width: 12),
-                _buildStatCard("This Week", viewModel.isLoading ? "..." : viewModel.formatCurrency(viewModel.thisWeekEarning), Icons.calendar_view_week_rounded),
+                _buildStatCard(
+                    "This Week",
+                    viewModel.isLoading
+                        ? "..."
+                        : viewModel.formatCurrency(viewModel.thisWeekEarning),
+                    Icons.calendar_view_week_rounded),
               ],
             ),
           ],
@@ -181,7 +206,7 @@ class DoctorEarningsView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-           Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
@@ -193,7 +218,8 @@ class DoctorEarningsView extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
@@ -202,39 +228,49 @@ class DoctorEarningsView extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text("This Month", style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.bold)),
+                    Text("This Month",
+                        style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.bold)),
                     const SizedBox(width: 4),
-                    const Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.grey),
+                    const Icon(Icons.keyboard_arrow_down,
+                        size: 16, color: Colors.grey),
                   ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-
           SizedBox(
-            height: 350,
+            height: 280, // Reduced height to show 3 tiles
             child: viewModel.isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : viewModel.recentTransactions.isEmpty
-                  ? const NoDataWidget(
-                      title: "No Transactions",
-                      subTitle: "You have no recent transactions yet.",
-                      imageHeight: 120, // Smaller image to fit the 350 height box
-                    )
-                  : ListView.builder(
-                      padding: EdgeInsets.zero,
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: viewModel.recentTransactions.length,
-                      itemBuilder: (context, index) {
-                        return _buildTransactionItem(viewModel.recentTransactions[index], viewModel);
-                      },
-                    ),
+                ? const Center(child: CircularProgressIndicator())
+                : viewModel.recentTransactions.isEmpty
+                    ? const NoDataWidget(
+                        title: "No Transactions",
+                        subTitle: "You have no recent transactions yet.",
+                        imageHeight: 120,
+                      )
+                    : Scrollbar(
+                        controller: _transactionScrollController,
+                        thickness: 6,
+                        radius: const Radius.circular(10),
+                        thumbVisibility: true,
+                        child: ListView.builder(
+                          controller: _transactionScrollController,
+                          padding: const EdgeInsets.only(right: 12),
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          itemCount: viewModel.recentTransactions.length,
+                          itemBuilder: (context, index) {
+                            return _buildTransactionItem(
+                                viewModel.recentTransactions[index], viewModel);
+                          },
+                        ),
+                      ),
           ),
-          
           const SizedBox(height: 32),
-          
-           Text(
+          Text(
             "Payout Settings",
             style: GoogleFonts.inter(
               fontSize: 18,
@@ -248,7 +284,7 @@ class DoctorEarningsView extends StatelessWidget {
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
-                 BoxShadow(
+                BoxShadow(
                   color: Colors.black.withOpacity(0.02),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
@@ -256,16 +292,20 @@ class DoctorEarningsView extends StatelessWidget {
               ],
             ),
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               leading: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.account_balance_rounded, color: AppColors.primary),
+                child: const Icon(Icons.account_balance_rounded,
+                    color: AppColors.primary),
               ),
-              title: Text("Bank Account", style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15)),
+              title: Text("Bank Account",
+                  style: GoogleFonts.inter(
+                      fontWeight: FontWeight.bold, fontSize: 15)),
               subtitle: Text(
                 viewModel.maskedPayoutCard != null
                     ? "Card ${viewModel.maskedPayoutCard}"
@@ -279,7 +319,8 @@ class DoctorEarningsView extends StatelessWidget {
                   border: Border.all(color: Colors.grey.shade200),
                 ),
                 child: IconButton(
-                  icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.grey),
+                  icon: const Icon(Icons.edit_outlined,
+                      size: 18, color: Colors.grey),
                   onPressed: () async {
                     await Navigator.push(
                       context,
@@ -436,7 +477,8 @@ class DoctorEarningsView extends StatelessWidget {
     );
   }
 
-  Widget _buildTransactionItem(dynamic transaction, DoctorEarningsViewModel viewModel) {
+  Widget _buildTransactionItem(
+      dynamic transaction, DoctorEarningsViewModel viewModel) {
     bool isCredit = transaction['isCredit'] ?? true;
     double amount = (transaction['amount'] ?? 0).toDouble();
     String user = transaction['user'] ?? 'Unknown User';
@@ -462,11 +504,15 @@ class DoctorEarningsView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: isCredit ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+              color: isCredit
+                  ? Colors.green.withOpacity(0.1)
+                  : Colors.red.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
-              isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+              isCredit
+                  ? Icons.arrow_downward_rounded
+                  : Icons.arrow_upward_rounded,
               color: isCredit ? Colors.green : Colors.red,
               size: 20,
             ),
@@ -488,10 +534,9 @@ class DoctorEarningsView extends StatelessWidget {
                 Text(
                   "$user • ${dateStr != '' ? viewModel.formatDate(dateStr) : ''}",
                   style: GoogleFonts.inter(
-                    color: Colors.grey[500],
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500
-                  ),
+                      color: Colors.grey[500],
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500),
                 ),
               ],
             ),

@@ -214,7 +214,7 @@ class _DoctorProfileContentState extends State<_DoctorProfileContent> {
                           return Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              _buildStatItem("Patients", "1.5K+"),
+                              _buildStatItem("Patients", "${widget.doctor.patientsCount}${widget.doctor.patientsCount > 50 ? '+' : ''}"),
                               _buildStatItem(
                                   "Experience", "${widget.doctor.experience} Yrs"),
                               _buildStatItem(

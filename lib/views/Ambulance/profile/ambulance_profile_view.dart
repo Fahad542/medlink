@@ -8,6 +8,8 @@ import 'package:medlink/widgets/logout_confirmation_dialog.dart';
 import 'package:medlink/widgets/delete_account_sheet.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:medlink/widgets/custom_network_image.dart';
+import 'package:medlink/views/Ambulance/profile/ambulance_reviews_view.dart';
 
 class AmbulanceProfileView extends StatelessWidget {
   const AmbulanceProfileView({super.key});
@@ -31,10 +33,6 @@ class AmbulanceProfileView extends StatelessWidget {
               child: Column(
                 children: [
                   _buildProfileHeader(context, viewModel),
-                  // Padding(
-                  //   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  //   child: _buildProfileDetailsCard(context, viewModel),
-                  // ),
                   // Stats Row
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -44,13 +42,22 @@ class AmbulanceProfileView extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            _buildStatItem(
-                                viewModel.rating.isNotEmpty
-                                    ? viewModel.rating
-                                    : "4.8",
-                                "Rating",
-                                Icons.star_rounded,
-                                Colors.amber),
+                            GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (context) =>
+                                            const AmbulanceReviewsView()),
+                                  );
+                                },
+                                child: _buildStatItem(
+                                    viewModel.rating.isNotEmpty
+                                        ? viewModel.rating
+                                        : "0.0",
+                                    "Rating",
+                                    Icons.star_rounded,
+                                    Colors.amber)),
                             _buildVerticalDivider(),
                             _buildStatItem(
                                 viewModel.totalTrips.isNotEmpty
@@ -59,14 +66,6 @@ class AmbulanceProfileView extends StatelessWidget {
                                 "Trips",
                                 Icons.directions_car_rounded,
                                 AppColors.primary),
-                            _buildVerticalDivider(),
-                            _buildStatItem(
-                                viewModel.experience.isNotEmpty
-                                    ? viewModel.experience
-                                    : "3 Yrs",
-                                "Exp.",
-                                Icons.work_rounded,
-                                Colors.blue),
                           ],
                         ),
                       ],
@@ -159,7 +158,6 @@ class AmbulanceProfileView extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(16),
-                              // Border removed
                               boxShadow: [
                                 BoxShadow(
                                   color: AppColors.error.withOpacity(0.05),
@@ -241,14 +239,13 @@ class AmbulanceProfileView extends StatelessWidget {
   Widget _buildProfileHeader(
       BuildContext context, AmbulanceProfileViewModel viewModel) {
     return SizedBox(
-      height: 280, // Increased height to prevent overlap
+      height: 280,
       child: Stack(
         alignment: Alignment.topCenter,
         clipBehavior: Clip.none,
         children: [
-          // Gradient Background with Curve
           Container(
-            height: 220, // Increased background height
+            height: 220,
             width: double.infinity,
             padding: const EdgeInsets.only(top: 8),
             decoration: const BoxDecoration(
@@ -262,15 +259,11 @@ class AmbulanceProfileView extends StatelessWidget {
             child: SafeArea(
               child: Column(
                 children: [
-                  const SizedBox(height: 10), // Reduced top spacing
-
-                  // Name and Badge
+                  const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // const SizedBox(width: 26),  // Removed for better centering
                       Flexible(
-                        // Wrap text in Flexible to prevent overflow
                         child: Text(
                           viewModel.driverName,
                           maxLines: 1,
@@ -288,7 +281,6 @@ class AmbulanceProfileView extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 4),
-
                   Text(
                     viewModel.licensePlate,
                     style: GoogleFonts.inter(
@@ -302,8 +294,6 @@ class AmbulanceProfileView extends StatelessWidget {
               ),
             ),
           ),
-
-          // Profile Image
           Positioned(
             bottom: 0,
             left: 0,
@@ -314,8 +304,7 @@ class AmbulanceProfileView extends StatelessWidget {
                 height: 110,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(
-                      color: Colors.white, width: 4), // Thicker border
+                  border: Border.all(color: Colors.white, width: 4),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.1),
@@ -325,26 +314,14 @@ class AmbulanceProfileView extends StatelessWidget {
                   ],
                 ),
                 child: ClipOval(
-                  child: viewModel.profilePhotoUrl.isNotEmpty
-                      ? Image.network(
-                          AppUrl.getFullUrl(viewModel.profilePhotoUrl),
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              Container(
-                                  color: Colors.grey[200],
-                                  child: const Icon(Icons.person,
-                                      size: 44, color: Colors.grey)),
-                        )
-                      : Image.network(
-                          "https://i.pravatar.cc/300?img=11", // Male Image
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              Container(
-                                  color: Colors.grey[200],
-                                  child: const Icon(Icons.person,
-                                      size: 44, color: Colors.grey)),
-                        ),
-                ),
+                    child: Image.network(
+                  AppUrl.getFullUrl(viewModel.profilePhotoUrl),
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                      color: Colors.grey[200],
+                      child: const Icon(Icons.person,
+                          size: 44, color: Colors.grey)),
+                )),
               ),
             ),
           ),
@@ -367,8 +344,8 @@ class AmbulanceProfileView extends StatelessWidget {
                   width: double.infinity,
                   decoration: BoxDecoration(
                     color: Colors.grey[300],
-                    borderRadius:
-                        BorderRadius.vertical(bottom: Radius.circular(48)),
+                    borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(48)),
                   ),
                 ),
                 Positioned(
@@ -438,7 +415,7 @@ class AmbulanceProfileView extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: List.generate(
-                3,
+                2,
                 (_) => Shimmer.fromColors(
                       baseColor: Colors.grey[300]!,
                       highlightColor: Colors.grey[100]!,
@@ -479,84 +456,6 @@ class AmbulanceProfileView extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileDetailsCard(
-      BuildContext context, AmbulanceProfileViewModel viewModel) {
-    return Container(
-      margin: const EdgeInsets.only(top: 16),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 15,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Profile details",
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildDetailRow(Icons.email_outlined, "Email", viewModel.email),
-          _buildDetailRow(Icons.phone_outlined, "Phone", viewModel.phone),
-          _buildDetailRow(
-              Icons.directions_car_outlined, "Vehicle", viewModel.vehicleType),
-          _buildDetailRow(Icons.confirmation_number_outlined, "Plate",
-              viewModel.licensePlate),
-          _buildDetailRow(
-              Icons.badge_outlined, "License No.", viewModel.licenseNo),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 20, color: AppColors.primary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildStatItem(
       String value, String label, IconData icon, Color color) {
     return Column(
@@ -581,7 +480,7 @@ class AmbulanceProfileView extends StatelessWidget {
         Text(
           label,
           style: GoogleFonts.inter(
-            fontSize: 12, // Increased from 11
+            fontSize: 12,
             color: Colors.grey[500],
             fontWeight: FontWeight.w500,
           ),

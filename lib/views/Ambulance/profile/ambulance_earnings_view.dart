@@ -17,6 +17,13 @@ class AmbulanceEarningsView extends StatefulWidget {
 
 class _AmbulanceEarningsViewState extends State<AmbulanceEarningsView> {
   DateTimeRange? _selectedDateRange;
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   Future<void> _selectDateRange(BuildContext context) async {
     final DateTimeRange? picked = await showDateRangePicker(
@@ -175,7 +182,7 @@ class _AmbulanceEarningsViewState extends State<AmbulanceEarningsView> {
           ),
           const SizedBox(height: 4),
           Text(
-            "\$${viewModel.totalBalanceFormatted}",
+            viewModel.totalBalanceFormatted,
             style: GoogleFonts.inter(
               color: Colors.white,
               fontSize: 32,
@@ -185,12 +192,12 @@ class _AmbulanceEarningsViewState extends State<AmbulanceEarningsView> {
           const SizedBox(height: 24),
           Row(
             children: [
-              _buildStatCard("Today", "\$${viewModel.earningsTodayFormatted}",
+              _buildStatCard("Today", viewModel.earningsTodayFormatted,
                   Icons.today_rounded),
               const SizedBox(width: 12),
               _buildStatCard(
                   "This Week",
-                  "\$${viewModel.earningsThisWeekFormatted}",
+                  viewModel.earningsThisWeekFormatted,
                   Icons.calendar_view_week_rounded),
             ],
           ),
@@ -310,7 +317,7 @@ class _AmbulanceEarningsViewState extends State<AmbulanceEarningsView> {
           const SizedBox(height: 12),
           viewModel.transactions.isEmpty
               ? Padding(
-                  padding: const EdgeInsets.only(bottom: 20),
+                  padding: const EdgeInsets.only(bottom: 20, top: 20),
                   child: Center(
                     child: Text(
                       "No transactions yet",
@@ -321,14 +328,24 @@ class _AmbulanceEarningsViewState extends State<AmbulanceEarningsView> {
                     ),
                   ),
                 )
-              : ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: viewModel.transactions.length,
-                  padding: const EdgeInsets.only(bottom: 20),
-                  itemBuilder: (context, index) {
-                    return _buildTransactionItem(viewModel.transactions[index]);
-                  },
+              : SizedBox(
+                  height: 350,
+                  child: Scrollbar(
+                    controller: _scrollController,
+                    thickness: 6,
+                    radius: const Radius.circular(10),
+                    thumbVisibility: true,
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      itemCount: viewModel.transactions.length,
+                      padding: const EdgeInsets.only(right: 12, bottom: 20),
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemBuilder: (context, index) {
+                        return _buildTransactionItem(
+                            viewModel.transactions[index]);
+                      },
+                    ),
+                  ),
                 ),
         ],
       ),
@@ -389,7 +406,8 @@ class _AmbulanceEarningsViewState extends State<AmbulanceEarningsView> {
         context: context,
         builder: (_) => EmergencyActionDialog(
           title: 'Payout Account Required',
-          message: 'Please add payout information before requesting withdrawal.',
+          message:
+              'Please add payout information before requesting withdrawal.',
           actionText: 'Add Account',
           actionColor: AppColors.primary,
           onConfirm: () {

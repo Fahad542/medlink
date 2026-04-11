@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class GoogleMapsService {
-  static const String _apiKey = "AIzaSyAdsDlFIxAwsDkXKt7wesv7XRmj3qN3RaY";
+  static const String _apiKey = "AIzaSyDfxcDdlq5IDIHjpRQKeAHepYIFaSYvVMQ";
   static const String _baseUrl = "https://maps.googleapis.com/maps/api";
 
   // Decode Polyline string format into LatLng list
@@ -38,9 +38,11 @@ class GoogleMapsService {
   }
 
   // Fetch Route from A to B
-  static Future<Map<String, dynamic>?> getRouteCoordinates(LatLng origin, LatLng destination) async {
+  static Future<Map<String, dynamic>?> getRouteCoordinates(
+      LatLng origin, LatLng destination) async {
     try {
-      final String url = "$_baseUrl/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&key=$_apiKey";
+      final String url =
+          "$_baseUrl/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination.latitude},${destination.longitude}&key=$_apiKey";
       print("Fetching route from Google: $url");
       final response = await http.get(Uri.parse(url));
 
@@ -48,11 +50,14 @@ class GoogleMapsService {
         final Map<String, dynamic> data = json.decode(response.body);
         print("Google Directions API Response Status: ${data['status']}");
         if (data['status'] == 'OK' && data['routes'].isNotEmpty) {
-          final String polylineString = data['routes'][0]['overview_polyline']['points'];
+          final String polylineString =
+              data['routes'][0]['overview_polyline']['points'];
           final List<LatLng> decodedPoints = decodePolyline(polylineString);
-          
-          final String durationText = data['routes'][0]['legs'][0]['duration']['text'];
-          final int durationValue = data['routes'][0]['legs'][0]['duration']['value'];
+
+          final String durationText =
+              data['routes'][0]['legs'][0]['duration']['text'];
+          final int durationValue =
+              data['routes'][0]['legs'][0]['duration']['value'];
 
           print("Successfully fetched route points: ${decodedPoints.length}");
           return {
@@ -61,7 +66,8 @@ class GoogleMapsService {
             'durationValue': durationValue
           };
         } else {
-          print("Directions API Error: ${data['status']} - ${data['error_message'] ?? 'No error message'}");
+          print(
+              "Directions API Error: ${data['status']} - ${data['error_message'] ?? 'No error message'}");
         }
       } else {
         print("HTTP Error from Directions API: ${response.statusCode}");
@@ -77,7 +83,8 @@ class GoogleMapsService {
   static Future<List<dynamic>> searchPlaces(String query) async {
     if (query.isEmpty) return [];
     try {
-      final String url = "$_baseUrl/place/autocomplete/json?input=$query&key=$_apiKey";
+      final String url =
+          "$_baseUrl/place/autocomplete/json?input=$query&key=$_apiKey";
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
@@ -96,7 +103,8 @@ class GoogleMapsService {
   // Get LatLng of a Selected Place
   static Future<LatLng?> getPlaceDetails(String placeId) async {
     try {
-      final String url = "$_baseUrl/place/details/json?place_id=$placeId&key=$_apiKey";
+      final String url =
+          "$_baseUrl/place/details/json?place_id=$placeId&key=$_apiKey";
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {

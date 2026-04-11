@@ -136,7 +136,7 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "Trip #AMB-8923",
+                                "Trip ${widget.trip['tripNumber']}",
                                 style: GoogleFonts.inter(
                                   fontSize: 16, // Reduced from 18
                                   fontWeight: FontWeight.w600,
@@ -273,11 +273,11 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
                         ),
                         child: Column(
                           children: [
-                            _buildPaymentRow("Base Fare", "\$15.00"),
+                            _buildPaymentRow("Base Fare", "${widget.trip['currency'] ?? 'CFA'} 0.00"),
                             const SizedBox(height: 10),
-                            _buildPaymentRow("Distance (5.2 km)", "\$10.40"),
+                            _buildPaymentRow("Distance (0.0 km)", "${widget.trip['currency'] ?? 'CFA'} 0.00"),
                             const SizedBox(height: 10),
-                            _buildPaymentRow("Time (15 mins)", "\$7.10"),
+                            _buildPaymentRow("Time (0 mins)", "${widget.trip['currency'] ?? 'CFA'} 0.00"),
                             const Padding(
                               padding: EdgeInsets.symmetric(vertical: 12), // Reduced
                               child: Divider(),

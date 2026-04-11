@@ -10,10 +10,10 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 
-import 'package:medlink/utils/utils.dart';
 
 import '../../../widgets/custom_network_image.dart';
 import '../../../widgets/no_data_widget.dart';
+import 'package:medlink/views/Patient App/health/widgets/reel_player_widget.dart';
 import '../../doctor/Articles/upload_article_bottom_sheet.dart';
 
 class HealthHubView extends StatefulWidget {
@@ -26,16 +26,18 @@ class HealthHubView extends StatefulWidget {
   State<HealthHubView> createState() => _HealthHubViewState();
 }
 
-class _HealthHubViewState extends State<HealthHubView> with SingleTickerProviderStateMixin {
+class _HealthHubViewState extends State<HealthHubView>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int? _expandedFirstAidIndex;
+  int _currentVideoIndex = 0;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(_handleTabSelection);
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final viewModel = Provider.of<HealthHubViewModel>(context, listen: false);
       if (viewModel.healthArticles.isEmpty && !viewModel.isLoadingArticles) {
@@ -50,26 +52,28 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
 
   void _handleTabSelection() {
     if (_tabController.indexIsChanging) return;
-    
+
     final viewModel = Provider.of<HealthHubViewModel>(context, listen: false);
 
     // Emergency tab is index 1
     if (_tabController.index == 1) {
-      if (viewModel.emergencyNumbers.isEmpty && !viewModel.isLoadingEmergencyNumbers) {
+      if (viewModel.emergencyNumbers.isEmpty &&
+          !viewModel.isLoadingEmergencyNumbers) {
         viewModel.fetchEmergencyNumbers();
       }
-      if (viewModel.quickInstructions.isEmpty && !viewModel.isLoadingQuickInstructions) {
+      if (viewModel.quickInstructions.isEmpty &&
+          !viewModel.isLoadingQuickInstructions) {
         viewModel.fetchQuickInstructions();
       }
     }
-    
+
     // First Aid is index 2
     if (_tabController.index == 2) {
       if (viewModel.firstAidTopics.isEmpty && !viewModel.isLoadingFirstAid) {
         viewModel.fetchFirstAidTopics();
       }
     }
-    
+
     // Videos/Reels tab is index 3
     if (_tabController.index == 3) {
       if (viewModel.healthVideos.isEmpty && !viewModel.isLoadingVideos) {
@@ -100,7 +104,10 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
             child: TextField(
               decoration: InputDecoration(
                 hintText: "Search articles, guides, symptoms...",
-                hintStyle: GoogleFonts.inter(color: Colors.grey, fontWeight: FontWeight.normal, fontSize: 13),
+                hintStyle: GoogleFonts.inter(
+                    color: Colors.grey,
+                    fontWeight: FontWeight.normal,
+                    fontSize: 13),
                 prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
                 filled: true,
                 fillColor: Colors.white,
@@ -116,11 +123,11 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               ),
             ),
           ),
-
 
           // 2. Tab Bar
           if (!widget.isDoctor)
@@ -154,8 +161,8 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
                 ),
                 labelColor: Colors.white,
                 unselectedLabelColor: Colors.grey[600],
-                labelStyle:
-                    GoogleFonts.inter(fontWeight: FontWeight.normal, fontSize: 13),
+                labelStyle: GoogleFonts.inter(
+                    fontWeight: FontWeight.normal, fontSize: 13),
                 indicatorSize: TabBarIndicatorSize.tab,
                 dividerColor: Colors.transparent,
                 overlayColor: MaterialStateProperty.all(Colors.transparent),
@@ -186,7 +193,6 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
                     ],
                   ),
           ),
-          
         ],
       ),
       floatingActionButton: widget.isDoctor
@@ -548,9 +554,11 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
                   subTitle: "Check back later",
                 )
               else
-                ...viewModel.quickInstructions.map((instruction) =>
-                    _buildInstructionCard(instruction.title,
-                        instruction.content, Icons.medical_services_rounded)),
+                ...viewModel.quickInstructions.map((instruction) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12.0),
+                      child: _buildInstructionCard(instruction.title,
+                          instruction.content, Icons.medical_services_rounded),
+                    )),
             ],
           ),
         );
@@ -558,7 +566,8 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
     );
   }
 
-  Widget _buildInstructionCard(String title, String description, IconData icon) {
+  Widget _buildInstructionCard(
+      String title, String description, IconData icon) {
     return Container(
       padding: const EdgeInsets.all(12), // Reduced padding
       decoration: BoxDecoration(
@@ -575,24 +584,26 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-           Icon(icon, color: Colors.grey[700], size: 24), // Smaller icon
-           const SizedBox(width: 12),
-           Expanded(
-             child: Column(
-               crossAxisAlignment: CrossAxisAlignment.start,
-               children: [
-                 Text(
-                   title,
-                   style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
-                 ),
-                 const SizedBox(height: 2),
-                 Text(
-                   description,
-                   style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 12, height: 1.3),
-                 ),
-               ],
-             ),
-           ),
+          Icon(icon, color: Colors.grey[700], size: 24), // Smaller icon
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                      fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  style: GoogleFonts.inter(
+                      color: Colors.grey[600], fontSize: 12, height: 1.3),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -748,8 +759,7 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
           return RefreshIndicator(
             onRefresh: () => viewModel.refreshData(widget.isDoctor),
             child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics()),
+              physics: const AlwaysScrollableScrollPhysics(),
               children: [
                 SizedBox(
                   height: MediaQuery.of(context).size.height * 0.4,
@@ -772,124 +782,20 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
             scrollDirection: Axis.vertical,
             physics: const AlwaysScrollableScrollPhysics(),
             itemCount: viewModel.healthVideos.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentVideoIndex = index;
+              });
+            },
             itemBuilder: (context, index) {
               final video = viewModel.healthVideos[index];
               return Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 100),
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(24),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black,
-                      image: DecorationImage(
-                        image: NetworkImage(
-                            'https://picsum.photos/400/800?random=$index'),
-                        fit: BoxFit.cover,
-                        opacity: 0.8,
-                      ),
-                    ),
-                    child: Stack(
-                      children: [
-                        // Gradient Overlay
-                        Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.transparent,
-                                Colors.black.withOpacity(0.2),
-                                Colors.black.withOpacity(0.8),
-                              ],
-                              stops: const [0.0, 0.6, 1.0],
-                            ),
-                          ),
-                        ),
-
-                        // Share Button (Top Right)
-                        Positioned(
-                          top: 20,
-                          right: 20,
-                          child: GestureDetector(
-                            onTap: () {
-                              Share.share(
-                                  'Check out this health video: ${video.title}\n${video.videoUrl}');
-                            },
-                            child: _buildReelAction(Icons.share, ""),
-                          ),
-                        ),
-
-                        // Content (Bottom)
-                        Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                video.title,
-                                style: GoogleFonts.inter(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  video.category,
-                                  style: GoogleFonts.inter(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                            ],
-                          ),
-                        ),
-
-                        // Play Button Center
-                        Center(
-                          child: GestureDetector(
-                            onTap: () async {
-                              if (video.videoUrl.isNotEmpty) {
-                                await Provider.of<HealthHubViewModel>(context,
-                                        listen: false)
-                                    .recordReelView(video.id);
-                                final Uri url = Uri.parse(video.videoUrl);
-                                if (await canLaunchUrl(url)) {
-                                  await launchUrl(url,
-                                      mode: LaunchMode.externalApplication);
-                                } else {
-                                  if (context.mounted) {
-                                    Utils.toastMessage(
-                                        context, "Could not launch video URL",
-                                        isError: true);
-                                  }
-                                }
-                              } else {
-                                Utils.toastMessage(
-                                    context, "Video URL is missing",
-                                    isError: true);
-                              }
-                            },
-                            child: const Icon(
-                              Icons.play_circle_outline_rounded,
-                              size: 64,
-                              color: Colors.white54,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                  child: ReelPlayerWidget(
+                    video: video,
+                    isActive: _currentVideoIndex == index,
                   ),
                 ),
               );
@@ -900,19 +806,4 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
     );
   }
 
-  Widget _buildReelAction(IconData icon, String label) {
-    return Column(
-      children: [
-        Icon(icon, color: Colors.white, size: 28),
-        if (label.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: GoogleFonts.inter(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ],
-    );
-  }
 }
-

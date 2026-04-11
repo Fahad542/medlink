@@ -14,6 +14,7 @@ import 'package:provider/provider.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/models/doctor_model.dart';
 import 'package:medlink/views/doctor/Doctor%20profile/doctor_personal_info_viewmodel.dart';
+import 'package:medlink/views/services/settings_view_model.dart';
 
 class DoctorSettingsProfileView extends StatelessWidget {
   const DoctorSettingsProfileView({super.key});
@@ -266,7 +267,7 @@ class DoctorSettingsProfileView extends StatelessWidget {
                   child: ListView(
                     padding: const EdgeInsets.all(20),
                     children: [
-                      _buildFeeCard(feeController),
+                      _buildFeeCard(feeController, context),
                       const SizedBox(height: 24),
                       _buildSectionHeader("Active Days"),
                       const SizedBox(height: 12),
@@ -360,7 +361,7 @@ class DoctorSettingsProfileView extends StatelessWidget {
     );
   }
 
-  Widget _buildFeeCard(TextEditingController controller) {
+  Widget _buildFeeCard(TextEditingController controller, BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -376,9 +377,9 @@ class DoctorSettingsProfileView extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              Text("\$",
+              Text(context.watch<SettingsViewModel>().currency,
                   style: GoogleFonts.inter(
-                      fontSize: 22,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: AppColors.primary)),
               const SizedBox(width: 8),

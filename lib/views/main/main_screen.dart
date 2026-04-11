@@ -46,28 +46,27 @@ class _MainScreenState extends State<MainScreen>
       final emergencyVM =
           Provider.of<EmergencyViewModel>(context, listen: false);
       final userVM = Provider.of<UserViewModel>(context, listen: false);
-      final appointmentVM = Provider.of<AppointmentViewModel>(context, listen: false);
+      final appointmentVM =
+          Provider.of<AppointmentViewModel>(context, listen: false);
 
       emergencyVM.checkActiveSos();
       final token = userVM.accessToken;
       final patientId = int.tryParse(userVM.patient?.id ?? '');
-      
+
       if (token != null && token.isNotEmpty && patientId != null) {
         emergencyVM.startRealtime(userId: patientId, token: token);
-        
+
         // Initial load
         appointmentVM.loadUpcomingAppointments();
 
         // Connect to Appointment Socket
-        final appointmentSocket = Provider.of<AppointmentSocketService>(context, listen: false);
+        final appointmentSocket =
+            Provider.of<AppointmentSocketService>(context, listen: false);
         appointmentSocket.connect(url: AppUrl.baseUrl, token: token);
         _appointmentSub = appointmentSocket.appointmentUpdateStream.listen((_) {
           debugPrint('[MainScreen] Appointment update received! Refreshing...');
           appointmentVM.loadUpcomingAppointments();
         });
-
-        // Start Call Polling as backup
-        Provider.of<CallViewModel>(context, listen: false).startPolling(context);
 
         // Connect to dedicated Call Socket
         final callSocket =
@@ -88,7 +87,7 @@ class _MainScreenState extends State<MainScreen>
       debugPrint('[MainScreen] Incoming call skipped — already active');
       return;
     }
-    
+
     final callerId = data['callerId'] is int
         ? data['callerId'] as int
         : int.tryParse(data['callerId']?.toString() ?? '');
@@ -190,12 +189,11 @@ class _MainScreenState extends State<MainScreen>
                         );
                       } else {
                         // User requested not traversing to trip details when finding driver.
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text("Finding Driver... Please wait."),
-                            duration: Duration(seconds: 1),
-                          )
-                        );
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(const SnackBar(
+                          content: Text("Finding Driver... Please wait."),
+                          duration: Duration(seconds: 1),
+                        ));
                       }
                     },
                     child: Container(
