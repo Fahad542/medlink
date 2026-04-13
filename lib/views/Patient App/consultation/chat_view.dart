@@ -18,7 +18,6 @@ class ChatView extends StatefulWidget {
   final String? appointmentId;
   final String? sosId;
   final String? tripId;
-
   const ChatView({
     super.key,
     required this.recipientName,
@@ -131,16 +130,22 @@ class _ChatViewState extends State<ChatView> with SingleTickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
+    final userVM = Provider.of<UserViewModel>(context, listen: false);
+    final currentUserId = userVM.loginSession?.data?.user?.id ??
+        int.tryParse(userVM.patient?.id ?? '') ??
+        int.tryParse(userVM.doctor?.id ?? '');
+
     return ChangeNotifierProvider(
       create: (context) => ChatViewModel(
         doctorId: widget.doctorId,
         patientId: widget.patientId,
-        token: Provider.of<UserViewModel>(context, listen: false).accessToken ??
-            '',
+        token: userVM.accessToken ?? '',
         appointmentId: widget.appointmentId,
         sosId: widget.sosId,
         tripId: widget.tripId,
-      )..fetchMessages(),
+      )
+        ..setCurrentUserId(currentUserId)
+        ..fetchMessages(),
       child: Consumer<ChatViewModel>(
         builder: (context, viewModel, child) {
           return Scaffold(
@@ -159,13 +164,31 @@ class _ChatViewState extends State<ChatView> with SingleTickerProviderStateMixin
                     placeholderName: widget.recipientName,
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    widget.recipientName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 16,
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.recipientName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 16,
+                        ),
+                      ),
+                      AnimatedOpacity(
+                        duration: const Duration(milliseconds: 180),
+                        opacity: viewModel.isPeerTyping ? 1 : 0,
+                        child: const Text(
+                          'typing...',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -354,6 +377,25 @@ class _ChatViewState extends State<ChatView> with SingleTickerProviderStateMixin
                       Expanded(
                         child: TextField(
                           controller: _msgController,
+                          onChanged: (_) {
+                            final userVM =
+                                Provider.of<UserViewModel>(context, listen: false);
+                            final uId = userVM.loginSession?.data?.user?.id?.toString();
+                            final dId = userVM.doctor?.id;
+                            final pId = userVM.patient?.id;
+                            final ambId = userVM.driver?.id;
+                            final currentUserId =
+                                (uId != null && uId.isNotEmpty)
+                                    ? uId
+                                    : (ambId != null && ambId.isNotEmpty)
+                                        ? ambId
+                                        : (dId != null && dId.isNotEmpty)
+                                            ? dId
+                                            : (pId != null && pId.isNotEmpty)
+                                                ? pId
+                                                : "0";
+                            viewModel.onInputChanged(_msgController.text, currentUserId);
+                          },
                           style: const TextStyle(fontSize: 14),
                           decoration: InputDecoration(
                             filled: true,
@@ -409,6 +451,7 @@ class _ChatViewState extends State<ChatView> with SingleTickerProviderStateMixin
                               viewModel.sendMessage(
                                   _msgController.text, currentUserId);
                               _msgController.clear();
+                              viewModel.onInputChanged('', currentUserId);
                             }
                           },
                         ),

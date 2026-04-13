@@ -44,6 +44,10 @@ class AppointmentModel {
   final String doctorId;
   final String userId;
   final DateTime dateTime;
+  /// From API `scheduledStart` when present; may be null if only legacy `date`/`time` fields exist.
+  final DateTime? scheduledStart;
+  final DateTime? scheduledEnd;
+  final DateTime? createdAt;
   final AppointmentStatus status;
   final AppointmentType type;
   final String? reason;
@@ -53,11 +57,17 @@ class AppointmentModel {
   final PrescriptionModel? prescription;
   final bool isPaid;
 
+  /// Effective slot start for display and sorting (scheduledStart from API, else parsed dateTime).
+  DateTime get displayScheduledStart => scheduledStart ?? dateTime;
+
   AppointmentModel({
     required this.id,
     required this.doctorId,
     required this.userId,
     required this.dateTime,
+    this.scheduledStart,
+    this.scheduledEnd,
+    this.createdAt,
     required this.status,
     required this.type,
     this.reason,
@@ -67,6 +77,14 @@ class AppointmentModel {
     this.prescription,
     this.isPaid = false,
   });
+
+  static DateTime? _parseDate(dynamic v) {
+    if (v == null) return null;
+    if (v is DateTime) return v.toLocal();
+    final s = v.toString().trim();
+    if (s.isEmpty) return null;
+    return DateTime.tryParse(s)?.toLocal();
+  }
 
   factory AppointmentModel.fromJson(Map<String, dynamic> json) {
     var doctorObj = json['doctor'] ?? json['doctor_id'];
@@ -103,10 +121,16 @@ class AppointmentModel {
       doctorId = doctorObj;
     }
 
+    final DateTime? scheduledStartRaw = _parseDate(
+        json['scheduledStart'] ?? json['scheduled_start']);
+    final DateTime? scheduledEndRaw = _parseDate(
+        json['scheduledEnd'] ?? json['scheduled_end']);
+    final DateTime? createdAtRaw = _parseDate(
+        json['createdAt'] ?? json['created_at']);
+
     DateTime parsedDate = DateTime.now();
-    if (json['scheduledStart'] != null) {
-      parsedDate = DateTime.tryParse(json['scheduledStart'])?.toLocal() ??
-          DateTime.now();
+    if (scheduledStartRaw != null) {
+      parsedDate = scheduledStartRaw;
     } else if (json['date'] != null && json['time'] != null) {
       parsedDate = DateTime.tryParse("${json['date']}T${json['time']}") ??
           DateTime.now();
@@ -123,6 +147,9 @@ class AppointmentModel {
       userId:
           json['patientId']?.toString() ?? json['patient_id']?.toString() ?? '',
       dateTime: parsedDate,
+      scheduledStart: scheduledStartRaw,
+      scheduledEnd: scheduledEndRaw,
+      createdAt: createdAtRaw,
       status: _parseStatus(json['status']),
       type: json['consultKind'] == 'VIDEO'
           ? AppointmentType.online
@@ -156,5 +183,17 @@ class AppointmentModel {
       default:
         return AppointmentStatus.unconfirmed;
     }
+  }
+
+  /// Newest bookings first ([createdAt] descending). Null [createdAt] sorts last.
+  static void sortByCreatedAtDescending(List<AppointmentModel> list) {
+    list.sort((a, b) {
+      final ca = a.createdAt;
+      final cb = b.createdAt;
+      if (ca == null && cb == null) return 0;
+      if (ca == null) return 1;
+      if (cb == null) return -1;
+      return cb.compareTo(ca);
+    });
   }
 }

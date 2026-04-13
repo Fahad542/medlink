@@ -110,6 +110,59 @@ class HealthHubViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> updateArticle({
+    required int articleId,
+    required String title,
+    required String category,
+    required String contentHtml,
+    required bool isPublished,
+    String? imagePath,
+  }) async {
+    _isLoadingArticles = true;
+    notifyListeners();
+    try {
+      final response = await _apiServices.updateDoctorArticle(
+        articleId: articleId,
+        title: title,
+        category: category,
+        contentHtml: contentHtml,
+        isPublished: isPublished,
+        imagePath: imagePath,
+      );
+      if (response != null) {
+        await fetchDoctorArticles();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint("Error updating article: $e");
+      return false;
+    } finally {
+      _isLoadingArticles = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> deleteArticle(int articleId) async {
+    _isLoadingArticles = true;
+    notifyListeners();
+    try {
+      final response = await _apiServices.deleteDoctorArticle(articleId);
+      if (response != null) {
+        _healthArticles.removeWhere((article) => article.id == articleId);
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint("Error deleting article: $e");
+      return false;
+    } finally {
+      _isLoadingArticles = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> fetchFirstAidTopics() async {
     _isLoadingFirstAid = true;
     notifyListeners();
@@ -228,9 +281,19 @@ class HealthHubViewModel extends ChangeNotifier {
     return HealthVideo(
       id: data['id'] ?? 0,
       title: (data['title'] ?? data['caption'] ?? '').toString(),
+      description: (data['description'] ?? '').toString(),
       videoUrl: (data['videoUrl'] ?? data['video_url'] ?? '').toString(),
+      thumbnailUrl:
+          (data['thumbnailUrl'] ?? data['thumbnail_url'] ?? '').toString(),
       category: (data['category'] ?? 'Health').toString(),
       createdAt: (data['createdAt'] ?? data['created_at'] ?? '').toString(),
+      viewCount: data['viewCount'] is int
+          ? data['viewCount'] as int
+          : int.tryParse('${data['viewCount'] ?? 0}') ?? 0,
+      likeCount: data['likeCount'] is int
+          ? data['likeCount'] as int
+          : int.tryParse('${data['likeCount'] ?? 0}') ?? 0,
+      likedByMe: data['likedByMe'] == true,
     );
   }
 

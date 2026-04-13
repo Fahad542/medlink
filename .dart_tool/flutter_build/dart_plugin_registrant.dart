@@ -13,6 +13,7 @@ import 'package:image_picker_android/image_picker_android.dart' as image_picker_
 import 'package:path_provider_android/path_provider_android.dart' as path_provider_android;
 import 'package:shared_preferences_android/shared_preferences_android.dart' as shared_preferences_android;
 import 'package:url_launcher_android/url_launcher_android.dart' as url_launcher_android;
+import 'package:video_player_android/video_player_android.dart' as video_player_android;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart' as flutter_local_notifications;
 import 'package:geolocator_apple/geolocator_apple.dart' as geolocator_apple;
 import 'package:google_maps_flutter_ios/google_maps_flutter_ios.dart' as google_maps_flutter_ios;
@@ -20,6 +21,7 @@ import 'package:image_picker_ios/image_picker_ios.dart' as image_picker_ios;
 import 'package:path_provider_foundation/path_provider_foundation.dart' as path_provider_foundation;
 import 'package:shared_preferences_foundation/shared_preferences_foundation.dart' as shared_preferences_foundation;
 import 'package:url_launcher_ios/url_launcher_ios.dart' as url_launcher_ios;
+import 'package:video_player_avfoundation/video_player_avfoundation.dart' as video_player_avfoundation;
 import 'package:file_selector_linux/file_selector_linux.dart' as file_selector_linux;
 import 'package:flutter_local_notifications_linux/flutter_local_notifications_linux.dart' as flutter_local_notifications_linux;
 import 'package:image_picker_linux/image_picker_linux.dart' as image_picker_linux;
@@ -34,6 +36,7 @@ import 'package:image_picker_macos/image_picker_macos.dart' as image_picker_maco
 import 'package:path_provider_foundation/path_provider_foundation.dart' as path_provider_foundation;
 import 'package:shared_preferences_foundation/shared_preferences_foundation.dart' as shared_preferences_foundation;
 import 'package:url_launcher_macos/url_launcher_macos.dart' as url_launcher_macos;
+import 'package:video_player_avfoundation/video_player_avfoundation.dart' as video_player_avfoundation;
 import 'package:file_selector_windows/file_selector_windows.dart' as file_selector_windows;
 import 'package:flutter_local_notifications_windows/flutter_local_notifications_windows.dart' as flutter_local_notifications_windows;
 import 'package:image_picker_windows/image_picker_windows.dart' as image_picker_windows;
@@ -111,6 +114,15 @@ class _PluginRegistrant {
         );
       }
 
+      try {
+        video_player_android.AndroidVideoPlayer.registerWith();
+      } catch (err) {
+        print(
+          '`video_player_android` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
     } else if (Platform.isIOS) {
       try {
         flutter_local_notifications.IOSFlutterLocalNotificationsPlugin.registerWith();
@@ -171,6 +183,15 @@ class _PluginRegistrant {
       } catch (err) {
         print(
           '`url_launcher_ios` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
+      try {
+        video_player_avfoundation.AVFoundationVideoPlayer.registerWith();
+      } catch (err) {
+        print(
+          '`video_player_avfoundation` threw an error: $err. '
           'The app may not function as expected until you remove this plugin from pubspec.yaml'
         );
       }
@@ -299,6 +320,15 @@ class _PluginRegistrant {
       } catch (err) {
         print(
           '`url_launcher_macos` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
+      try {
+        video_player_avfoundation.AVFoundationVideoPlayer.registerWith();
+      } catch (err) {
+        print(
+          '`video_player_avfoundation` threw an error: $err. '
           'The app may not function as expected until you remove this plugin from pubspec.yaml'
         );
       }

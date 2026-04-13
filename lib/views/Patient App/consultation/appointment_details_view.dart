@@ -109,7 +109,7 @@ class AppointmentDetailsView extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                     child: _buildDetailCard(
-                        "Price", "PKR ${doctor.consultationFee.toInt()}")),
+                        "Price", "CFA ${doctor.consultationFee.toInt()}")),
               ],
             ),
 

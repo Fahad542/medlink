@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/models/appointment_model.dart';
 import 'package:medlink/views/Patient App/consultation/chat_view.dart';
@@ -9,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:medlink/views/Patient App/appointment/appointment_viewmodel.dart';
 import 'package:medlink/utils/utils.dart';
 import 'package:medlink/widgets/custom_network_image.dart';
+import 'package:medlink/widgets/appointment_schedule_rows.dart';
 import 'package:medlink/data/network/api_services.dart';
 
 import 'package:medlink/views/services/session_view_model.dart';
@@ -167,6 +167,18 @@ class AppointmentInfoCard extends StatelessWidget {
                 onTap: () {
                   Navigator.pop(context);
                   _showRescheduleDialog(context);
+                },
+              ),
+            if (appointment.status == AppointmentStatus.completed)
+              _buildOptionItem(
+                context,
+                icon: Icons.star_rate_rounded,
+                title: "Rate Doctor",
+                subtitle: "Share your feedback for this consultation",
+                color: Colors.amber.shade700,
+                onTap: () {
+                  Navigator.pop(context);
+                  _showDoctorReviewBottomSheet(context);
                 },
               ),
             // Confirm Session — for all appointments that are not already completed or cancelled
@@ -547,7 +559,7 @@ class AppointmentInfoCard extends StatelessWidget {
                         : () async {
                             if (rating <= 0) {
                               Utils.toastMessage(
-                                context,
+                                ctx,
                                 "Please select a star rating first",
                                 isError: true,
                               );
@@ -555,6 +567,7 @@ class AppointmentInfoCard extends StatelessWidget {
                             }
                             setState(() => submitting = true);
                             bool ok = false;
+                            String? errorMessage;
                             try {
                               final res = await api.submitDoctorReview(
                                 appointment.id.toString(),
@@ -562,19 +575,27 @@ class AppointmentInfoCard extends StatelessWidget {
                                 comment: commentController.text.trim(),
                               );
                               ok = res != null && res['success'] == true;
-                            } catch (_) {}
-                            if (!context.mounted) return;
+                              if (!ok && res is Map) {
+                                errorMessage =
+                                    res['message']?.toString() ?? 'Review could not be submitted';
+                              }
+                            } catch (e) {
+                              errorMessage = e.toString();
+                            }
+                            if (!ctx.mounted) return;
                             if (ok) {
                               Navigator.pop(ctx);
                               Utils.toastMessage(
-                                context,
+                                ctx,
                                 "Thank you for your review!",
                               );
                             } else {
                               setState(() => submitting = false);
                               Utils.toastMessage(
-                                context,
-                                "Review could not be submitted",
+                                ctx,
+                                (errorMessage != null && errorMessage.isNotEmpty)
+                                    ? errorMessage
+                                    : "Review could not be submitted",
                                 isError: true,
                               );
                             }
@@ -719,13 +740,8 @@ class AppointmentInfoCard extends StatelessWidget {
                                               fontSize: 12,
                                               color: Color(0xFF64748B),
                                               fontWeight: FontWeight.w500)),
-                                    Text(
-                                      DateFormat('MMM dd, yyyy • hh:mm a')
-                                          .format(ap.dateTime),
-                                      style: TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.grey[500]),
-                                    ),
+                                    AppointmentScheduleRows(
+                                        appointment: ap, dense: true),
                                   ],
                                 ),
                               ),
@@ -1381,23 +1397,9 @@ class AppointmentInfoCard extends StatelessWidget {
                         appointment.doctor?.specialty ?? "Specialist",
                         style: TextStyle(color: Colors.grey[600], fontSize: 13),
                       ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Icon(Icons.access_time_rounded,
-                              size: 14,
-                              color: AppColors.primary.withOpacity(0.7)),
-                          const SizedBox(width: 4),
-                          Text(
-                            DateFormat('MMM d, h:mm a')
-                                .format(appointment.dateTime),
-                            style: TextStyle(
-                                color: AppColors.primary.withOpacity(0.8),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500),
-                          ),
-                        ],
-                      ),
+                      const SizedBox(height: 4),
+                      AppointmentScheduleRows(
+                          appointment: appointment, dense: true),
                     ],
                   ),
                 ),

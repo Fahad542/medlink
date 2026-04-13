@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/data/network/network_api_services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -555,6 +556,17 @@ class ApiServices {
     }
   }
 
+  Future<dynamic> doctorCheckEmailAvailability(String email) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        AppUrl.doctorCheckEmailAvailability,
+        jsonEncode({'email': email}),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<dynamic> driverCheckEmail(dynamic data) async {
     try {
       return await _apiServices.getPostApiResponse(
@@ -817,6 +829,18 @@ class ApiServices {
       return await _apiServices.getGetApiResponse(AppUrl.getChatConversations);
     } catch (e) {
       rethrow;
+    }
+  }
+
+  /// Marks the 1:1 thread with [peerId] (other User.id) as read for the current user.
+  Future<void> markChatConversationRead(int peerId) async {
+    try {
+      await _apiServices.getPostApiResponse(
+        AppUrl.markChatConversationRead,
+        jsonEncode({'peerId': peerId}),
+      );
+    } catch (e) {
+      debugPrint('markChatConversationRead: $e');
     }
   }
 
@@ -1277,6 +1301,45 @@ class ApiServices {
         imageFile,
         fileKey: 'coverImage',
       );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> updateDoctorArticle({
+    required int articleId,
+    required String title,
+    required String category,
+    required String contentHtml,
+    required bool isPublished,
+    String? imagePath,
+  }) async {
+    try {
+      final Map<String, String> data = {
+        'title': title,
+        'category': category,
+        'contentHtml': contentHtml,
+        'isPublished': isPublished.toString(),
+      };
+      File? imageFile;
+      if (imagePath != null) {
+        imageFile = File(imagePath);
+      }
+      return await _apiServices.getPatchMultipartApiResponse(
+        '${AppUrl.doctorArticleById}/$articleId',
+        data,
+        imageFile,
+        fileKey: 'coverImage',
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> deleteDoctorArticle(int articleId) async {
+    try {
+      return await _apiServices
+          .getDeleteApiResponse('${AppUrl.doctorArticleById}/$articleId');
     } catch (e) {
       rethrow;
     }

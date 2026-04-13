@@ -132,7 +132,7 @@ class DoctorEarningsView extends StatelessWidget {
   Widget _buildStatCard(String label, String value, IconData icon) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.15),
           borderRadius: BorderRadius.circular(14),
@@ -148,26 +148,34 @@ class DoctorEarningsView extends StatelessWidget {
               ),
               child: Icon(icon, color: Colors.white, size: 14),
             ),
-            const SizedBox(width: 10),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: GoogleFonts.inter(
-                    color: Colors.white70,
-                    fontSize: 10,
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: Colors.white70,
+                      fontSize: 10,
+                    ),
                   ),
-                ),
-                Text(
-                  value,
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                  Text(
+                    value,
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -378,6 +386,15 @@ class DoctorEarningsView extends StatelessWidget {
                     hintText: "Enter withdrawal amount",
                   ),
                 ),
+                if (viewModel.availableToWithdraw > 0 &&
+                    viewModel.availableToWithdraw < viewModel.totalBalance)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      'Pending requests: you can request up to ${viewModel.formatCurrency(viewModel.availableToWithdraw)} until they are approved.',
+                      style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[700]),
+                    ),
+                  ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: noteController,
@@ -409,6 +426,8 @@ class DoctorEarningsView extends StatelessWidget {
                             );
                             if (!context.mounted) return;
                             Navigator.pop(ctx);
+                            if (success) await viewModel.fetchBalance();
+                            if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
@@ -437,11 +456,16 @@ class DoctorEarningsView extends StatelessWidget {
   }
 
   Widget _buildTransactionItem(dynamic transaction, DoctorEarningsViewModel viewModel) {
-    bool isCredit = transaction['isCredit'] ?? true;
-    double amount = (transaction['amount'] ?? 0).toDouble();
-    String user = transaction['user'] ?? 'Unknown User';
-    String dateStr = transaction['date'] ?? '';
-    String title = transaction['title'] ?? 'Consultation';
+    if (transaction is! Map) return const SizedBox.shrink();
+    final m = Map<String, dynamic>.from(transaction);
+    bool isCredit = m['isCredit'] ?? true;
+    double amount = (m['amount'] is num)
+        ? (m['amount'] as num).toDouble()
+        : double.tryParse(m['amount']?.toString() ?? '') ?? 0.0;
+    String user = viewModel.transactionUserDisplayName(m);
+    String dateStr = (m['date'] ?? m['createdAt'] ?? m['created_at'])?.toString() ?? '';
+    String title = (m['title'] ?? m['type'] ?? m['description'] ?? 'Consultation')
+        .toString();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -486,22 +510,31 @@ class DoctorEarningsView extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  "$user • ${dateStr != '' ? viewModel.formatDate(dateStr) : ''}",
+                  dateStr.isNotEmpty
+                      ? "$user • ${viewModel.formatDate(dateStr)}"
+                      : user,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
                     color: Colors.grey[500],
                     fontSize: 12,
-                    fontWeight: FontWeight.w500
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
           ),
-          Text(
-            "${isCredit ? '+' : '-'}${viewModel.formatCurrency(amount)}",
-            style: GoogleFonts.inter(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-              color: isCredit ? Colors.green : Colors.red,
+          Flexible(
+            child: Text(
+              "${isCredit ? '+' : '-'}${viewModel.formatCurrency(amount)}",
+              textAlign: TextAlign.end,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
+                color: isCredit ? Colors.green : Colors.red,
+              ),
             ),
           ),
         ],

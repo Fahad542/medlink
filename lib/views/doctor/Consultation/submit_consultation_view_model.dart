@@ -137,15 +137,33 @@ class SubmitConsultationViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final bpSystolic = int.tryParse(bpSystolicController.text.trim());
+      final bpDiastolic = int.tryParse(bpDiastolicController.text.trim());
+      final pulse = int.tryParse(pulseController.text.trim());
+      final temperature = double.tryParse(temperatureController.text.trim());
+      final weight = double.tryParse(weightController.text.trim());
+
+      final vitalsValidationError = _validateVitals(
+        bpSystolic: bpSystolic,
+        bpDiastolic: bpDiastolic,
+        pulse: pulse,
+        temperatureC: temperature,
+        weightKg: weight,
+      );
+      if (vitalsValidationError != null) {
+        Utils.toastMessage(context, vitalsValidationError, isError: true);
+        return false;
+      }
+
       final Map<String, dynamic> data = {
         "chiefComplaint": chiefComplaintController.text.trim(),
         "provisionalDiagnosis": provisionalDiagnosisController.text.trim(),
         "vitals": {
-          "bpSystolic": int.tryParse(bpSystolicController.text),
-          "bpDiastolic": int.tryParse(bpDiastolicController.text),
-          "pulse": int.tryParse(pulseController.text),
-          "temperatureC": double.tryParse(temperatureController.text),
-          "weightKg": double.tryParse(weightController.text),
+          "bpSystolic": bpSystolic,
+          "bpDiastolic": bpDiastolic,
+          "pulse": pulse,
+          "temperatureC": temperature,
+          "weightKg": weight,
         },
         "tests": tests,
         "medications": medications,
@@ -166,6 +184,35 @@ class SubmitConsultationViewModel extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  String? _validateVitals({
+    int? bpSystolic,
+    int? bpDiastolic,
+    int? pulse,
+    double? temperatureC,
+    double? weightKg,
+  }) {
+    final errors = <String>[];
+
+    if (bpSystolic != null && (bpSystolic < 50 || bpSystolic > 250)) {
+      errors.add('Systolic BP must be between 50 and 250');
+    }
+    if (bpDiastolic != null && (bpDiastolic < 30 || bpDiastolic > 160)) {
+      errors.add('Diastolic BP must be between 30 and 160');
+    }
+    if (pulse != null && (pulse < 30 || pulse > 250)) {
+      errors.add('Pulse must be between 30 and 250');
+    }
+    if (temperatureC != null && (temperatureC < 25 || temperatureC > 115)) {
+      errors.add('Temperature must be between 25 and 115');
+    }
+    if (weightKg != null && (weightKg < 1 || weightKg > 500)) {
+      errors.add('Weight must be between 1 and 500');
+    }
+
+    if (errors.isEmpty) return null;
+    return errors.join(', ');
   }
 
   @override

@@ -753,6 +753,9 @@ class RegisterViewModel extends ChangeNotifier {
       final data = {'email': email};
       dynamic value;
       if (_role == UserRole.doctor) {
+        // Doctor flow: fail fast here if email is already taken,
+        // so user doesn't reach profile/photo step before seeing this error.
+        await _apiServices.doctorCheckEmailAvailability(email.trim());
         value = await _apiServices.doctorCheckEmail(data);
       } else if (_role == UserRole.driver) {
         value = await _apiServices.driverCheckEmail(data);

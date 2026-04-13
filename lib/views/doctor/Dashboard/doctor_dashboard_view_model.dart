@@ -1,20 +1,29 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:medlink/models/appointment_model.dart';
-import 'package:medlink/models/user_model.dart';
 import 'package:medlink/data/network/api_services.dart';
+import 'package:medlink/core/constants/app_url.dart';
+import 'package:medlink/services/chat_socket_service.dart';
 
 class DoctorDashboardViewModel extends ChangeNotifier {
   final ApiServices _apiServices = ApiServices();
+  final ChatSocketService _chatSocket = ChatSocketService.instance;
+  StreamSubscription<Map<String, dynamic>>? _chatSub;
+  StreamSubscription<Map<String, dynamic>>? _chatReadSub;
+  final Set<String> _seenSocketKeys = {};
 
   bool _isOnline = true;
   String _earnings = "0";
-  String _currency = "PKR";
+  String _currency = "CFA";
   bool _isLoadingEarnings = false;
   bool _isLoadingAppointments = false;
   
   int _patientsCount = 0;
   int _appointmentsCount = 0;
+  int _unreadMessagesCount = 0;
   List<AppointmentModel> _upcomingAppointments = [];
+  int? _currentUserId;
+  String? _chatToken;
 
   DoctorDashboardViewModel() {
     fetchData();
@@ -28,6 +37,7 @@ class DoctorDashboardViewModel extends ChangeNotifier {
   
   int get patientsCount => _patientsCount;
   int get appointmentsCount => _appointmentsCount;
+  int get unreadMessagesCount => _unreadMessagesCount;
   List<AppointmentModel> get upcomingAppointments => _upcomingAppointments;
 
   Future<void> updateAvailability(bool value) async {
@@ -57,7 +67,113 @@ class DoctorDashboardViewModel extends ChangeNotifier {
       fetchEarnings(),
       fetchUpcomingAppointments(),
       fetchAvailability(),
+      fetchPatientsCount(),
     ]);
+  }
+
+  void ensureChatRealtime({required String token, required int? currentUserId}) {
+    if (token.isEmpty) return;
+    _currentUserId = currentUserId;
+    if (_chatSub != null && _chatToken == token) return;
+    _chatToken = token;
+    _chatSocket.connect(url: '${AppUrl.baseUrl}/chat', token: token);
+    _chatSub?.cancel();
+    _chatReadSub?.cancel();
+    _chatSub = _chatSocket.newMessageStream.listen(_onChatSocketMessage);
+    _chatReadSub = _chatSocket.conversationReadStream.listen((_) {
+      unawaited(fetchUnreadMessagesCount());
+    });
+    fetchUnreadMessagesCount();
+  }
+
+  Future<void> fetchUnreadMessagesCount() async {
+    try {
+      final response = await _apiServices.getConversations();
+      List<dynamic>? list;
+      if (response is Map && response['data'] is List) {
+        list = response['data'] as List;
+      } else if (response is List) {
+        list = response;
+      }
+      if (list == null) return;
+
+      int total = 0;
+      for (final raw in list) {
+        if (raw is! Map) continue;
+        final item = Map<String, dynamic>.from(raw);
+        final other = item['other'];
+        if (other is Map) {
+          final role = other['role']?.toString().toUpperCase() ?? '';
+          if (role.isNotEmpty && role != 'PATIENT') continue;
+        }
+        final u = item['unreadCount'] ?? item['unread'] ?? 0;
+        final count = u is int ? u : int.tryParse(u.toString()) ?? 0;
+        if (count > 0) total += count;
+      }
+
+      if (total != _unreadMessagesCount) {
+        _unreadMessagesCount = total;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Doctor dashboard unread count error: $e');
+    }
+  }
+
+  static Map<String, dynamic> _unwrapSocketMessage(Map<String, dynamic> payload) {
+    if (payload['message'] is Map) {
+      return Map<String, dynamic>.from(payload['message'] as Map);
+    }
+    if (payload['data'] is Map) {
+      return Map<String, dynamic>.from(payload['data'] as Map);
+    }
+    return payload;
+  }
+
+  bool _consumeSocketDedupe(Map<String, dynamic> msg) {
+    final rawId = msg['id'];
+    final mid = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+    late final String key;
+    if (mid != null && mid > 0) {
+      key = 'id:$mid';
+    } else {
+      final sid = msg['senderId']?.toString() ?? '';
+      final rid = msg['recipientId']?.toString() ?? '';
+      final sa = msg['sentAt']?.toString() ?? '';
+      final body = msg['body']?.toString() ?? '';
+      if (sid.isEmpty || sa.isEmpty) return true;
+      key = 'fb:$sid|$rid|$sa|$body';
+    }
+    if (_seenSocketKeys.contains(key)) return false;
+    _seenSocketKeys.add(key);
+    if (_seenSocketKeys.length > 400) _seenSocketKeys.clear();
+    return true;
+  }
+
+  void _onChatSocketMessage(Map<String, dynamic> payload) {
+    try {
+      final myId = _currentUserId;
+      if (myId == null) return;
+
+      var msg = _unwrapSocketMessage(payload);
+      if (msg['id'] == null && payload['id'] != null) {
+        msg = Map<String, dynamic>.from(msg)..['id'] = payload['id'];
+      }
+      if (msg['sosId'] != null || msg['tripId'] != null) return;
+      if (!_consumeSocketDedupe(msg)) return;
+
+      final senderId = int.tryParse(msg['senderId']?.toString() ?? '');
+      final recipientId = int.tryParse(msg['recipientId']?.toString() ?? '');
+      if (senderId == null || recipientId == null) return;
+
+      // Only increment when a patient sends message to current doctor.
+      if (recipientId == myId && senderId != myId) {
+        _unreadMessagesCount += 1;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Doctor dashboard chat socket error: $e');
+    }
   }
 
   Future<void> fetchAvailability() async {
@@ -87,7 +203,7 @@ class DoctorDashboardViewModel extends ChangeNotifier {
         final data = response['data'];
         if (data != null) {
           _earnings = data['totalAmount']?.toString() ?? "0";
-          _currency = data['currency'] ?? "PKR";
+          _currency = data['currency'] ?? "CFA";
         }
       }
     } catch (e) {
@@ -108,6 +224,7 @@ class DoctorDashboardViewModel extends ChangeNotifier {
         final List<dynamic> data = response['data'];
         _upcomingAppointments =
             data.map((json) => AppointmentModel.fromJson(json)).toList();
+        AppointmentModel.sortByCreatedAtDescending(_upcomingAppointments);
         _appointmentsCount = _upcomingAppointments.length;
       }
     } catch (e) {
@@ -130,5 +247,12 @@ class DoctorDashboardViewModel extends ChangeNotifier {
     } finally {
       notifyListeners();
     }
+  }
+
+  @override
+  void dispose() {
+    _chatSub?.cancel();
+    _chatReadSub?.cancel();
+    super.dispose();
   }
 }

@@ -1,3 +1,6 @@
+import org.gradle.api.tasks.compile.JavaCompile
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 buildscript {
     repositories {
         google()
@@ -5,6 +8,8 @@ buildscript {
     }
     dependencies {
         classpath 'com.google.gms:google-services:4.4.2'
+        // So root build.gradle can reference KotlinCompile when aligning plugin JVM targets.
+        classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:2.1.0'
     }
 }
 
@@ -21,6 +26,35 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
+}
+
+// Flutter plugins ship build.gradle files that set Java 8 *after* the Android plugin is applied,
+// which overwrites earlier hooks. `projectsEvaluated` runs once all subprojects have finished
+// evaluating, so this is the last word on language levels (and avoids Project.afterEvaluate issues
+// with evaluationDependsOn(":app")).
+gradle.projectsEvaluated {
+    subprojects { subproject ->
+        if (subproject.plugins.hasPlugin("com.android.library") ||
+                subproject.plugins.hasPlugin("com.android.application")) {
+            subproject.android {
+                compileOptions {
+                    sourceCompatibility JavaVersion.VERSION_17
+                    targetCompatibility JavaVersion.VERSION_17
+                }
+            }
+        }
+        subproject.tasks.withType(JavaCompile).configureEach { task ->
+            task.sourceCompatibility = JavaVersion.VERSION_17
+            task.targetCompatibility = JavaVersion.VERSION_17
+            // Quiet JDK 21+ "source/target value 8 is obsolete" if any task still inherited 8.
+            if (!task.options.compilerArgs.contains('-Xlint:-options')) {
+                task.options.compilerArgs.add('-Xlint:-options')
+            }
+        }
+        subproject.tasks.withType(KotlinCompile).configureEach {
+            kotlinOptions.jvmTarget = "17"
+        }
+    }
 }
 
 tasks.register("clean", Delete) {

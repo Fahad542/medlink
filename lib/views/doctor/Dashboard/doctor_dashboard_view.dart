@@ -2,21 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/views/doctor/Doctor%20earnings/doctor_earnings_view.dart';
-import 'package:medlink/views/doctor/doctor_appointments_view_model.dart';
 import 'package:medlink/views/doctor/doctor_chat_list_view.dart';
-import 'package:medlink/views/doctor/doctor_chat_history_view_model.dart';
 import 'package:medlink/views/doctor/doctor_appointment_view.dart';
 import 'package:medlink/models/appointment_model.dart';
-import 'package:medlink/views/doctor/appointment_details_edit_view.dart';
+import 'package:medlink/views/doctor/Doctor%20profile/doctor_personal_info_view.dart';
 
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/doctor/Dashboard/doctor_dashboard_view_model.dart';
 import 'package:medlink/views/doctor/Doctor%20patients/doctor_patients_view.dart';
-import 'package:medlink/views/doctor/Patient%20history/patient_history_view.dart';
 import 'package:medlink/views/Patient%20App/health/health_hub_view.dart';
-import 'package:medlink/views/Patient%20App/consultation/chat_list_view.dart';
 import 'package:medlink/widgets/custom_network_image.dart';
 import 'package:medlink/widgets/appointment_list_shimmer.dart';
 import 'package:medlink/views/doctor/past_appointments_view.dart';
@@ -32,6 +28,15 @@ class DoctorDashboardView extends StatelessWidget {
       builder: (context, viewModel, child) {
           final userVM = Provider.of<UserViewModel>(context);
           final doctor = userVM.doctor;
+          final currentUserId = userVM.loginSession?.data?.user?.id ??
+              int.tryParse(userVM.doctor?.id ?? '');
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final token = userVM.accessToken ?? '';
+            viewModel.ensureChatRealtime(
+              token: token,
+              currentUserId: currentUserId,
+            );
+          });
 
           return Scaffold(
             backgroundColor: const Color(0xFFF8F9FB),
@@ -104,22 +109,33 @@ class DoctorDashboardView extends StatelessWidget {
                               children: [
                                 Row(
                                   children: [
-                                    Container(
-                                      width: 42,
-                                      height: 42,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                            color:
-                                                Colors.white.withOpacity(0.5),
-                                            width: 2),
-                                      ),
-                                      child: CustomNetworkImage(
-                                        imageUrl: doctor?.imageUrl,
-                                        placeholderName: doctor?.name,
-                                        shape: BoxShape.circle,
+                                    GestureDetector(
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const DoctorPersonalInfoView(),
+                                          ),
+                                        );
+                                      },
+                                      child: Container(
                                         width: 42,
                                         height: 42,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                              color:
+                                                  Colors.white.withOpacity(0.5),
+                                              width: 2),
+                                        ),
+                                        child: CustomNetworkImage(
+                                          imageUrl: doctor?.imageUrl,
+                                          placeholderName: doctor?.name,
+                                          shape: BoxShape.circle,
+                                          width: 42,
+                                          height: 42,
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(width: 12),
@@ -148,20 +164,11 @@ class DoctorDashboardView extends StatelessWidget {
                                 ),
                                 Row(
                                   children: [
-                                    GestureDetector(
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                              builder: (_) =>
-                                                  ChangeNotifierProvider(
-                                                    create: (_) =>
-                                                        DoctorChatHistoryViewModel(),
-                                                    child:
-                                                        const DoctorChatListView(),
-                                                  )),
-                                        );
-                                      },
+                                    // Notifications — same bell + badge UI; not wired to chat.
+                                    Tooltip(
+                                      message: 'Notifications',
+                                      child: GestureDetector(
+                                      onTap: () {},
                                       child: Stack(
                                         clipBehavior: Clip.none,
                                         children: [
@@ -198,6 +205,79 @@ class DoctorDashboardView extends StatelessWidget {
                                           ),
                                         ],
                                       ),
+                                    ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    // Messages — same pattern as patient home (`msg.png` + dot)
+                                    Tooltip(
+                                      message: 'Patient messages',
+                                      child: GestureDetector(
+                                      onTap: () async {
+                                        await Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const DoctorChatListScreen(),
+                                          ),
+                                        );
+                                        await viewModel.fetchUnreadMessagesCount();
+                                      },
+                                      child: Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color:
+                                                  Colors.white.withOpacity(0.2),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: Image.asset(
+                                              'assets/msg.png',
+                                              width: 20,
+                                              height: 20,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                          if (viewModel.unreadMessagesCount > 0)
+                                            Positioned(
+                                              top: -2,
+                                              right: -2,
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 5,
+                                                  vertical: 1,
+                                                ),
+                                                constraints: const BoxConstraints(
+                                                  minWidth: 16,
+                                                  minHeight: 16,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.error,
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                  border: Border.all(
+                                                    color: Colors.white,
+                                                    width: 1.5,
+                                                  ),
+                                                ),
+                                                child: Center(
+                                                  child: Text(
+                                                    viewModel.unreadMessagesCount > 99
+                                                        ? '99+'
+                                                        : '${viewModel.unreadMessagesCount}',
+                                                    style: GoogleFonts.inter(
+                                                      color: Colors.white,
+                                                      fontSize: 9,
+                                                      fontWeight: FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
                                     ),
                                   ],
                                 )

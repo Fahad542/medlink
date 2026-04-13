@@ -443,6 +443,15 @@ class _AmbulanceEarningsViewState extends State<AmbulanceEarningsView> {
                       const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(labelText: 'Amount'),
                 ),
+                if (viewModel.availableToWithdraw > 0 &&
+                    viewModel.availableToWithdraw < viewModel.totalBalance)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(
+                      'Pending requests: you can request up to ${viewModel.availableToWithdrawFormatted} until approved.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    ),
+                  ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: noteController,
@@ -472,6 +481,8 @@ class _AmbulanceEarningsViewState extends State<AmbulanceEarningsView> {
                             );
                             if (!context.mounted) return;
                             Navigator.pop(ctx);
+                            if (ok) await viewModel.fetchEarningsSummary();
+                            if (!context.mounted) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(ok

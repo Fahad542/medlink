@@ -10,6 +10,7 @@ import 'package:medlink/views/Patient%20App/Find%20a%20doctor/doctor_list_view.d
 import 'package:medlink/views/Patient App/consultation/chat_list_view.dart';
 import 'package:medlink/views/Patient App/prescription/prescription_view.dart';
 import 'package:medlink/views/Patient App/home/category_list_view.dart';
+import 'package:medlink/views/Patient App/profile/personal_info_view.dart';
 import 'package:medlink/widgets/shimmer_widgets.dart';
 import 'package:medlink/views/Patient App/appointment/appointment_list_view.dart';
 import 'package:medlink/views/Patient App/health/health_hub_view.dart';
@@ -47,11 +48,11 @@ class _HomeViewState extends State<HomeView> {
 
   @override
   Widget build(BuildContext context) {
+    final userVM = Provider.of<UserViewModel>(context);
     return ChangeNotifierProvider(
-      create: (_) => HomeViewModel(),
+      create: (_) => HomeViewModel(userVM),
       child: Consumer<HomeViewModel>(
         builder: (context, homeVM, child) {
-          final userVM = Provider.of<UserViewModel>(context); // Session User
           final emergencyVM = Provider.of<EmergencyViewModel>(context);
           final appointmentVM = Provider.of<AppointmentViewModel>(context);
 
@@ -83,18 +84,29 @@ class _HomeViewState extends State<HomeView> {
                         Row(
                           // Profile Header
                           children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const PersonalInformationView(),
                                   ),
-                                ],
+                                );
+                              },
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.05),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: _buildProfileAvatar(userVM),
                               ),
-                              child: _buildProfileAvatar(userVM),
                             ),
                             const SizedBox(width: 14),
                             Column(
@@ -138,12 +150,13 @@ class _HomeViewState extends State<HomeView> {
                         ),
                         // Badged Notification Icon
                         GestureDetector(
-                          onTap: () {
-                            Navigator.push(
+                          onTap: () async {
+                            await Navigator.push(
                               context,
                               MaterialPageRoute(
                                   builder: (_) => const ChatListView()),
                             );
+                            await homeVM.fetchUnreadMessagesCount();
                           },
                           child: Stack(
                             clipBehavior: Clip.none,
@@ -171,20 +184,37 @@ class _HomeViewState extends State<HomeView> {
                                   color: const Color(0xFF1E293B), // Darker icon
                                 ),
                               ),
-                              Positioned(
-                                top: 0,
-                                right: 0,
-                                child: Container(
-                                  width: 16,
-                                  height: 16,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.error,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                        color: Colors.white, width: 2),
+                              if (homeVM.unreadMessagesCount > 0)
+                                Positioned(
+                                  top: -2,
+                                  right: -2,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 5, vertical: 1),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 16,
+                                      minHeight: 16,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.error,
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                          color: Colors.white, width: 1.5),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        homeVM.unreadMessagesCount > 99
+                                            ? '99+'
+                                            : '${homeVM.unreadMessagesCount}',
+                                        style: GoogleFonts.inter(
+                                          color: Colors.white,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
                             ],
                           ),
                         ),

@@ -204,7 +204,7 @@ class _AppointmentPaymentViewState extends State<AppointmentPaymentView> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    "PKR ${widget.doctor.consultationFee}",
+                    "CFA ${widget.doctor.consultationFee}",
                     style: GoogleFonts.inter(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,

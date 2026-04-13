@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:medlink/core/constants/app_colors.dart';
@@ -9,8 +11,11 @@ import 'package:medlink/widgets/shimmer_widgets.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:video_player/video_player.dart';
 
 import 'package:medlink/utils/utils.dart';
+import 'package:medlink/models/health_article_model.dart';
+import 'package:medlink/models/health_video_model.dart';
 
 import '../../../widgets/custom_network_image.dart';
 import '../../../widgets/no_data_widget.dart';
@@ -28,12 +33,16 @@ class HealthHubView extends StatefulWidget {
 
 class _HealthHubViewState extends State<HealthHubView> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late final PageController _videoPageController;
   int? _expandedFirstAidIndex;
+  int _activeVideoIndex = 0;
+  final Set<int> _viewRecordedVideoIds = <int>{};
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    _videoPageController = PageController();
     _tabController.addListener(_handleTabSelection);
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -80,6 +89,7 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
 
   @override
   void dispose() {
+    _videoPageController.dispose();
     _tabController.removeListener(_handleTabSelection);
     _tabController.dispose();
     super.dispose();
@@ -218,6 +228,44 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
     return html.replaceAll(exp, '').trim();
   }
 
+  void _openEditArticleSheet(HealthArticle article) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => UploadArticleBottomSheet(article: article),
+    );
+  }
+
+  Future<void> _confirmDeleteArticle(HealthArticle article) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Article'),
+        content: const Text('Are you sure you want to delete this article?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (shouldDelete != true || !mounted) return;
+    final vm = Provider.of<HealthHubViewModel>(context, listen: false);
+    final success = await vm.deleteArticle(article.id);
+    if (!mounted) return;
+    Utils.toastMessage(
+      context,
+      success ? 'Article deleted successfully' : 'Failed to delete article',
+      isError: !success,
+    );
+  }
+
   Widget _buildArticlesTab() {
     return Consumer<HealthHubViewModel>(
       builder: (context, viewModel, child) {
@@ -339,14 +387,107 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  GestureDetector(
-                                    onTap: () {
-                                      Share.share(
-                                          "${article.title}\n\nCheck out this article on Medlink!");
-                                    },
-                                    child: const Icon(Icons.share_outlined,
-                                        color: Colors.black87, size: 20),
-                                  ),
+                                  if (widget.isDoctor)
+                                    PopupMenuButton<String>(
+                                      padding: EdgeInsets.zero,
+                                      color: Colors.white,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      icon: Container(
+                                        padding: const EdgeInsets.all(7),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF8FAFC),
+                                          borderRadius: BorderRadius.circular(10),
+                                          border: Border.all(
+                                            color: const Color(0xFFE2E8F0),
+                                          ),
+                                        ),
+                                        child: const Icon(
+                                          Icons.auto_awesome_rounded,
+                                          color: AppColors.primary,
+                                          size: 16,
+                                        ),
+                                      ),
+                                      onSelected: (value) {
+                                        if (value == 'edit') {
+                                          _openEditArticleSheet(article);
+                                        } else if (value == 'delete') {
+                                          _confirmDeleteArticle(article);
+                                        }
+                                      },
+                                      itemBuilder: (context) => [
+                                        PopupMenuItem<String>(
+                                          value: 'edit',
+                                          child: Row(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.all(7),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.primary
+                                                      .withOpacity(0.12),
+                                                  borderRadius:
+                                                      BorderRadius.circular(9),
+                                                ),
+                                                child: const Icon(
+                                                  Icons.edit_rounded,
+                                                  color: AppColors.primary,
+                                                  size: 16,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Text(
+                                                'Edit Article',
+                                                style: GoogleFonts.inter(
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 13,
+                                                  color: const Color(0xFF1E293B),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        PopupMenuItem<String>(
+                                          value: 'delete',
+                                          child: Row(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.all(7),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.red
+                                                      .withOpacity(0.12),
+                                                  borderRadius:
+                                                      BorderRadius.circular(9),
+                                                ),
+                                                child: const Icon(
+                                                  Icons.delete_forever_rounded,
+                                                  color: Colors.red,
+                                                  size: 16,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Text(
+                                                'Delete Article',
+                                                style: GoogleFonts.inter(
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 13,
+                                                  color: Colors.red.shade700,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  else
+                                    GestureDetector(
+                                      onTap: () {
+                                        Share.share(
+                                            "${article.title}\n\nCheck out this article on Medlink!");
+                                      },
+                                      child: const Icon(Icons.share_outlined,
+                                          color: Colors.black87, size: 20),
+                                    ),
                                 ],
                               ),
                               const SizedBox(height: 4),
@@ -766,131 +907,40 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
           );
         }
 
+        if (_activeVideoIndex >= viewModel.healthVideos.length) {
+          _activeVideoIndex = 0;
+        }
+
         return RefreshIndicator(
           onRefresh: () => viewModel.refreshData(widget.isDoctor),
           child: PageView.builder(
+            controller: _videoPageController,
             scrollDirection: Axis.vertical,
             physics: const AlwaysScrollableScrollPhysics(),
             itemCount: viewModel.healthVideos.length,
+            onPageChanged: (index) {
+              if (mounted) {
+                setState(() {
+                  _activeVideoIndex = index;
+                });
+              }
+            },
             itemBuilder: (context, index) {
               final video = viewModel.healthVideos[index];
+              final isActive = index == _activeVideoIndex;
+              if (isActive && !_viewRecordedVideoIds.contains(video.id)) {
+                _viewRecordedVideoIds.add(video.id);
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  Provider.of<HealthHubViewModel>(context, listen: false)
+                      .recordReelView(video.id);
+                });
+              }
               return Padding(
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 100),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black,
-                      image: DecorationImage(
-                        image: NetworkImage(
-                            'https://picsum.photos/400/800?random=$index'),
-                        fit: BoxFit.cover,
-                        opacity: 0.8,
-                      ),
-                    ),
-                    child: Stack(
-                      children: [
-                        // Gradient Overlay
-                        Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.transparent,
-                                Colors.black.withOpacity(0.2),
-                                Colors.black.withOpacity(0.8),
-                              ],
-                              stops: const [0.0, 0.6, 1.0],
-                            ),
-                          ),
-                        ),
-
-                        // Share Button (Top Right)
-                        Positioned(
-                          top: 20,
-                          right: 20,
-                          child: GestureDetector(
-                            onTap: () {
-                              Share.share(
-                                  'Check out this health video: ${video.title}\n${video.videoUrl}');
-                            },
-                            child: _buildReelAction(Icons.share, ""),
-                          ),
-                        ),
-
-                        // Content (Bottom)
-                        Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                video.title,
-                                style: GoogleFonts.inter(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  video.category,
-                                  style: GoogleFonts.inter(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                            ],
-                          ),
-                        ),
-
-                        // Play Button Center
-                        Center(
-                          child: GestureDetector(
-                            onTap: () async {
-                              if (video.videoUrl.isNotEmpty) {
-                                await Provider.of<HealthHubViewModel>(context,
-                                        listen: false)
-                                    .recordReelView(video.id);
-                                final Uri url = Uri.parse(video.videoUrl);
-                                if (await canLaunchUrl(url)) {
-                                  await launchUrl(url,
-                                      mode: LaunchMode.externalApplication);
-                                } else {
-                                  if (context.mounted) {
-                                    Utils.toastMessage(
-                                        context, "Could not launch video URL",
-                                        isError: true);
-                                  }
-                                }
-                              } else {
-                                Utils.toastMessage(
-                                    context, "Video URL is missing",
-                                    isError: true);
-                              }
-                            },
-                            child: const Icon(
-                              Icons.play_circle_outline_rounded,
-                              size: 64,
-                              color: Colors.white54,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                child: _ReelVideoCard(
+                  key: ValueKey(video.id),
+                  video: video,
+                  isActive: isActive,
                 ),
               );
             },
@@ -899,19 +949,325 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
       },
     );
   }
+}
 
-  Widget _buildReelAction(IconData icon, String label) {
-    return Column(
-      children: [
-        Icon(icon, color: Colors.white, size: 28),
-        if (label.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: GoogleFonts.inter(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+class _ReelVideoCard extends StatefulWidget {
+  const _ReelVideoCard({
+    super.key,
+    required this.video,
+    required this.isActive,
+  });
+
+  final HealthVideo video;
+  final bool isActive;
+
+  @override
+  State<_ReelVideoCard> createState() => _ReelVideoCardState();
+}
+
+class _ReelVideoCardState extends State<_ReelVideoCard> {
+  VideoPlayerController? _controller;
+  bool _loading = true;
+  bool _hasError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initPlayer();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ReelVideoCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.video.videoUrl != widget.video.videoUrl) {
+      _disposeController();
+      _initPlayer();
+      return;
+    }
+    _syncPlayState();
+  }
+
+  Future<void> _initPlayer() async {
+    if (widget.video.videoUrl.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _hasError = true;
+          _loading = false;
+        });
+      }
+      return;
+    }
+    try {
+      final controller = VideoPlayerController.networkUrl(
+        Uri.parse(widget.video.videoUrl),
+        videoPlayerOptions: VideoPlayerOptions(
+          mixWithOthers: true,
+          allowBackgroundPlayback: false,
+        ),
+      );
+      await controller.initialize();
+      controller.addListener(_onControllerUpdated);
+      controller
+        ..setLooping(true)
+        ..setVolume(1.0);
+      _controller = controller;
+      if (widget.isActive) {
+        await _startPlayback();
+      } else {
+        await controller.pause();
+      }
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _hasError = false;
+        });
+      }
+      if (widget.isActive) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          unawaited(_ensurePlayingIfActive());
+        });
+        unawaited(_retryPlayIfStillPaused());
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _hasError = true;
+        });
+      }
+    }
+  }
+
+  Future<void> _startPlayback() async {
+    final c = _controller;
+    if (c == null || !c.value.isInitialized || !mounted) return;
+    try {
+      await c.play();
+    } catch (_) {
+      // Surface / audio focus can fail once; retry handles it.
+    }
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _ensurePlayingIfActive() async {
+    final c = _controller;
+    if (!mounted || c == null || !c.value.isInitialized || !widget.isActive) {
+      return;
+    }
+    if (!c.value.isPlaying) {
+      await _startPlayback();
+    }
+  }
+
+  /// Some devices (e.g. Mediatek) need a short delay before play() sticks.
+  Future<void> _retryPlayIfStillPaused() async {
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (!mounted || !widget.isActive) return;
+    final c = _controller;
+    if (c == null || !c.value.isInitialized) return;
+    if (!c.value.isPlaying) {
+      await _startPlayback();
+    }
+  }
+
+  void _syncPlayState() {
+    final c = _controller;
+    if (c == null || !c.value.isInitialized) return;
+    if (widget.isActive) {
+      unawaited(_startPlayback());
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_ensurePlayingIfActive());
+      });
+    } else {
+      unawaited(c.pause());
+    }
+  }
+
+  void _onControllerUpdated() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  Future<void> _togglePlayPause() async {
+    final c = _controller;
+    if (c == null || !c.value.isInitialized) return;
+    if (c.value.isPlaying) {
+      await c.pause();
+    } else {
+      await c.play();
+    }
+    if (mounted) setState(() {});
+  }
+
+  void _disposeController() {
+    _controller?.removeListener(_onControllerUpdated);
+    _controller?.dispose();
+    _controller = null;
+  }
+
+  @override
+  void dispose() {
+    _disposeController();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = _controller;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Container(color: Colors.black),
+          if (!_hasError && c != null && c.value.isInitialized)
+            FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: c.value.size.width,
+                height: c.value.size.height,
+                child: VideoPlayer(c),
+              ),
+            )
+          else if ((widget.video.thumbnailUrl).isNotEmpty)
+            Image.network(
+              widget.video.thumbnailUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withOpacity(0.25),
+                  Colors.black.withOpacity(0.8),
+                ],
+                stops: const [0.0, 0.6, 1.0],
+              ),
+            ),
           ),
+          Positioned(
+            top: 20,
+            right: 20,
+            child: GestureDetector(
+              onTap: () {
+                Share.share(
+                  'Check out this health video: ${widget.video.title}\n${widget.video.videoUrl}',
+                );
+              },
+              child: const Icon(Icons.share_rounded, color: Colors.white, size: 26),
+            ),
+          ),
+          Positioned(
+            right: 16,
+            bottom: 110,
+            child: Column(
+              children: [
+                const Icon(Icons.visibility_rounded, color: Colors.white, size: 22),
+                const SizedBox(height: 4),
+                Text(
+                  '${widget.video.viewCount}',
+                  style: GoogleFonts.inter(color: Colors.white, fontSize: 12),
+                ),
+                const SizedBox(height: 12),
+                Icon(
+                  widget.video.likedByMe
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${widget.video.likeCount}',
+                  style: GoogleFonts.inter(color: Colors.white, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            left: 20,
+            right: 70,
+            bottom: 20,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.video.title,
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (widget.video.description.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    widget.video.description,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: Colors.white.withOpacity(0.9),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    widget.video.category,
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_loading)
+            const Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            ),
+          if (!_loading && !_hasError)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: _togglePlayPause,
+                child: AnimatedOpacity(
+                  opacity: (c?.value.isPlaying ?? false) ? 0 : 1,
+                  duration: const Duration(milliseconds: 160),
+                  child: const Center(
+                    child: Icon(
+                      Icons.play_circle_fill_rounded,
+                      color: Colors.white70,
+                      size: 72,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          if (_hasError)
+            const Center(
+              child: Icon(
+                Icons.broken_image_rounded,
+                color: Colors.white70,
+                size: 44,
+              ),
+            ),
         ],
-      ],
+      ),
     );
   }
 }

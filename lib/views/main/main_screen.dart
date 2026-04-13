@@ -14,7 +14,6 @@ import 'package:medlink/services/call_socket_service.dart';
 import 'package:medlink/views/call/call_screen.dart';
 import 'package:medlink/services/appointment_socket_service.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
-import 'package:medlink/views/call/incoming_call_screen.dart';
 import 'package:medlink/core/constants/app_url.dart';
 import 'dart:async';
 
@@ -30,8 +29,10 @@ class _MainScreenState extends State<MainScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _pulseController;
   StreamSubscription? _incomingCallSub;
+  StreamSubscription? _callEndedSub;
   StreamSubscription? _appointmentSub;
   StreamSubscription? _emergencyToastSub;
+  Map<String, dynamic>? _pendingIncomingCall;
 
   @override
   void initState() {
@@ -97,6 +98,13 @@ class _MainScreenState extends State<MainScreen>
         _incomingCallSub = callSocket.incomingCallStream.listen((data) {
           _handleSocketIncomingCall(data);
         });
+        _callEndedSub = callSocket.callEndedStream.listen((channel) {
+          final pending = _pendingIncomingCall;
+          if (pending == null) return;
+          if (pending['channelName']?.toString() == channel) {
+            setState(() => _pendingIncomingCall = null);
+          }
+        });
       }
     });
   }
@@ -107,51 +115,14 @@ class _MainScreenState extends State<MainScreen>
       debugPrint('[MainScreen] Incoming call skipped — already active');
       return;
     }
-    
-    final callerId = data['callerId'] is int
-        ? data['callerId'] as int
-        : int.tryParse(data['callerId']?.toString() ?? '');
-
-    CallViewModel.isIncomingCallActive = true;
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => IncomingCallScreen(
-          callerName: data['callerName'] ?? 'Unknown Caller',
-          callerPhoto: data['callerPhoto'],
-          channelName: data['channelName'],
-          token: data['token'],
-          appId: data['appId'],
-          callerId: callerId,
-          onDecline: () {},
-        ),
-      ),
-    ).then((result) {
-      CallViewModel.isIncomingCallActive = false;
-      if (result == true) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => CallScreen(
-              channelName: data['channelName'],
-              token: data['token'],
-              appId: data['appId'],
-              recipientName: data['callerName'] ?? 'Caller',
-              recipientPhoto: data['callerPhoto'],
-              isCaller: false,
-              recipientId: callerId,
-            ),
-          ),
-        );
-      }
-    });
+    setState(() => _pendingIncomingCall = Map<String, dynamic>.from(data));
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
     _incomingCallSub?.cancel();
+    _callEndedSub?.cancel();
     _appointmentSub?.cancel();
     _emergencyToastSub?.cancel();
     super.dispose();
@@ -188,6 +159,14 @@ class _MainScreenState extends State<MainScreen>
                 .map((page) => page ?? const SizedBox.shrink())
                 .toList(),
           ),
+
+          if (_pendingIncomingCall != null)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              left: 12,
+              right: 12,
+              child: _buildIncomingCallBanner(_pendingIncomingCall!),
+            ),
 
           // 3. Floating SOS Status (Fixed Position above Navbar)
           if (emergencyVM.isSosActive)
@@ -408,6 +387,65 @@ class _MainScreenState extends State<MainScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildIncomingCallBanner(Map<String, dynamic> data) {
+    final callerId = data['callerId'] is int
+        ? data['callerId'] as int
+        : int.tryParse(data['callerId']?.toString() ?? '');
+    final callerName = data['callerName']?.toString() ?? 'Incoming call';
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.78),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.videocam_rounded, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '$callerName is calling — Join video call',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+                final payload = _pendingIncomingCall;
+                if (payload == null) return;
+                setState(() => _pendingIncomingCall = null);
+                CallViewModel.isIncomingCallActive = true;
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CallScreen(
+                      channelName: payload['channelName'],
+                      token: payload['token'],
+                      appId: payload['appId'],
+                      recipientName: payload['callerName'] ?? 'Caller',
+                      recipientPhoto: payload['callerPhoto'],
+                      isCaller: false,
+                      recipientId: callerId,
+                    ),
+                  ),
+                );
+                CallViewModel.isIncomingCallActive = false;
+              },
+              child: const Text('Join'),
+            ),
+            IconButton(
+              onPressed: () => setState(() => _pendingIncomingCall = null),
+              icon: const Icon(Icons.close, color: Colors.white70, size: 18),
+            ),
+          ],
+        ),
       ),
     );
   }

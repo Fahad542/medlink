@@ -30,6 +30,7 @@ import 'package:medlink/services/notification_services.dart';
 import 'package:medlink/services/waiting_room_socket_service.dart';
 import 'package:medlink/services/call_socket_service.dart';
 import 'package:medlink/services/appointment_socket_service.dart';
+import 'package:medlink/widgets/global_call_banner_host.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 
 import 'firebase_options.dart';
@@ -86,13 +87,16 @@ class MedLinkApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => RegisterViewModel()),
-        ChangeNotifierProvider(create: (_) => HomeViewModel()),
+        ChangeNotifierProvider(
+            create: (_) => UserViewModel()), // Session Management
+        ChangeNotifierProvider(
+            create: (context) => HomeViewModel(
+                  Provider.of<UserViewModel>(context, listen: false),
+                )),
         ChangeNotifierProvider(create: (_) => EmergencyViewModel()),
         ChangeNotifierProvider(create: (_) => DoctorViewModel()),
         ChangeNotifierProvider(create: (_) => AppointmentViewModel()),
         ChangeNotifierProvider(create: (_) => ProfileViewModel()),
-        ChangeNotifierProvider(
-            create: (_) => UserViewModel()), // Session Management
         ChangeNotifierProvider(
             create: (context) => DoctorPersonalInfoViewModel(
                 Provider.of<UserViewModel>(context, listen: false))),
@@ -111,6 +115,9 @@ class MedLinkApp extends StatelessWidget {
         title: 'MedLink Africa',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
+        builder: (context, child) => GlobalCallBannerHost(
+          child: child ?? const SizedBox.shrink(),
+        ),
         // Start with Splash Screen
         home: const SplashView(),
       ),

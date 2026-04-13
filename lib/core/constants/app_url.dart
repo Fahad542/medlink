@@ -5,8 +5,8 @@ class AppUrl {
 
   static const String baseUrl =
       'https://www.medlink-africa.com';
-//   static const String baseUrl =
-//       'http://192.168.0.101:3000'; // Emulator Magic IP (points to your machine)
+  // static const String baseUrl =
+  //     'http://192.168.0.101:3000'; // Emulator Magic IP (points to your machine)
 
   /// Common Auth Endpoints
   static const String loginEndPoint = '${baseUrl}/auth/login';
@@ -79,6 +79,8 @@ class AppUrl {
   static const String getChatHistory =
       '${baseUrl}/chat/history/patient'; // /{patientId}/doctors
   static const String getChatConversations = '${baseUrl}/chat/conversations';
+  static const String markChatConversationRead =
+      '${baseUrl}/chat/conversations/read';
   static const String uploadImage = '${baseUrl}/upload/image';
   static const String getUnifiedChatHistory =
       '${baseUrl}/chat/history'; // /doctor/{doctorId}/patient/{patientId}
@@ -93,6 +95,8 @@ class AppUrl {
   static const String doctorRegisterStep1 = '${baseUrl}/auth/doctor/send-otp';
   static const String doctorRegisterStep2 = verifyOtp;
   static const String doctorRegisterStep3 = '${baseUrl}/auth/doctor/register';
+  static const String doctorCheckEmailAvailability =
+      '${baseUrl}/auth/doctor/check-email';
   static const String getDoctorProfile = '${baseUrl}/doctor/profile-details';
   static const String updateDoctorProfile = '${baseUrl}/doctor/profile-details';
   static const String getDoctorPatients = '${baseUrl}/doctor/patients';
@@ -111,6 +115,7 @@ class AppUrl {
       '${baseUrl}/doctor/appointments';
   static const String getDoctorArticles = '${baseUrl}/doctor/my-articles';
   static const String uploadArticle = '${baseUrl}/doctor/articles';
+  static const String doctorArticleById = '${baseUrl}/doctor/articles';
   static const String getPatientProfileForDoctor =
       '${baseUrl}/doctor/patient'; // /{id}/profile
   static const String getDoctorChatHistory =

@@ -15,8 +15,35 @@ import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/models/doctor_model.dart';
 import 'package:medlink/views/doctor/Doctor%20profile/doctor_personal_info_viewmodel.dart';
 
-class DoctorSettingsProfileView extends StatelessWidget {
+class DoctorSettingsProfileView extends StatefulWidget {
   const DoctorSettingsProfileView({super.key});
+
+  @override
+  State<DoctorSettingsProfileView> createState() =>
+      _DoctorSettingsProfileViewState();
+}
+
+class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
+  late Future<_DoctorStats> _statsFuture;
+  String _statsSeed = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _statsFuture = _loadDoctorStats();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final userVM = Provider.of<UserViewModel>(context);
+    final nextSeed =
+        '${userVM.loginSession?.data?.user?.id ?? ''}|${userVM.accessToken ?? ''}|${userVM.doctor?.id ?? ''}';
+    if (nextSeed != _statsSeed) {
+      _statsSeed = nextSeed;
+      _statsFuture = _loadDoctorStats();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,46 +75,59 @@ class DoctorSettingsProfileView extends StatelessWidget {
                           ),
                         ],
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _StatItem(
-                              label: "Experience",
-                              value: doctor?.experience ?? "0",
-                              unit: "Yrs"),
-                          _VerticalDivider(),
-                          _StatItem(
-                              label: "Patients", value: "1.5k", unit: "Lives"),
-                          _VerticalDivider(),
-                          GestureDetector(
-                            onTap: () {
-                              if (doctor == null) return;
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => DoctorReviewsView(
-                                    doctor: doctor,
-                                    isDoctorMode: true,
+                      child: FutureBuilder<_DoctorStats>(
+                        future: _statsFuture,
+                        builder: (context, snapshot) {
+                          final stats = snapshot.data ??
+                              _DoctorStats(
+                                experienceYears:
+                                    int.tryParse(doctor?.experience ?? '0') ?? 0,
+                                patientsCount: doctor?.totalPatients ?? 0,
+                                reviewsCount: doctor?.totalReviews ?? 0,
+                              );
+                          return Row(
+                            children: [
+                              Expanded(
+                                child: _StatItem(
+                                  label: "Experience",
+                                  value: stats.experienceYears.toString(),
+                                  unit: "Yrs",
+                                ),
+                              ),
+                              _VerticalDivider(),
+                              Expanded(
+                                child: _StatItem(
+                                  label: "Patients",
+                                  value: _formatCount(stats.patientsCount),
+                                  unit: "Lives",
+                                ),
+                              ),
+                              _VerticalDivider(),
+                              Expanded(
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(12),
+                                  onTap: () {
+                                    if (doctor == null) return;
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => DoctorReviewsView(
+                                          doctor: doctor,
+                                          isDoctorMode: true,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: _StatItem(
+                                    label: "Reviews",
+                                    value: stats.reviewsCount.toString(),
+                                    unit: "",
                                   ),
                                 ),
-                              );
-                            },
-                            child: FutureBuilder<int>(
-                              future: _getDoctorReviewCount(
-                                fallbackCount: doctor?.totalReviews ?? 0,
                               ),
-                              builder: (context, snapshot) {
-                                final count =
-                                    snapshot.data ?? (doctor?.totalReviews ?? 0);
-                                return _StatItem(
-                                  label: "Reviews",
-                                  value: count.toString(),
-                                  unit: "",
-                                );
-                              },
-                            ),
-                          ),
-                        ],
+                            ],
+                          );
+                        },
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -651,43 +691,31 @@ class DoctorSettingsProfileView extends StatelessWidget {
   Widget _buildDivider() =>
       Divider(height: 1, thickness: 1, indent: 60, color: Colors.grey[100]);
 
-  Future<int> _getDoctorReviewCount({required int fallbackCount}) async {
-    try {
-      final response = await ApiServices().getDoctorReviews();
-      final data = response is Map ? response['data'] : null;
-      if (data is! Map) return fallbackCount;
-      final total = int.tryParse((data['totalReviews'] ?? '').toString());
-      if (total != null) return total;
-      final reviews = data['reviews'];
-      if (reviews is List) return reviews.length;
-      return fallbackCount;
-    } catch (_) {
-      return fallbackCount;
-    }
-  }
-
   Widget _StatItem(
       {required String label, required String value, required String unit}) {
     final hasUnit = unit.trim().isNotEmpty;
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(value,
             style: GoogleFonts.inter(
-                fontSize: 18,
+                fontSize: 28,
                 fontWeight: FontWeight.bold,
                 color: AppColors.primary)),
+        const SizedBox(height: 2),
         Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(label,
                 style: GoogleFonts.inter(
-                    fontSize: 11,
+                    fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: Colors.grey[500])),
             if (hasUnit) const SizedBox(width: 2),
             if (hasUnit)
               Text(unit,
                   style: GoogleFonts.inter(
-                      fontSize: 9,
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: AppColors.primary)),
           ],
@@ -697,5 +725,87 @@ class DoctorSettingsProfileView extends StatelessWidget {
   }
 
   Widget _VerticalDivider() =>
-      Container(height: 30, width: 1, color: Colors.grey[200]);
+      Container(height: 42, width: 1, color: Colors.grey[200]);
+
+  Future<_DoctorStats> _loadDoctorStats() async {
+    final api = ApiServices();
+    int patients = 0;
+    int reviews = 0;
+    int experienceYears = 0;
+
+    try {
+      final patientsRes = await api.getDoctorPatients();
+      final patientData = patientsRes is Map ? patientsRes['data'] : null;
+      if (patientData is List) {
+        patients = patientData.length;
+      }
+    } catch (_) {}
+
+    try {
+      final reviewsRes = await api.getDoctorReviews();
+      final data = reviewsRes is Map ? reviewsRes['data'] : null;
+      if (data is Map) {
+        final total = int.tryParse((data['totalReviews'] ?? '').toString());
+        if (total != null) {
+          reviews = total;
+        } else if (data['reviews'] is List) {
+          reviews = (data['reviews'] as List).length;
+        }
+      }
+    } catch (_) {}
+
+    try {
+      final profileRes = await api.getDoctorProfile();
+      final data = profileRes is Map ? profileRes['data'] : null;
+      if (data is Map) {
+        final yearsRaw = data['yearsExperience'] ??
+            data['experienceInYears'] ??
+            data['experience'] ??
+            (data['doctorProfile'] is Map
+                ? (data['doctorProfile']['yearsExperience'] ??
+                    data['doctorProfile']['experienceInYears'])
+                : null);
+        experienceYears = int.tryParse((yearsRaw ?? '').toString()) ?? 0;
+      }
+    } catch (_) {}
+
+    if (experienceYears == 0) {
+      final userVM = Provider.of<UserViewModel>(context, listen: false);
+      experienceYears = int.tryParse(userVM.doctor?.experience ?? '0') ?? 0;
+    }
+    if (patients == 0) {
+      final userVM = Provider.of<UserViewModel>(context, listen: false);
+      patients = userVM.doctor?.totalPatients ?? 0;
+    }
+    if (reviews == 0) {
+      final userVM = Provider.of<UserViewModel>(context, listen: false);
+      reviews = userVM.doctor?.totalReviews ?? 0;
+    }
+
+    return _DoctorStats(
+      experienceYears: experienceYears,
+      patientsCount: patients,
+      reviewsCount: reviews,
+    );
+  }
+
+  String _formatCount(int count) {
+    if (count >= 1000) {
+      final value = count / 1000.0;
+      return value >= 10 ? "${value.toStringAsFixed(0)}k" : "${value.toStringAsFixed(1)}k";
+    }
+    return count.toString();
+  }
+}
+
+class _DoctorStats {
+  final int experienceYears;
+  final int patientsCount;
+  final int reviewsCount;
+
+  const _DoctorStats({
+    required this.experienceYears,
+    required this.patientsCount,
+    required this.reviewsCount,
+  });
 }

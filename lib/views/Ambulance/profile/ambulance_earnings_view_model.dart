@@ -5,6 +5,7 @@ class AmbulanceEarningsViewModel extends ChangeNotifier {
   final ApiServices _apiServices = ApiServices();
 
   num _totalBalance = 0;
+  num _availableToWithdraw = 0;
   num _earningsToday = 0;
   num _earningsThisWeek = 0;
 
@@ -16,11 +17,14 @@ class AmbulanceEarningsViewModel extends ChangeNotifier {
 
   bool get isLoading => _isLoading;
   bool get isLoadingTransactions => _isLoadingTransactions;
+  num get totalBalance => _totalBalance;
+  num get availableToWithdraw => _availableToWithdraw;
   List<Map<String, dynamic>> get transactions => List.unmodifiable(_transactions);
   String? get maskedPayoutCard => _maskedPayoutCard;
   bool get hasPayoutAccount => _hasPayoutAccount;
 
   String get totalBalanceFormatted => _formatAmount(_totalBalance);
+  String get availableToWithdrawFormatted => _formatAmount(_availableToWithdraw);
   String get earningsTodayFormatted => _formatAmount(_earningsToday);
   String get earningsThisWeekFormatted => _formatAmount(_earningsThisWeek);
 
@@ -60,6 +64,13 @@ class AmbulanceEarningsViewModel extends ChangeNotifier {
         if (data is Map) {
           final balance = data['totalBalance'];
           _totalBalance = balance is num ? balance : (num.tryParse(balance?.toString() ?? '0') ?? 0);
+          final atw = data['availableToWithdraw'];
+          if (atw != null) {
+            _availableToWithdraw =
+                atw is num ? atw : (num.tryParse(atw.toString()) ?? _totalBalance);
+          } else {
+            _availableToWithdraw = _totalBalance;
+          }
           final today = data['earningsToday'];
           _earningsToday = today is num ? today : (num.tryParse(today?.toString() ?? '0') ?? 0);
           final week = data['earningsThisWeek'];

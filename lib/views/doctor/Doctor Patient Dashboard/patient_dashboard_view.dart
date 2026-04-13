@@ -171,7 +171,7 @@ class PatientDashboardView extends StatelessWidget {
                                                                       appointmentId: patient.lastAppointmentId ?? "0",
                                                                       doctorId: currentUserId.toString(),
                                                                       patientId: patient.id.toString(),
-                                                                    )));
+                                                                                              )));
                                                       }, iconSize: 16, bgColor: Colors.white.withOpacity(0.15)),
                                                       const SizedBox(width: 8),
                                                       _buildHeaderAction("assets/Icons/video.png",

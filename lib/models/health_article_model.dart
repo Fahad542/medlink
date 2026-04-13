@@ -8,6 +8,7 @@ class HealthArticle {
   final String contentHtml;
   final String publishedAt;
   final String createdAt;
+  final bool isPublished;
 
   HealthArticle({
     required this.id,
@@ -17,6 +18,7 @@ class HealthArticle {
     required this.contentHtml,
     required this.publishedAt,
     required this.createdAt,
+    required this.isPublished,
   });
 
   factory HealthArticle.fromJson(Map<String, dynamic> json) {
@@ -33,6 +35,7 @@ class HealthArticle {
       contentHtml: json['contentHtml'] ?? '',
       publishedAt: json['publishedAt'] ?? '',
       createdAt: json['createdAt'] ?? '',
+      isPublished: json['isPublished'] == true,
     );
   }
 }

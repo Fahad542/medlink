@@ -416,7 +416,7 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
                                 appointmentId: patient.lastAppointmentId ?? "0",
                                 doctorId: currentUserId.toString(),
                                 patientId: patient.id.toString(),
-                              )),
+                                )),
                     );
                   },
                   borderRadius: BorderRadius.circular(16),

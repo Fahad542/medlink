@@ -19,6 +19,7 @@ class DoctorModel {
   final int sessionDuration;
   final List<dynamic> rawAvailability;
   final int totalReviews;
+  final int totalPatients;
   final List<Map<String, dynamic>> recentReviews;
 
   DoctorModel({
@@ -39,6 +40,7 @@ class DoctorModel {
     this.sessionDuration = 30,
     this.rawAvailability = const [],
     this.totalReviews = 0,
+    this.totalPatients = 0,
     this.recentReviews = const [],
   });
   factory DoctorModel.fromJson(Map<String, dynamic> json) {
@@ -112,6 +114,16 @@ class DoctorModel {
     }
     if (parsedTotalReviews == 0 && parsedRecentReviewsRaw != null) {
       parsedTotalReviews = parsedRecentReviewsRaw.length;
+    }
+
+    int parsedTotalPatients =
+        int.tryParse(getField('totalPatients')?.toString() ?? '0') ?? 0;
+    if (parsedTotalPatients == 0) {
+      parsedTotalPatients = int.tryParse(
+              getField('patientsCount')?.toString() ??
+                  getField('totalPatientCount')?.toString() ??
+                  '0') ??
+          0;
     }
 
     String extractTime(bool isStart) {
@@ -197,6 +209,7 @@ class DoctorModel {
           30,
       rawAvailability: rawAvailability,
       totalReviews: parsedTotalReviews,
+      totalPatients: parsedTotalPatients,
       recentReviews: parsedRecentReviews,
     );
   }
@@ -220,6 +233,7 @@ class DoctorModel {
       'sessionDuration': sessionDuration,
       'rawAvailability': rawAvailability,
       'totalReviews': totalReviews,
+      'totalPatients': totalPatients,
       'recentReviews': recentReviews,
     };
   }
