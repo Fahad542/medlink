@@ -382,6 +382,7 @@ class NetworkApiService extends BaseApiServices {
           dynamic responseJson = jsonDecode(response.body);
           throw BadRequestException(responseJson['message']);
         } catch (e) {
+          if (e is BadRequestException) rethrow;
           throw BadRequestException(response.body);
         }
       case 401:
@@ -390,6 +391,7 @@ class NetworkApiService extends BaseApiServices {
           throw UnauthorizedException(
               responseJson['message'] ?? 'Invalid credentials');
         } catch (e) {
+          if (e is UnauthorizedException) rethrow;
           throw UnauthorizedException('Invalid credentials');
         }
       case 404:
@@ -397,6 +399,7 @@ class NetworkApiService extends BaseApiServices {
           dynamic responseJson = jsonDecode(response.body);
           throw UnauthorizedException(responseJson['message']);
         } catch (e) {
+          if (e is UnauthorizedException) rethrow;
           throw UnauthorizedException(response.body);
         }
       case 422:
@@ -404,6 +407,7 @@ class NetworkApiService extends BaseApiServices {
           dynamic responseJson = jsonDecode(response.body);
           throw InvalidInputException(responseJson['message']);
         } catch (e) {
+          if (e is InvalidInputException) rethrow;
           throw InvalidInputException(response.body);
         }
       case 500:
@@ -412,6 +416,7 @@ class NetworkApiService extends BaseApiServices {
           throw FetchDataException(
               responseJson['message'] ?? 'Internal Server Error');
         } catch (e) {
+          if (e is FetchDataException) rethrow;
           throw FetchDataException(response.body);
         }
       default:

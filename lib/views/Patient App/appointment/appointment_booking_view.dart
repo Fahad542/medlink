@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/core/utils/doctor_schedule_slot_labels.dart';
 import 'package:medlink/models/doctor_model.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
+import 'package:medlink/models/appointment_model.dart';
+import 'package:medlink/widgets/consultation_type_selector.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:provider/provider.dart';
@@ -22,6 +25,7 @@ class AppointmentBookingView extends StatefulWidget {
 class _AppointmentBookingViewState extends State<AppointmentBookingView> {
   DateTime _selectedDate = DateTime.now();
   String? _selectedTime;
+  AppointmentType _consultationType = AppointmentType.inPerson;
   final TextEditingController _reasonController = TextEditingController();
   bool _showPayment = false;
   Map<String, dynamic>? _paymentData;
@@ -152,8 +156,9 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
                     children: dates.map((date) {
                       final isSelected =
                           DateUtils.isSameDay(_selectedDate, date);
-                      final isOffDay =
-                          !widget.doctor.availabilityDays.contains(DateFormat('E').format(date));
+                      final isOffDay = buildDoctorSlotLabelsForDay(
+                              widget.doctor, date)
+                          .isEmpty;
                       
                       return GestureDetector(
                         onTap: () {
@@ -227,7 +232,26 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
                       runSpacing: 12,
                       children: _timeSlots.map((time) {
                         final isSelected = _selectedTime == time;
-                        final isBooked = appointmentVM.bookedSlots.contains(time);
+                        bool isBooked = false;
+                        try {
+                          final slotParsed =
+                              DateFormat('hh:mm a').parse(time);
+                          final slotStart = DateTime(
+                            _selectedDate.year,
+                            _selectedDate.month,
+                            _selectedDate.day,
+                            slotParsed.hour,
+                            slotParsed.minute,
+                          );
+                          final slotEnd = slotStart.add(Duration(
+                              minutes: widget.doctor.sessionDuration));
+                          isBooked = appointmentVM.bookedRanges.any((range) =>
+                              slotStart.isBefore(range.end) &&
+                              slotEnd.isAfter(range.start));
+                        } catch (_) {
+                          isBooked =
+                              appointmentVM.bookedSlots.contains(time);
+                        }
 
                         return InkWell(
                           onTap: () {
@@ -270,7 +294,15 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
                     );
                   }
                 ),
-                const SizedBox(height: 30),
+                const SizedBox(height: 28),
+
+                ConsultationTypeSelector(
+                  value: _consultationType,
+                  onChanged: (t) => setState(() => _consultationType = t),
+                  titleStyle: _sectionTitleStyle,
+                ),
+
+                const SizedBox(height: 28),
 
                 // 4. Reason for visit
                 Text("Reason for Visit", style: _sectionTitleStyle),
@@ -373,6 +405,7 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
       time: _selectedTime!,
       patientId: patientId,
       description: _reasonController.text.trim(),
+      consultationType: _consultationType,
     );
 
     if (!context.mounted) return;

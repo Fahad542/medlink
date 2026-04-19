@@ -138,29 +138,35 @@ class ArticleDetailView extends StatelessWidget {
                   ),
                   const SizedBox(height: 20), // Slightly reduced spacing
 
-                  // Author Info
+                  // Posted by (author from DB, else Medlink Admin)
                   Row(
                     children: [
-                       CustomNetworkImage(
-                        width: 36,
-                        height: 36,
-                        shape: BoxShape.circle,
-                        imageUrl: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=2070&auto=format&fit=crop',
-                        placeholderName: "Sarah Smith",
-                      ),
+                      _articleAuthorAvatar(article),
                       const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            "Dr. Sarah Smith",
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13), // Reduced from 14
-                          ),
-                          Text(
-                            "Medical Editor",
-                            style: TextStyle(color: Colors.grey, fontSize: 11), // Reduced from 12
-                          ),
-                        ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              article.postedByLabel,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: Color(0xFF1E293B),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              article.postedByLabel == 'Medlink Admin'
+                                  ? 'Editorial team'
+                                  : 'Posted by author',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -205,6 +211,34 @@ class ArticleDetailView extends StatelessWidget {
   String _stripHtml(String htmlString) {
     RegExp exp = RegExp(r"<[^>]*>", multiLine: true, caseSensitive: true);
     return htmlString.replaceAll(exp, '');
+  }
+
+  Widget _articleAuthorAvatar(HealthArticle article) {
+    final url = article.authorProfilePhotoUrl;
+    if (url != null && url.isNotEmpty) {
+      return CustomNetworkImage(
+        width: 40,
+        height: 40,
+        shape: BoxShape.circle,
+        imageUrl: url,
+        placeholderName: article.postedByLabel,
+      );
+    }
+    final isAdmin = article.postedByLabel == 'Medlink Admin';
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: AppColors.primary.withOpacity(0.12),
+        border: Border.all(color: AppColors.primary.withOpacity(0.25)),
+      ),
+      child: Icon(
+        isAdmin ? Icons.admin_panel_settings_outlined : Icons.person_rounded,
+        color: AppColors.primary,
+        size: 22,
+      ),
+    );
   }
 
   Widget _buildAppBarButton({required IconData icon, required VoidCallback onPressed}) {

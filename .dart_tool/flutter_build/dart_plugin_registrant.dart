@@ -22,6 +22,7 @@ import 'package:path_provider_foundation/path_provider_foundation.dart' as path_
 import 'package:shared_preferences_foundation/shared_preferences_foundation.dart' as shared_preferences_foundation;
 import 'package:url_launcher_ios/url_launcher_ios.dart' as url_launcher_ios;
 import 'package:video_player_avfoundation/video_player_avfoundation.dart' as video_player_avfoundation;
+import 'package:file_picker/file_picker.dart' as file_picker;
 import 'package:file_selector_linux/file_selector_linux.dart' as file_selector_linux;
 import 'package:flutter_local_notifications_linux/flutter_local_notifications_linux.dart' as flutter_local_notifications_linux;
 import 'package:image_picker_linux/image_picker_linux.dart' as image_picker_linux;
@@ -29,6 +30,7 @@ import 'package:path_provider_linux/path_provider_linux.dart' as path_provider_l
 import 'package:share_plus/share_plus.dart' as share_plus;
 import 'package:shared_preferences_linux/shared_preferences_linux.dart' as shared_preferences_linux;
 import 'package:url_launcher_linux/url_launcher_linux.dart' as url_launcher_linux;
+import 'package:file_picker/file_picker.dart' as file_picker;
 import 'package:file_selector_macos/file_selector_macos.dart' as file_selector_macos;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart' as flutter_local_notifications;
 import 'package:geolocator_apple/geolocator_apple.dart' as geolocator_apple;
@@ -37,6 +39,7 @@ import 'package:path_provider_foundation/path_provider_foundation.dart' as path_
 import 'package:shared_preferences_foundation/shared_preferences_foundation.dart' as shared_preferences_foundation;
 import 'package:url_launcher_macos/url_launcher_macos.dart' as url_launcher_macos;
 import 'package:video_player_avfoundation/video_player_avfoundation.dart' as video_player_avfoundation;
+import 'package:file_picker/file_picker.dart' as file_picker;
 import 'package:file_selector_windows/file_selector_windows.dart' as file_selector_windows;
 import 'package:flutter_local_notifications_windows/flutter_local_notifications_windows.dart' as flutter_local_notifications_windows;
 import 'package:image_picker_windows/image_picker_windows.dart' as image_picker_windows;
@@ -198,6 +201,15 @@ class _PluginRegistrant {
 
     } else if (Platform.isLinux) {
       try {
+        file_picker.FilePickerLinux.registerWith();
+      } catch (err) {
+        print(
+          '`file_picker` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
+      try {
         file_selector_linux.FileSelectorLinux.registerWith();
       } catch (err) {
         print(
@@ -261,6 +273,15 @@ class _PluginRegistrant {
       }
 
     } else if (Platform.isMacOS) {
+      try {
+        file_picker.FilePickerMacOS.registerWith();
+      } catch (err) {
+        print(
+          '`file_picker` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
       try {
         file_selector_macos.FileSelectorMacOS.registerWith();
       } catch (err) {
@@ -334,6 +355,15 @@ class _PluginRegistrant {
       }
 
     } else if (Platform.isWindows) {
+      try {
+        file_picker.FilePickerWindows.registerWith();
+      } catch (err) {
+        print(
+          '`file_picker` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
       try {
         file_selector_windows.FileSelectorWindows.registerWith();
       } catch (err) {

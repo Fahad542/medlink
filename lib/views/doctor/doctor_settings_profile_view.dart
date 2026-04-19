@@ -253,7 +253,11 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
     );
   }
 
-  void _showAvailabilityBottomSheet(BuildContext context) {
+  Future<void> _showAvailabilityBottomSheet(BuildContext context) async {
+    final personalInfoVMPre =
+        Provider.of<DoctorPersonalInfoViewModel>(context, listen: false);
+    await personalInfoVMPre.refreshConsultationFeeRulesFromBackend();
+
     final userVM = Provider.of<UserViewModel>(context, listen: false);
     final doctor = userVM.doctor;
 
@@ -336,10 +340,12 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
                       CustomButton(
                         text: "Save Changes",
                         onPressed: () async {
+                          final feeRaw =
+                              feeController.text.trim().replaceAll(',', '');
+                          final feeVal = double.tryParse(feeRaw);
                           await personalInfoVM.updateAvailability(
                             selectedDays: selectedDays,
-                            consultationFee:
-                                double.tryParse(feeController.text) ?? 50.0,
+                            consultationFee: feeVal ?? 0,
                             sessionDuration: duration,
                             morningStart: startTime,
                             morningEnd: endTime,

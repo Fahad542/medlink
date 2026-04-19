@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/models/appointment_model.dart';
 import 'package:medlink/models/doctor_model.dart';
+import 'package:medlink/widgets/consultation_type_badge.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:provider/provider.dart';
@@ -15,12 +17,14 @@ class AppointmentDetailsView extends StatelessWidget {
   final DoctorModel doctor;
   final DateTime selectedDate;
   final String selectedTime;
+  final AppointmentType consultationType;
 
   const AppointmentDetailsView({
     super.key,
     required this.doctor,
     required this.selectedDate,
     required this.selectedTime,
+    required this.consultationType,
   });
 
   @override
@@ -99,6 +103,30 @@ class AppointmentDetailsView extends StatelessWidget {
                     child: _buildDetailCard("Date",
                         DateFormat("d MMM yyyy").format(selectedDate))),
               ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Consultation',
+                      style: GoogleFonts.inter(
+                          color: Colors.grey[500], fontSize: 12),
+                    ),
+                    const SizedBox(height: 8),
+                    ConsultationTypeBadge(type: consultationType),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 12),
             Row(
@@ -213,6 +241,7 @@ class AppointmentDetailsView extends StatelessWidget {
                     date: selectedDate,
                     time: selectedTime,
                     patientId: patientId,
+                    consultationType: consultationType,
                   );
 
                   if (!context.mounted) return;

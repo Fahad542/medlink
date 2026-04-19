@@ -51,8 +51,10 @@ class DoctorAppointmentsViewModel extends ChangeNotifier {
       if (response != null && response['success'] == true) {
         final data = response['data'] as List?;
         if (data != null) {
-          _upcomingAppointments =
-              data.map((item) => AppointmentModel.fromJson(item)).toList();
+          _upcomingAppointments = data
+              .map((item) => AppointmentModel.fromJson(item))
+              .where((a) => a.isDoctorUpcomingSlot)
+              .toList();
           AppointmentModel.sortByCreatedAtDescending(_upcomingAppointments);
         } else {
           _upcomingAppointments = [];
@@ -120,6 +122,8 @@ class DoctorAppointmentsViewModel extends ChangeNotifier {
     try {
       final response = await _apiServices.doctorCancelAppointment(id, reason);
       if (response != null && response['success'] == true) {
+        _upcomingAppointments.removeWhere((a) => a.id == id);
+        notifyListeners();
         await fetchAllAppointments();
         return true;
       }
@@ -128,5 +132,10 @@ class DoctorAppointmentsViewModel extends ChangeNotifier {
       debugPrint("Error cancelling appointment: $e");
       return false;
     }
+  }
+
+  void removeUpcomingAppointmentById(String id) {
+    _upcomingAppointments.removeWhere((a) => a.id == id);
+    notifyListeners();
   }
 }

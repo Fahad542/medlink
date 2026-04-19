@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/models/appointment_model.dart';
+import 'package:medlink/widgets/consultation_type_badge.dart';
 import 'package:medlink/views/Patient App/consultation/video_call_view.dart';
 
 class AppointmentDetailsEditView extends StatefulWidget {
@@ -97,9 +98,11 @@ class _AppointmentDetailsEditViewState extends State<AppointmentDetailsEditView>
                           widget.appointment.user?.name ?? "Unknown Patient",
                           style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
+                        ConsultationTypeBadge(type: widget.appointment.type, compact: true),
+                        const SizedBox(height: 6),
                         Text(
-                          "${widget.appointment.type.name.toUpperCase()} • ${widget.appointment.status.name.toUpperCase()}",
+                          widget.appointment.status.name.toUpperCase(),
                           style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey[600]),
                         ),
                       ],
@@ -119,7 +122,13 @@ class _AppointmentDetailsEditViewState extends State<AppointmentDetailsEditView>
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => VideoCallView(isDoctor: true, appointmentId: widget.appointment.id)),
+                    MaterialPageRoute(
+                      builder: (context) => VideoCallView(
+                        isDoctor: true,
+                        appointmentId: widget.appointment.id,
+                        otherPartyName: widget.appointment.user?.name,
+                      ),
+                    ),
                   );
                 },
                 icon: const Icon(Icons.videocam_rounded, color: Colors.white),

@@ -6,6 +6,8 @@ import 'package:medlink/core/constants/app_colors.dart';
 class DoctorStep5PracticeDetails extends StatefulWidget {
   final VoidCallback onNext;
   final TextEditingController consultationFeeController;
+  /// From backend `OrganizationSettings.minimumDoctorConsultationFee`.
+  final double minimumConsultationFee;
   final Function(List<String>) onAvailabilitySelected;
   final Function(TimeOfDay, TimeOfDay) onTimeSelected;
   final bool isLoading;
@@ -14,6 +16,7 @@ class DoctorStep5PracticeDetails extends StatefulWidget {
     super.key,
     required this.onNext,
     required this.consultationFeeController,
+    this.minimumConsultationFee = 500,
     required this.onAvailabilitySelected,
     required this.onTimeSelected,
     this.isLoading = false,
@@ -114,6 +117,15 @@ class _DoctorStep5PracticeDetailsState extends State<DoctorStep5PracticeDetails>
                 height: 1.5,
               ),
             ),
+            const SizedBox(height: 8),
+            Text(
+              "Minimum fee (from organization): ${widget.minimumConsultationFee.toStringAsFixed(0)}",
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             const SizedBox(height: 32),
 
             // 1. Consultation Fee
@@ -133,7 +145,15 @@ class _DoctorStep5PracticeDetailsState extends State<DoctorStep5PracticeDetails>
               child: TextFormField(
                 controller: widget.consultationFeeController,
                 keyboardType: TextInputType.number,
-                validator: (v) => v!.isEmpty ? "Required" : null,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return "Required";
+                  final n = double.tryParse(v.trim());
+                  if (n == null) return "Enter a valid number";
+                  if (n < widget.minimumConsultationFee) {
+                    return "At least ${widget.minimumConsultationFee.toStringAsFixed(0)}";
+                  }
+                  return null;
+                },
                 style: GoogleFonts.inter(
                   fontSize: 18,
                   fontWeight: FontWeight.w400, // Reduced from w500

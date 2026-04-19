@@ -13,6 +13,7 @@ import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/doctor/Dashboard/doctor_dashboard_view_model.dart';
 import 'package:medlink/views/doctor/Doctor%20patients/doctor_patients_view.dart';
 import 'package:medlink/views/Patient%20App/health/health_hub_view.dart';
+import 'package:medlink/views/notifications/notifications_list_view.dart';
 import 'package:medlink/widgets/custom_network_image.dart';
 import 'package:medlink/widgets/appointment_list_shimmer.dart';
 import 'package:medlink/views/doctor/past_appointments_view.dart';
@@ -164,48 +165,85 @@ class DoctorDashboardView extends StatelessWidget {
                                 ),
                                 Row(
                                   children: [
-                                    // Notifications — same bell + badge UI; not wired to chat.
                                     Tooltip(
                                       message: 'Notifications',
                                       child: GestureDetector(
-                                      onTap: () {},
-                                      child: Stack(
-                                        clipBehavior: Clip.none,
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.all(8),
-                                            decoration: BoxDecoration(
-                                              color:
-                                                  Colors.white.withOpacity(0.2),
-                                              shape: BoxShape.circle,
+                                        onTap: () async {
+                                          await Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  const NotificationsListView(
+                                                portal:
+                                                    NotificationPortal.doctor,
+                                              ),
                                             ),
-                                            child: const Icon(
-                                                Icons.notifications_outlined,
-                                                color: Colors.white,
-                                                size: 20),
-                                          ),
-                                          Positioned(
-                                            top: 4,
-                                            right: 4,
-                                            child: Container(
-                                              padding: const EdgeInsets.all(4),
-                                              decoration: const BoxDecoration(
-                                                color: Colors.red,
+                                          );
+                                          await viewModel
+                                              .fetchUnreadNotificationsCount();
+                                        },
+                                        child: Stack(
+                                          clipBehavior: Clip.none,
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white
+                                                    .withOpacity(0.2),
                                                 shape: BoxShape.circle,
                                               ),
-                                              child: Text(
-                                                "3",
-                                                style: GoogleFonts.inter(
-                                                  color: Colors.white,
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
+                                              child: const Icon(
+                                                Icons.notifications_outlined,
+                                                color: Colors.white,
+                                                size: 20,
                                               ),
                                             ),
-                                          ),
-                                        ],
+                                            if (viewModel
+                                                    .unreadNotificationsCount >
+                                                0)
+                                              Positioned(
+                                                top: -2,
+                                                right: -2,
+                                                child: Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                    horizontal: 5,
+                                                    vertical: 1,
+                                                  ),
+                                                  constraints:
+                                                      const BoxConstraints(
+                                                    minWidth: 16,
+                                                    minHeight: 16,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.error,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            20),
+                                                    border: Border.all(
+                                                      color: Colors.white,
+                                                      width: 1.5,
+                                                    ),
+                                                  ),
+                                                  child: Center(
+                                                    child: Text(
+                                                      viewModel.unreadNotificationsCount >
+                                                              99
+                                                          ? '99+'
+                                                          : '${viewModel.unreadNotificationsCount}',
+                                                      style: GoogleFonts.inter(
+                                                        color: Colors.white,
+                                                        fontSize: 9,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
                                     ),
                                     const SizedBox(width: 10),
                                     // Messages — same pattern as patient home (`msg.png` + dot)
@@ -543,7 +581,9 @@ class DoctorDashboardView extends StatelessWidget {
                                 );
                               }
 
-                              final items = viewModel.upcomingAppointments;
+                              final items = viewModel.upcomingAppointments
+                                  .where((a) => a.isDoctorUpcomingSlot)
+                                  .toList();
                               if (items.isEmpty) {
                                 return const SizedBox
                                     .shrink(); // Hide entire section if no appointments

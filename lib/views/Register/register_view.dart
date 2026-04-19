@@ -261,6 +261,8 @@ class _RegisterViewState extends State<RegisterView> {
             isLoading: authViewModel.loading,
             onNext: () => authViewModel.submitDoctorStep5(context),
             consultationFeeController: authViewModel.consultationFeeController,
+            minimumConsultationFee:
+                authViewModel.minimumDoctorConsultationFee,
             onAvailabilitySelected: (days) =>
                 authViewModel.setAvailability(days),
             onTimeSelected: (start, end) => authViewModel.setTimes(start, end),

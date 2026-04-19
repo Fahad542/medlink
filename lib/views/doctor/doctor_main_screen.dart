@@ -23,7 +23,8 @@ class DoctorMainScreen extends StatefulWidget {
   State<DoctorMainScreen> createState() => _DoctorMainScreenState();
 }
 
-class _DoctorMainScreenState extends State<DoctorMainScreen> {
+class _DoctorMainScreenState extends State<DoctorMainScreen>
+    with WidgetsBindingObserver {
   int _selectedIndex = 0;
   StreamSubscription? _incomingCallSub;
   StreamSubscription? _callEndedSub;
@@ -33,39 +34,75 @@ class _DoctorMainScreenState extends State<DoctorMainScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final userVM = Provider.of<UserViewModel>(context, listen: false);
       final token = userVM.accessToken;
-      final doctorIdNum = int.tryParse(userVM.doctor?.id ?? '');
-      
+      final doctorIdStr = (userVM.doctor?.id ?? '').trim();
+      final doctorIdNum = int.tryParse(doctorIdStr);
+
       // Start polling as backup
       Provider.of<CallViewModel>(context, listen: false).startPolling(context);
 
-      if (token != null && token.isNotEmpty && doctorIdNum != null) {
-        // Connect to Appointment Socket
-        final appointmentSocket = Provider.of<AppointmentSocketService>(context, listen: false);
-        appointmentSocket.connect(url: AppUrl.baseUrl, token: token);
-        _appointmentSub = appointmentSocket.appointmentUpdateStream.listen((_) {
-          debugPrint('[DoctorMainScreen] Appointment update received! Refreshing dashboard...');
-          Provider.of<DoctorDashboardViewModel>(context, listen: false).fetchData();
-          Provider.of<DoctorAppointmentsViewModel>(context, listen: false).fetchAllAppointments();
+      if (token != null && token.isNotEmpty) {
+        final appointmentSocket =
+            Provider.of<AppointmentSocketService>(context, listen: false);
+        appointmentSocket.connect(
+          url: AppUrl.baseUrl,
+          token: token,
+          userId: doctorIdStr.isNotEmpty ? doctorIdStr : null,
+          role: 'doctor',
+        );
+        _appointmentSub =
+            appointmentSocket.appointmentUpdateStream.listen((_) {
+          if (!mounted) return;
+          debugPrint(
+              '[DoctorMainScreen] Appointment socket — refreshing lists');
+          Provider.of<DoctorDashboardViewModel>(context, listen: false)
+              .fetchData();
+          Provider.of<DoctorAppointmentsViewModel>(context, listen: false)
+              .fetchAllAppointments();
         });
 
-        final callSocket = Provider.of<CallSocketService>(context, listen: false);
-        callSocket.connect(token: token, userId: doctorIdNum);
+        if (doctorIdNum != null) {
+          final callSocket =
+              Provider.of<CallSocketService>(context, listen: false);
+          callSocket.connect(token: token, userId: doctorIdNum);
 
-        _incomingCallSub = callSocket.incomingCallStream.listen((data) {
-          _handleSocketIncomingCall(data);
-        });
-        _callEndedSub = callSocket.callEndedStream.listen((channel) {
-          final pending = _pendingIncomingCall;
-          if (pending == null) return;
-          if (pending['channelName']?.toString() == channel) {
-            setState(() => _pendingIncomingCall = null);
-          }
-        });
+          _incomingCallSub =
+              callSocket.incomingCallStream.listen((data) {
+            _handleSocketIncomingCall(data);
+          });
+          _callEndedSub = callSocket.callEndedStream.listen((channel) {
+            final pending = _pendingIncomingCall;
+            if (pending == null) return;
+            if (pending['channelName']?.toString() == channel) {
+              setState(() => _pendingIncomingCall = null);
+            }
+          });
+        }
       }
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    final userVM = Provider.of<UserViewModel>(context, listen: false);
+    final token = userVM.accessToken;
+    if (token == null || token.isEmpty) return;
+    try {
+      final doctorIdStr = (userVM.doctor?.id ?? '').trim();
+      Provider.of<AppointmentSocketService>(context, listen: false).connect(
+        url: AppUrl.baseUrl,
+        token: token,
+        userId: doctorIdStr.isNotEmpty ? doctorIdStr : null,
+        role: 'doctor',
+      );
+      Provider.of<DoctorDashboardViewModel>(context, listen: false).fetchData();
+      Provider.of<DoctorAppointmentsViewModel>(context, listen: false)
+          .fetchAllAppointments();
+    } catch (_) {}
   }
 
   void _handleSocketIncomingCall(Map<String, dynamic> data) {
@@ -79,6 +116,7 @@ class _DoctorMainScreenState extends State<DoctorMainScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _incomingCallSub?.cancel();
     _callEndedSub?.cancel();
     _appointmentSub?.cancel();

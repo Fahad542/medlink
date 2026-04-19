@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:medlink/models/user_login_model.dart';
+import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/utils/utils.dart';
 import 'package:medlink/views/services/session_view_model.dart';
@@ -80,6 +81,9 @@ class RegisterViewModel extends ChangeNotifier {
   final TextEditingController aboutController = TextEditingController();
   final TextEditingController consultationFeeController =
       TextEditingController();
+  double _minimumDoctorConsultationFee = 500;
+  double get minimumDoctorConsultationFee => _minimumDoctorConsultationFee;
+
   String? licensePath;
   String? selectedSpecialtyId;
   List<String> availabilityDays = [];
@@ -119,6 +123,16 @@ class RegisterViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> fetchMinimumDoctorConsultationFeeFromOrg() async {
+    final v = await _apiServices.getOrganizationMinimumConsultationFee(
+      AppUrl.defaultOrganizationIdForFeeRules,
+    );
+    if (v != null && v > 0) {
+      _minimumDoctorConsultationFee = v;
+      notifyListeners();
+    }
+  }
+
   void reset() {
     _currentStep = 0;
     if (pageController.hasClients) {
@@ -144,6 +158,7 @@ class RegisterViewModel extends ChangeNotifier {
     clinicAddressController.clear();
     aboutController.clear();
     consultationFeeController.clear();
+    _minimumDoctorConsultationFee = 500;
 
     carNumberController.clear();
     carNameController.clear();
@@ -505,6 +520,7 @@ class RegisterViewModel extends ChangeNotifier {
           isError: true);
       return;
     }
+    await fetchMinimumDoctorConsultationFeeFromOrg();
     nextStep();
   }
 
@@ -512,6 +528,21 @@ class RegisterViewModel extends ChangeNotifier {
     if (consultationFeeController.text.isEmpty) {
       Utils.toastMessage(context, "Please enter consultation fee",
           isError: true);
+      return;
+    }
+    final entered = double.tryParse(consultationFeeController.text.trim());
+    if (entered == null) {
+      Utils.toastMessage(
+          context, "Please enter a valid consultation fee",
+          isError: true);
+      return;
+    }
+    if (entered < minimumDoctorConsultationFee) {
+      Utils.toastMessage(
+        context,
+        "Consultation fee must be at least ${minimumDoctorConsultationFee.toStringAsFixed(0)}",
+        isError: true,
+      );
       return;
     }
     if (availabilityDays.isEmpty) {

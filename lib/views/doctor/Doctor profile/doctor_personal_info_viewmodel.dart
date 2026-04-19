@@ -1,10 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/models/doctor_model.dart';
 import 'package:medlink/models/user_login_model.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/data/network/api_services.dart';
+import 'package:medlink/utils/utils.dart';
 
 class DoctorPersonalInfoViewModel extends ChangeNotifier {
   final UserViewModel _userViewModel;
@@ -13,6 +15,9 @@ class DoctorPersonalInfoViewModel extends ChangeNotifier {
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+
+  double _minimumDoctorConsultationFee = 500;
+  double get minimumDoctorConsultationFee => _minimumDoctorConsultationFee;
 
   File? _imageFile;
   File? get imageFile => _imageFile;
@@ -68,11 +73,37 @@ class DoctorPersonalInfoViewModel extends ChangeNotifier {
     }
   }
 
+  /// Backend returns either `{ success, data }` or the practice DTO directly
+  /// (`consultationFee`, `sessionDurationMin`, `days`).
+  static bool _practiceSettingsPayloadLooksValid(dynamic response) {
+    if (response == null || response is! Map) return false;
+    final m = Map<String, dynamic>.from(response);
+    if (m['success'] == true) return true;
+    return m.containsKey('days') ||
+        m.containsKey('consultationFee') ||
+        m.containsKey('sessionDurationMin');
+  }
+
+  static Map<String, dynamic>? _extractPracticeSettingsMap(dynamic response) {
+    if (response == null || response is! Map) return null;
+    final m = Map<String, dynamic>.from(response);
+    if (m['success'] == true && m['data'] != null && m['data'] is Map) {
+      return Map<String, dynamic>.from(m['data'] as Map);
+    }
+    if (_practiceSettingsPayloadLooksValid(m) &&
+        (m.containsKey('days') || m.containsKey('consultationFee'))) {
+      return m;
+    }
+    return null;
+  }
+
   Future<void> fetchDoctorProfile() async {
     _isLoading = true;
     notifyListeners();
 
     try {
+      await _refreshMinimumConsultationFeeFromOrg();
+
       // 1. Fetch Profile Details
       final profileResponse = await _apiServices.getDoctorProfile();
       // 2. Fetch Practice Settings (availability, fee, duration)
@@ -82,13 +113,12 @@ class DoctorPersonalInfoViewModel extends ChangeNotifier {
         Map<String, dynamic> data = profileResponse['data'];
 
         // Merge practice settings if available
-        if (settingsResponse != null && settingsResponse['success'] == true) {
-          final settingsData = settingsResponse['data'];
-          data['practiceSettings'] = settingsData;
-          // Flatten some common fields for easier parsing in DoctorModel
-          data['consultationFee'] = settingsData['consultationFee'];
-          data['sessionDurationMin'] = settingsData['sessionDurationMin'];
-          data['availability'] = settingsData['days'];
+        final settingsMap = _extractPracticeSettingsMap(settingsResponse);
+        if (settingsMap != null) {
+          data['practiceSettings'] = settingsMap;
+          data['consultationFee'] = settingsMap['consultationFee'];
+          data['sessionDurationMin'] = settingsMap['sessionDurationMin'];
+          data['availability'] = settingsMap['days'];
         }
 
         if (_userViewModel.loginSession != null &&
@@ -125,6 +155,23 @@ class DoctorPersonalInfoViewModel extends ChangeNotifier {
     }
   }
 
+  Future<void> _refreshMinimumConsultationFeeFromOrg() async {
+    final v = await _apiServices.getOrganizationMinimumConsultationFee(
+      AppUrl.defaultOrganizationIdForFeeRules,
+    );
+    if (v != null && v > 0) {
+      _minimumDoctorConsultationFee = v;
+    } else {
+      _minimumDoctorConsultationFee = 500;
+    }
+  }
+
+  /// Call before validating fee (e.g. when opening Availability sheet).
+  Future<void> refreshConsultationFeeRulesFromBackend() async {
+    await _refreshMinimumConsultationFeeFromOrg();
+    notifyListeners();
+  }
+
   String? get profileImage => _userViewModel.doctor?.imageUrl;
 
   Future<void> saveChanges(BuildContext context) async {
@@ -150,17 +197,13 @@ class DoctorPersonalInfoViewModel extends ChangeNotifier {
         await fetchDoctorProfile();
 
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Profile updated successfully")),
-          );
+          Utils.toastMessage(context, 'Profile updated successfully');
           Navigator.pop(context);
         }
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error updating profile: $e")),
-        );
+        Utils.toastMessage(context, Utils.apiErrorMessage(e), isError: true);
       }
     } finally {
       _isLoading = false;
@@ -178,6 +221,28 @@ class DoctorPersonalInfoViewModel extends ChangeNotifier {
     required TimeOfDay? eveningEnd,
     required BuildContext context,
   }) async {
+    if (consultationFee <= 0) {
+      if (context.mounted) {
+        Utils.toastMessage(
+          context,
+          'Please enter a valid consultation fee',
+          isError: true,
+        );
+      }
+      return;
+    }
+    if (consultationFee < minimumDoctorConsultationFee) {
+      if (context.mounted) {
+        Utils.toastMessage(
+          context,
+          'Consultation fee must be at least '
+          '${minimumDoctorConsultationFee.toStringAsFixed(0)}',
+          isError: true,
+        );
+      }
+      return;
+    }
+
     _isLoading = true;
     notifyListeners();
 
@@ -212,21 +277,31 @@ class DoctorPersonalInfoViewModel extends ChangeNotifier {
       debugPrint("UPDATING PRACTICE SETTINGS: $payload");
       final response = await _apiServices.updateDoctorPracticeSettings(payload);
 
-      if (response != null && response['success'] == true) {
+      final ok = _practiceSettingsPayloadLooksValid(response);
+      if (ok) {
         debugPrint("AVAILABILITY UPDATE SUCCESS. FETCHING PROFILE...");
         await fetchDoctorProfile();
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Availability updated successfully")),
-          );
+          Utils.toastMessage(context, 'Availability updated successfully');
           Navigator.pop(context);
+        }
+      } else {
+        final msg = response is Map
+            ? response['message']?.toString()
+            : null;
+        if (context.mounted) {
+          Utils.toastMessage(
+            context,
+            msg?.isNotEmpty == true
+                ? msg!
+                : 'Could not update availability. Please try again.',
+            isError: true,
+          );
         }
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error updating availability: $e")),
-        );
+        Utils.toastMessage(context, Utils.apiErrorMessage(e), isError: true);
       }
     } finally {
       _isLoading = false;

@@ -8,6 +8,10 @@ import 'package:medlink/widgets/custom_button.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:medlink/views/main/main_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:medlink/services/appointment_socket_service.dart';
+import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
+import 'package:medlink/views/services/session_view_model.dart';
 
 class AppointmentPaymentView extends StatefulWidget {
   final DoctorModel doctor;
@@ -79,6 +83,19 @@ class _AppointmentPaymentViewState extends State<AppointmentPaymentView> {
 
       if (confirmResponse != null && confirmResponse['success'] == true) {
         if (mounted) {
+          final patientId = Provider.of<UserViewModel>(context, listen: false)
+              .patient
+              ?.id
+              .toString();
+          AppointmentSocketService.instance.emitAfterBookingCreated(
+            appointmentId: widget.appointmentId,
+            doctorId: widget.doctor.id,
+            patientId: patientId,
+          );
+          try {
+            Provider.of<AppointmentViewModel>(context, listen: false)
+                .loadUpcomingAppointments();
+          } catch (_) {}
           setState(() =>
               _isProcessing = false); // Stop loading before success dialog
           _showSuccessDialog();

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:medlink/models/appointment_model.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/core/constants/app_url.dart';
+import 'package:medlink/utils/notification_payload_utils.dart';
 import 'package:medlink/services/chat_socket_service.dart';
 
 class DoctorDashboardViewModel extends ChangeNotifier {
@@ -21,6 +22,7 @@ class DoctorDashboardViewModel extends ChangeNotifier {
   int _patientsCount = 0;
   int _appointmentsCount = 0;
   int _unreadMessagesCount = 0;
+  int _unreadNotificationsCount = 0;
   List<AppointmentModel> _upcomingAppointments = [];
   int? _currentUserId;
   String? _chatToken;
@@ -38,6 +40,7 @@ class DoctorDashboardViewModel extends ChangeNotifier {
   int get patientsCount => _patientsCount;
   int get appointmentsCount => _appointmentsCount;
   int get unreadMessagesCount => _unreadMessagesCount;
+  int get unreadNotificationsCount => _unreadNotificationsCount;
   List<AppointmentModel> get upcomingAppointments => _upcomingAppointments;
 
   Future<void> updateAvailability(bool value) async {
@@ -68,6 +71,7 @@ class DoctorDashboardViewModel extends ChangeNotifier {
       fetchUpcomingAppointments(),
       fetchAvailability(),
       fetchPatientsCount(),
+      fetchUnreadNotificationsCount(),
     ]);
   }
 
@@ -84,6 +88,25 @@ class DoctorDashboardViewModel extends ChangeNotifier {
       unawaited(fetchUnreadMessagesCount());
     });
     fetchUnreadMessagesCount();
+    fetchUnreadNotificationsCount();
+  }
+
+  Future<void> fetchUnreadNotificationsCount() async {
+    try {
+      final response = await _apiServices.getDoctorNotifications(limit: 80);
+      if (response is! Map || response['success'] != true) return;
+      final data = response['data'];
+      if (data is! Map) return;
+      final n = unreadCountFromNotificationsPayload(
+        Map<String, dynamic>.from(data),
+      );
+      if (n != _unreadNotificationsCount) {
+        _unreadNotificationsCount = n;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Doctor dashboard notifications badge error: $e');
+    }
   }
 
   Future<void> fetchUnreadMessagesCount() async {
@@ -222,8 +245,10 @@ class DoctorDashboardViewModel extends ChangeNotifier {
       final response = await _apiServices.getDoctorUpcomingAppointments();
       if (response != null && response['success'] == true) {
         final List<dynamic> data = response['data'];
-        _upcomingAppointments =
-            data.map((json) => AppointmentModel.fromJson(json)).toList();
+        _upcomingAppointments = data
+            .map((json) => AppointmentModel.fromJson(json))
+            .where((a) => a.isDoctorUpcomingSlot)
+            .toList();
         AppointmentModel.sortByCreatedAtDescending(_upcomingAppointments);
         _appointmentsCount = _upcomingAppointments.length;
       }
@@ -231,6 +256,16 @@ class DoctorDashboardViewModel extends ChangeNotifier {
       debugPrint("Error fetching upcoming appointments: $e");
     } finally {
       _isLoadingAppointments = false;
+      notifyListeners();
+    }
+  }
+
+  /// Immediate UI update after cancel (before refetch completes).
+  void removeUpcomingAppointmentById(String id) {
+    final before = _upcomingAppointments.length;
+    _upcomingAppointments.removeWhere((a) => a.id == id);
+    if (_upcomingAppointments.length != before) {
+      _appointmentsCount = _upcomingAppointments.length;
       notifyListeners();
     }
   }

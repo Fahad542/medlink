@@ -8,6 +8,7 @@ import 'package:medlink/views/Patient%20App/emergency/destination_picker_view.da
 import 'package:medlink/widgets/sos_button.dart';
 import 'package:medlink/views/Patient%20App/Find%20a%20doctor/doctor_list_view.dart';
 import 'package:medlink/views/Patient App/consultation/chat_list_view.dart';
+import 'package:medlink/views/notifications/notifications_list_view.dart';
 import 'package:medlink/views/Patient App/prescription/prescription_view.dart';
 import 'package:medlink/views/Patient App/home/category_list_view.dart';
 import 'package:medlink/views/Patient App/profile/personal_info_view.dart';
@@ -63,6 +64,7 @@ class _HomeViewState extends State<HomeView> {
                 await Future.wait([
                   homeVM.fetchDoctorCategories(),
                   appointmentVM.loadUpcomingAppointments(),
+                  homeVM.fetchUnreadNotificationsCount(),
                 ]);
               },
               child: CustomScrollView(
@@ -148,75 +150,166 @@ class _HomeViewState extends State<HomeView> {
                             ),
                           ],
                         ),
-                        // Badged Notification Icon
-                        GestureDetector(
-                          onTap: () async {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const ChatListView()),
-                            );
-                            await homeVM.fetchUnreadMessagesCount();
-                          },
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(
-                                    10), // Increased padding
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary.withOpacity(0.1),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                      color: Colors.grey.withOpacity(0.1)),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.03),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: Image.asset(
-                                  'assets/msg.png',
-                                  width: 24,
-                                  height: 24,
-                                  color: const Color(0xFF1E293B), // Darker icon
-                                ),
-                              ),
-                              if (homeVM.unreadMessagesCount > 0)
-                                Positioned(
-                                  top: -2,
-                                  right: -2,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 5, vertical: 1),
-                                    constraints: const BoxConstraints(
-                                      minWidth: 16,
-                                      minHeight: 16,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.error,
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                          color: Colors.white, width: 1.5),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        homeVM.unreadMessagesCount > 99
-                                            ? '99+'
-                                            : '${homeVM.unreadMessagesCount}',
-                                        style: GoogleFonts.inter(
-                                          color: Colors.white,
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w700,
-                                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Tooltip(
+                              message: 'Notifications',
+                              child: GestureDetector(
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const NotificationsListView(
+                                        portal: NotificationPortal.patient,
                                       ),
                                     ),
-                                  ),
+                                  );
+                                  await homeVM.fetchUnreadNotificationsCount();
+                                },
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary.withOpacity(0.1),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                            color: Colors.grey.withOpacity(0.1)),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color:
+                                                Colors.black.withOpacity(0.03),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Icon(
+                                        Icons.notifications_outlined,
+                                        size: 24,
+                                        color: Color(0xFF1E293B),
+                                      ),
+                                    ),
+                                    if (homeVM.unreadNotificationsCount > 0)
+                                      Positioned(
+                                        top: -2,
+                                        right: -2,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 5, vertical: 1),
+                                          constraints: const BoxConstraints(
+                                            minWidth: 16,
+                                            minHeight: 16,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.error,
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                            border: Border.all(
+                                                color: Colors.white,
+                                                width: 1.5),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              homeVM.unreadNotificationsCount >
+                                                      99
+                                                  ? '99+'
+                                                  : '${homeVM.unreadNotificationsCount}',
+                                              style: GoogleFonts.inter(
+                                                color: Colors.white,
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
-                            ],
-                          ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Tooltip(
+                              message: 'Messages',
+                              child: GestureDetector(
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) =>
+                                            const ChatListView()),
+                                  );
+                                  await homeVM.fetchUnreadMessagesCount();
+                                },
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            AppColors.primary.withOpacity(0.1),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                            color:
+                                                Colors.grey.withOpacity(0.1)),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color:
+                                                Colors.black.withOpacity(0.03),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Image.asset(
+                                        'assets/msg.png',
+                                        width: 24,
+                                        height: 24,
+                                        color: const Color(0xFF1E293B),
+                                      ),
+                                    ),
+                                    if (homeVM.unreadMessagesCount > 0)
+                                      Positioned(
+                                        top: -2,
+                                        right: -2,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 5, vertical: 1),
+                                          constraints: const BoxConstraints(
+                                            minWidth: 16,
+                                            minHeight: 16,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.error,
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                            border: Border.all(
+                                                color: Colors.white,
+                                                width: 1.5),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              homeVM.unreadMessagesCount > 99
+                                                  ? '99+'
+                                                  : '${homeVM.unreadMessagesCount}',
+                                              style: GoogleFonts.inter(
+                                                color: Colors.white,
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -390,7 +483,8 @@ class _HomeViewState extends State<HomeView> {
                           ] else if (appointmentVM.appointments.any((a) =>
                               a.status == AppointmentStatus.upcoming ||
                               a.status == AppointmentStatus.pending ||
-                              a.status == AppointmentStatus.confirmed)) ...[
+                              a.status == AppointmentStatus.confirmed ||
+                              a.status == AppointmentStatus.rescheduled)) ...[
                             _buildSectionHeader(
                               "Upcoming Appointment",
                               actionLabel: "See all",
@@ -406,7 +500,8 @@ class _HomeViewState extends State<HomeView> {
                                 .where((a) =>
                                     a.status == AppointmentStatus.upcoming ||
                                     a.status == AppointmentStatus.pending ||
-                                    a.status == AppointmentStatus.confirmed)
+                                    a.status == AppointmentStatus.confirmed ||
+                                    a.status == AppointmentStatus.rescheduled)
                                 .take(1) // Limit to 1
                                 .map((appointment) => Padding(
                                       padding:

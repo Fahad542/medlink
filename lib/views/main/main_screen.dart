@@ -26,7 +26,7 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _pulseController;
   StreamSubscription? _incomingCallSub;
   StreamSubscription? _callEndedSub;
@@ -37,6 +37,7 @@ class _MainScreenState extends State<MainScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _selectedIndex = widget.initialIndex;
     _pulseController = AnimationController(
       vsync: this,
@@ -78,9 +79,15 @@ class _MainScreenState extends State<MainScreen>
 
         // Connect to Appointment Socket
         final appointmentSocket = Provider.of<AppointmentSocketService>(context, listen: false);
-        appointmentSocket.connect(url: AppUrl.baseUrl, token: token);
+        appointmentSocket.connect(
+          url: AppUrl.baseUrl,
+          token: token,
+          userId: patientIdStr,
+          role: 'patient',
+        );
         _appointmentSub = appointmentSocket.appointmentUpdateStream.listen((_) {
-          debugPrint('[MainScreen] Appointment update received! Refreshing...');
+          if (!mounted) return;
+          debugPrint('[MainScreen] Appointment socket — refreshing list');
           appointmentVM.loadUpcomingAppointments();
         });
 
@@ -109,6 +116,25 @@ class _MainScreenState extends State<MainScreen>
     });
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    final userVM = Provider.of<UserViewModel>(context, listen: false);
+    final token = userVM.accessToken;
+    final patientIdStr = (userVM.patient?.id ?? '').trim();
+    if (token == null || token.isEmpty || patientIdStr.isEmpty) return;
+    try {
+      Provider.of<AppointmentSocketService>(context, listen: false).connect(
+        url: AppUrl.baseUrl,
+        token: token,
+        userId: patientIdStr,
+        role: 'patient',
+      );
+      Provider.of<AppointmentViewModel>(context, listen: false)
+          .loadUpcomingAppointments();
+    } catch (_) {}
+  }
+
   void _handleSocketIncomingCall(Map<String, dynamic> data) {
     if (!mounted) return;
     if (CallViewModel.isIncomingCallActive) {
@@ -120,6 +146,7 @@ class _MainScreenState extends State<MainScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pulseController.dispose();
     _incomingCallSub?.cancel();
     _callEndedSub?.cancel();

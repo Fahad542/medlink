@@ -51,6 +51,10 @@ class AppUrl {
   static const String patientRegisterStep3 = '${baseUrl}/auth/patient/register';
   static const String getPatientProfile = '${baseUrl}/patient/profile';
   static const String updatePatientProfile = '${baseUrl}/patient/profile';
+  static const String patientNotifications = '${baseUrl}/patient/notifications';
+  /// POST — mark every notification read (clears unread badge server-side).
+  static const String patientNotificationsReadAll =
+      '${baseUrl}/patient/notifications/read-all';
   static const String getDoctors = '${baseUrl}/patient/doctors/available';
   static const String getDoctorsCategories =
       '${baseUrl}/patient/doctors/categories';
@@ -61,6 +65,9 @@ class AppUrl {
   static const String bookAppointments = '${baseUrl}/patient/appointments';
   static const String getBookedSlots =
       '${baseUrl}/patient/doctors'; // /{id}/booked-slots
+  /// GET …/patient/doctors/{id}/weekly-schedule — session length + active weekly rows.
+  static const String patientDoctorWeeklySchedule =
+      '${baseUrl}/patient/doctors'; // /{id}/weekly-schedule
   static const String getUpcomingAppointments =
       '${baseUrl}/patient/appointments/upcoming';
   static const String getCancelledAppointments =
@@ -99,6 +106,9 @@ class AppUrl {
       '${baseUrl}/auth/doctor/check-email';
   static const String getDoctorProfile = '${baseUrl}/doctor/profile-details';
   static const String updateDoctorProfile = '${baseUrl}/doctor/profile-details';
+  static const String doctorNotifications = '${baseUrl}/doctor/notifications';
+  static const String doctorNotificationsReadAll =
+      '${baseUrl}/doctor/notifications/read-all';
   static const String getDoctorPatients = '${baseUrl}/doctor/patients';
   static const String getDoctorEarningsByMonth =
       '${baseUrl}/doctor/earnings/by-month';
@@ -177,4 +187,10 @@ class AppUrl {
       '${baseUrl}/patient/appointments'; // /{appointmentId}/review-doctor
   static const String reviewDriver =
       '${baseUrl}/patient/trips'; // /{tripId}/review-driver
+
+  /// Org whose `OrganizationSettings.minimumDoctorConsultationFee` applies app-wide (change to your DB org id).
+  static const int defaultOrganizationIdForFeeRules = 1;
+
+  static String organizationSettingsById(int organizationId) =>
+      '$baseUrl/common/organization-settings/$organizationId';
 }

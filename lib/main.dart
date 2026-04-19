@@ -56,6 +56,7 @@ void main() async {
 
     final notificationServices = NotificationServices();
     await notificationServices.setupLocalNotifications();
+    NotificationServices.registerAppInstance(notificationServices);
     await notificationServices.requestNotificationPermission();
     await notificationServices.configureForegroundPresentation();
     notificationServices.firebaseInit();

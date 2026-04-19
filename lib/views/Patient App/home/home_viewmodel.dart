@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_url.dart';
+import 'package:medlink/utils/notification_payload_utils.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/services/chat_socket_service.dart';
 import 'package:medlink/views/services/session_view_model.dart';
@@ -17,16 +18,19 @@ class HomeViewModel extends ChangeNotifier {
   StreamSubscription<Map<String, dynamic>>? _chatReadSub;
   final Set<String> _seenSocketKeys = {};
   int _unreadMessagesCount = 0;
+  int _unreadNotificationsCount = 0;
   
   bool get isSosVisible => _isSosVisible;
   int get currentBannerIndex => _currentBannerIndex;
   int get unreadMessagesCount => _unreadMessagesCount;
+  int get unreadNotificationsCount => _unreadNotificationsCount;
 
   HomeViewModel(this._userViewModel) {
     _startAutoScroll();
     fetchDoctorCategories();
     _ensureChatRealtime();
     fetchUnreadMessagesCount();
+    fetchUnreadNotificationsCount();
   }
 
   @override
@@ -88,6 +92,24 @@ class HomeViewModel extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Home unread count error: $e');
+    }
+  }
+
+  Future<void> fetchUnreadNotificationsCount() async {
+    try {
+      final response = await _apiServices.getPatientNotifications(limit: 80);
+      if (response is! Map || response['success'] != true) return;
+      final data = response['data'];
+      if (data is! Map) return;
+      final n = unreadCountFromNotificationsPayload(
+        Map<String, dynamic>.from(data),
+      );
+      if (n != _unreadNotificationsCount) {
+        _unreadNotificationsCount = n;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Home notifications badge error: $e');
     }
   }
 
