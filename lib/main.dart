@@ -19,6 +19,7 @@ import 'package:medlink/views/doctor/doctor_appointments_view_model.dart';
 import 'package:medlink/views/doctor/Doctor%20patients/doctor_patients_view_model.dart';
 import 'package:medlink/views/doctor/Dashboard/doctor_dashboard_view_model.dart';
 import 'package:medlink/views/Patient App/prescriptions/prescription_view_model.dart';
+import 'package:medlink/views/services/settings_view_model.dart';
 import 'package:medlink/views/call/call_view_model.dart';
 // import 'package:medlink/views/home/home_view.dart'; // Removed direct access
 
@@ -98,6 +99,7 @@ class MedLinkApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => DoctorViewModel()),
         ChangeNotifierProvider(create: (_) => AppointmentViewModel()),
         ChangeNotifierProvider(create: (_) => ProfileViewModel()),
+        ChangeNotifierProvider(create: (_) => SettingsViewModel()),
         ChangeNotifierProvider(
             create: (context) => DoctorPersonalInfoViewModel(
                 Provider.of<UserViewModel>(context, listen: false))),
