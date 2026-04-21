@@ -50,15 +50,44 @@ class _DoctorStep4ProfessionalState extends State<DoctorStep4Professional> {
   List<dynamic> _suggestions = [];
   Timer? _debounce;
 
+  final FocusNode _categoryFocusNode = FocusNode();
+  final GlobalKey<FormFieldState<String>> _specialtyFormFieldKey =
+      GlobalKey<FormFieldState<String>>();
+  List<Map<String, dynamic>> _filteredCategories = [];
+  String? _appliedCategoryName;
+
   @override
   void initState() {
     super.initState();
     _fetchCategories();
+    _categoryFocusNode.addListener(_onCategoryFocusChange);
+  }
+
+  void _onCategoryFocusChange() {
+    if (_categoryFocusNode.hasFocus) {
+      _openCategoryList();
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_categoryFocusNode.hasFocus) {
+          setState(() => _filteredCategories = []);
+        }
+      });
+    }
+  }
+
+  /// Always show the full API category list (no text filter).
+  void _openCategoryList() {
+    if (_categories.isEmpty) return;
+    setState(() {
+      _filteredCategories = List<Map<String, dynamic>>.from(_categories);
+    });
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
+    _categoryFocusNode.removeListener(_onCategoryFocusChange);
+    _categoryFocusNode.dispose();
     super.dispose();
   }
 
@@ -66,10 +95,21 @@ class _DoctorStep4ProfessionalState extends State<DoctorStep4Professional> {
     try {
       final response = await ApiServices().getDoctorCategories();
       if (response != null && response['success'] == true) {
-        final List<dynamic> data = response['data'] ?? [];
+        final raw = response['data'];
+        List<dynamic> list = [];
+        if (raw is List) {
+          list = raw;
+        } else if (raw is Map) {
+          final inner = raw['categories'] ?? raw['items'] ?? raw['specialties'];
+          if (inner is List) list = inner;
+        }
         setState(() {
-          _categories = data.whereType<Map<String, dynamic>>().toList();
+          _categories = list.whereType<Map<String, dynamic>>().toList();
           _isLoadingCategories = false;
+          if (_categoryFocusNode.hasFocus) {
+            _filteredCategories =
+                List<Map<String, dynamic>>.from(_categories);
+          }
         });
       } else {
         setState(() => _isLoadingCategories = false);
@@ -233,77 +273,203 @@ class _DoctorStep4ProfessionalState extends State<DoctorStep4Professional> {
 
             _isLoadingCategories
                 ? const DropdownShimmer()
-                : Consumer<RegisterViewModel>(
-                    builder: (context, authVM, child) {
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.04),
-                              blurRadius: 15,
-                              offset: const Offset(0, 4),
+                : FormField<String>(
+                    key: _specialtyFormFieldKey,
+                    validator: (_) {
+                      final auth = Provider.of<RegisterViewModel>(context,
+                          listen: false);
+                      final id = auth.selectedSpecialtyId;
+                      if (id == null || id.isEmpty) return "Required";
+                      return null;
+                    },
+                    builder: (field) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Specialization",
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: Colors.black87,
                             ),
-                          ],
-                        ),
-                        child: DropdownButtonFormField<String>(
-                          value: _categories.any((c) => c['id']?.toString() == authVM.selectedSpecialtyId) 
-                              ? authVM.selectedSpecialtyId 
-                              : null,
-                          items: _categories.map((cat) {
-                            return DropdownMenuItem<String>(
-                              value: cat['id']?.toString(),
-                              child: Text(
-                                cat['name']?.toString() ?? "General",
-                                style: GoogleFonts.inter(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                          onChanged: (String? newValue) {
-                            if (newValue != null) {
-                              final selectedCat = _categories.firstWhere((c) => c['id']?.toString() == newValue);
-                              widget.specializationController.text = selectedCat['name']?.toString() ?? "";
-                              authVM.setSelectedSpecialtyId(newValue);
-                            }
-                          },
-                          validator: (v) => v == null || v.isEmpty ? "Required" : null,
-                          icon: Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey[600]),
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: Colors.white,
-                            hintText: "Select your specialization",
-                            hintStyle: GoogleFonts.inter(color: Colors.grey[500], fontWeight: FontWeight.w400, fontSize: 13),
-                            prefixIcon: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary.withOpacity(0.08),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Icon(Icons.local_hospital_rounded, color: AppColors.primary, size: 18),
-                              ),
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide.none,
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide.none,
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
                           ),
-                        ),
+                          const SizedBox(height: 8),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(24),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.04),
+                                  blurRadius: 15,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: TextField(
+                              controller: widget.specializationController,
+                              focusNode: _categoryFocusNode,
+                              onTap: _openCategoryList,
+                              onChanged: (v) {
+                                final authVM =
+                                    Provider.of<RegisterViewModel>(context,
+                                        listen: false);
+                                if (_appliedCategoryName != null &&
+                                    v.trim() != _appliedCategoryName) {
+                                  authVM.setSelectedSpecialtyId(null);
+                                  _appliedCategoryName = null;
+                                }
+                                if (_categoryFocusNode.hasFocus) {
+                                  _openCategoryList();
+                                }
+                                field.didChange(
+                                    authVM.selectedSpecialtyId ?? '');
+                              },
+                              style: GoogleFonts.inter(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.black87,
+                              ),
+                              cursorColor: AppColors.primary,
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: Colors.white,
+                                hintText: "Tap to see all specializations",
+                                hintStyle: GoogleFonts.inter(
+                                  color: Colors.grey[500],
+                                  fontWeight: FontWeight.w400,
+                                  fontSize: 13,
+                                ),
+                                prefixIcon: Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary
+                                          .withOpacity(0.08),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Icon(
+                                      Icons.local_hospital_rounded,
+                                      color: AppColors.primary,
+                                      size: 18,
+                                    ),
+                                  ),
+                                ),
+                                suffixIcon: Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  color: Colors.grey[600],
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                  borderSide: BorderSide.none,
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                  borderSide: BorderSide.none,
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(24),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 18, horizontal: 20),
+                              ),
+                            ),
+                          ),
+                          if (_filteredCategories.isNotEmpty)
+                            Container(
+                              margin: const EdgeInsets.only(top: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color:
+                                        Colors.black.withOpacity(0.05),
+                                    blurRadius: 15,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              constraints: BoxConstraints(
+                                maxHeight:
+                                    MediaQuery.of(context).size.height *
+                                        0.32,
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: ListView.separated(
+                                  shrinkWrap: true,
+                                  physics: const ClampingScrollPhysics(),
+                                  itemCount: _filteredCategories.length,
+                                  separatorBuilder: (_, __) => Divider(
+                                    height: 1,
+                                    color: Colors.grey[100],
+                                  ),
+                                  itemBuilder: (context, index) {
+                                    final cat = _filteredCategories[index];
+                                    final name =
+                                        cat['name']?.toString() ?? "General";
+                                    final id = cat['id']?.toString() ?? "";
+                                    return ListTile(
+                                      dense: true,
+                                      leading: const Icon(
+                                        Icons.local_hospital_outlined,
+                                        size: 20,
+                                        color: AppColors.primary,
+                                      ),
+                                      title: Text(
+                                        name,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 14,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                      onTap: () {
+                                        final authVM = Provider.of<
+                                                RegisterViewModel>(
+                                            context,
+                                            listen: false);
+                                        widget.specializationController
+                                            .text = name;
+                                        _appliedCategoryName = name;
+                                        authVM.setSelectedSpecialtyId(id);
+                                        field.didChange(id);
+                                        setState(() =>
+                                            _filteredCategories.clear());
+                                        FocusScope.of(context).unfocus();
+                                      },
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          if (field.hasError)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.only(top: 8, left: 4),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.error_outline_rounded,
+                                    size: 14,
+                                    color: AppColors.error,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    field.errorText ?? "",
+                                    style: GoogleFonts.inter(
+                                      color: AppColors.error,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
                       );
                     },
                   ),

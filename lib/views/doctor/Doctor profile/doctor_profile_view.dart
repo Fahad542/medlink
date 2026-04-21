@@ -214,7 +214,10 @@ class _DoctorProfileContentState extends State<_DoctorProfileContent> {
                           return Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              _buildStatItem("Patients", "${widget.doctor.patientsCount}${widget.doctor.patientsCount > 50 ? '+' : ''}"),
+                              _buildStatItem(
+                                "Patients",
+                                _formatPatientCount(widget.doctor.totalPatients),
+                              ),
                               _buildStatItem(
                                   "Experience", "${widget.doctor.experience} Yrs"),
                               _buildStatItem(
@@ -424,6 +427,16 @@ class _DoctorProfileContentState extends State<_DoctorProfileContent> {
         ),
       ),
     );
+  }
+
+  String _formatPatientCount(int count) {
+    if (count <= 0) return "0";
+    if (count >= 1000) {
+      final value = count / 1000.0;
+      final display = value >= 10 ? value.toStringAsFixed(0) : value.toStringAsFixed(1);
+      return "${display}K+";
+    }
+    return count.toString();
   }
 
   String _formatReviewDate(dynamic value) {

@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:io';
+import 'package:medlink/utils/utils.dart';
 
 class DriverStep5Avatar extends StatefulWidget {
   final VoidCallback onNext;
@@ -43,9 +44,7 @@ class _DriverStep5AvatarState extends State<DriverStep5Avatar> {
         widget.onImageSelected(pickedFile.path);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error picking image: $e")),
-      );
+      Utils.toastError(context, e);
     }
   }
 

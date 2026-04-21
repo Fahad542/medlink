@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/Patient App/profile/personal_info_view.dart';
-import 'package:medlink/views/Patient App/profile/payment_methods_view.dart';
 import 'package:medlink/views/Patient App/profile/emergency_contacts_view.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/models/user_model.dart';
@@ -56,6 +55,7 @@ class _ProfileViewState extends State<ProfileView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF2F3F7), // Light Gray background
       body: SingleChildScrollView(
+        physics: const ClampingScrollPhysics(),
         child: Column(
           children: [
             // 1. Premium Header (Standard Widget)
@@ -63,7 +63,7 @@ class _ProfileViewState extends State<ProfileView> {
 
             // 2. Overlapping Content & Settings
             Transform.translate(
-              offset: const Offset(0, -40), // Pull up to overlap header
+              offset: const Offset(0, -52),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
@@ -167,19 +167,6 @@ class _ProfileViewState extends State<ProfileView> {
                               _buildDivider(),
                               _buildPremiumTile(
                                 context,
-                                icon: Icons.credit_card_outlined,
-                                color: AppColors.primary,
-                                title: "Payment Methods",
-                                subtitle: "Cards & History",
-                                onTap: () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (context) =>
-                                            const PaymentMethodsView())),
-                              ),
-                              _buildDivider(),
-                              _buildPremiumTile(
-                                context,
                                 icon: Icons.language_rounded,
                                 color: AppColors.primary,
                                 title: "Localization",
@@ -193,89 +180,82 @@ class _ProfileViewState extends State<ProfileView> {
                     ),
 
                     const SizedBox(height: 30), // Reduced spacing
-
-                    // Logout Action
-                    Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: TextButton(
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) => LogoutConfirmationDialog(
-                              onLogout: () {
-                                userVM.logout();
-                                Navigator.pushAndRemoveUntil(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) => const LoginView()),
-                                  (route) => false,
-                                );
-                              },
-                            ),
-                          );
-                        },
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          backgroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
-                          // Border removed
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.logout_rounded,
-                                color: Colors.red, size: 20),
-                            SizedBox(width: 8),
-                            Text(
-                              "Log Out",
-                              style: GoogleFonts.inter(
-                                color: Colors.red,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ],
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        "ACCOUNT ACTIONS",
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF94A3B8),
+                          letterSpacing: 1.2,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
-
-                    // Delete Account Action
+                    const SizedBox(height: 12),
                     Container(
-                      width: double.infinity,
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.02),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                      child: TextButton(
-                        onPressed: () {
-                          DeleteAccountSheet.show(context);
-                        },
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          backgroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.person_remove_rounded,
-                                color: AppColors.error, size: 20),
-                            SizedBox(width: 8),
-                            Text(
-                              "Delete Account",
-                              style: GoogleFonts.inter(
-                                color: AppColors.error,
-                                fontWeight: FontWeight.w500,
-                                fontSize: 15,
-                              ),
-                            ),
-                          ],
-                        ),
+                      child: Column(
+                        children: [
+                          _buildPremiumTile(
+                            context,
+                            icon: Icons.logout_rounded,
+                            color: AppColors.primary,
+                            title: "Log Out",
+                            subtitle: "Sign out of your account",
+                            onTap: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) => LogoutConfirmationDialog(
+                                  onConfirm: () {
+                                    userVM.logout();
+                                    Navigator.pushAndRemoveUntil(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) =>
+                                              const LoginView()),
+                                      (route) => false,
+                                    );
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                          _buildDivider(),
+                          _buildPremiumTile(
+                            context,
+                            icon: Icons.person_remove_rounded,
+                            color: AppColors.primary,
+                            title: "Delete Account",
+                            subtitle: "Permanently remove account",
+                            onTap: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) => LogoutConfirmationDialog(
+                                  title: "Delete Account",
+                                  message:
+                                      "Are you sure you want to delete your account?",
+                                  confirmText: "Delete",
+                                  confirmColor: AppColors.primary,
+                                  onConfirm: () {
+                                    Navigator.pop(context);
+                                    DeleteAccountSheet.show(context);
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 100),
@@ -291,7 +271,7 @@ class _ProfileViewState extends State<ProfileView> {
 
   Widget _buildHeader(dynamic user) {
     return Container(
-      height: 340, // Reduced height
+      height: 300,
       width: double.infinity,
       decoration: const BoxDecoration(
         color: AppColors.primary,
@@ -334,7 +314,7 @@ class _ProfileViewState extends State<ProfileView> {
             Align(
               alignment: Alignment.center,
               child: Padding(
-                padding: const EdgeInsets.only(bottom: 20, top: 20),
+                padding: const EdgeInsets.only(bottom: 8, top: 12),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -354,7 +334,7 @@ class _ProfileViewState extends State<ProfileView> {
                         ],
                       ),
                       child: CircleAvatar(
-                        radius: 45, // Reduced radius
+                        radius: 42,
                         backgroundColor: Colors.white,
                         backgroundImage: (user?.profileImage != null &&
                                 user!.profileImage!.isNotEmpty)
@@ -370,17 +350,17 @@ class _ProfileViewState extends State<ProfileView> {
                             : null,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     Text(
                       user?.name ?? "Guest User",
                       style: GoogleFonts.inter(
-                        fontSize: 22, // Reduced font size
+                        fontSize: 21,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                         letterSpacing: 0.5,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 4), // Reduced padding
@@ -401,7 +381,7 @@ class _ProfileViewState extends State<ProfileView> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 4),
                   ],
                 ),
               ),
@@ -541,7 +521,7 @@ class _VerticalDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 40,
+      height: 46,
       width: 1,
       color: Colors.grey[200],
     );

@@ -10,6 +10,7 @@ import 'package:medlink/services/waiting_room_socket_service.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
+import 'package:medlink/utils/utils.dart';
 
 class WaitingRoomView extends StatefulWidget {
   final String? callTargetName;
@@ -66,9 +67,10 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
         if (cameraStatus.isPermanentlyDenied || micStatus.isPermanentlyDenied) {
           _showSettingsDialog();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text("Camera and Mic permissions are required.")),
+          Utils.toastMessage(
+            context,
+            "Camera and Mic permissions are required.",
+            isError: true,
           );
         }
       }

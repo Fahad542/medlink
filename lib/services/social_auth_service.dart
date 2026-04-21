@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:medlink/core/constants/apple_sign_in_config.dart';
+import 'package:medlink/services/apple_sign_in_profile_cache.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
@@ -127,19 +128,73 @@ class SocialAppleAuth {
     final userId = credential.userIdentifier?.trim() ?? '';
     if (userId.isEmpty) return null;
 
-    final email = credential.email?.trim() ?? '';
     final given = credential.givenName?.trim() ?? '';
     final family = credential.familyName?.trim() ?? '';
-    var fullName = '$given $family'.trim();
-    if (fullName.isEmpty) {
-      fullName =
-          email.isNotEmpty ? email.split('@').first : 'Apple User';
+    final nameFromApple = '$given $family'.trim();
+
+    // Apple sends email + name only on the *first* sign-in for this app.
+    // Reuse values we stored on device for this Apple user id.
+    final cached = await AppleSignInProfileCache.read(userId);
+
+    var email = credential.email?.trim() ?? '';
+    if (email.isEmpty) {
+      final c = cached.email?.trim();
+      if (c != null && c.isNotEmpty) {
+        email = c;
+      }
     }
+    if (email.isEmpty) {
+      email = _syntheticAppleEmail(userId);
+    }
+
+    var fullName = nameFromApple;
+    if (fullName.isEmpty) {
+      final n = cached.fullName?.trim();
+      if (n != null && n.isNotEmpty) {
+        fullName = n;
+      }
+    }
+    if (fullName.isEmpty) {
+      if (email.isNotEmpty && !_isPlaceholderAppleEmail(email)) {
+        fullName = email.split('@').first;
+      } else {
+        fullName = 'Apple User';
+      }
+    }
+
+    // Persist first-time payload for next launches (Apple won't resend it).
+    await AppleSignInProfileCache.writeFromCredential(
+      appleUserIdentifier: userId,
+      email: credential.email?.trim(),
+      fullName: nameFromApple.isNotEmpty ? nameFromApple : null,
+    );
 
     return SocialAppleAccount(
       providerUserId: 'apple|$userId',
       email: email,
       fullName: fullName,
     );
+  }
+
+  /// True when [email] is our API placeholder (not a real Apple relay address).
+  static bool _isPlaceholderAppleEmail(String email) {
+    final e = email.trim().toLowerCase();
+    return e.endsWith('@example.com') && e.startsWith('apple');
+  }
+
+  /// Short RFC-shaped placeholder when Apple omits email on repeat sign-in.
+  /// Uniqueness: deterministic hash of Apple `userIdentifier` (backend keys on `providerUserId`).
+  static String _syntheticAppleEmail(String appleUserIdentifier) {
+    final safe = appleUserIdentifier
+        .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+        .toLowerCase();
+    if (safe.isEmpty) return 'apple.unknown@example.com';
+    var h = 0x811c9dc5;
+    for (final u in safe.codeUnits) {
+      h ^= u;
+      h = (h * 0x01000193) & 0x7fffffff;
+    }
+    final tag = h.toRadixString(16).padLeft(8, '0');
+    return 'apple.$tag@example.com';
   }
 }

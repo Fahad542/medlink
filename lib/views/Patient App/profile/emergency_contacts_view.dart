@@ -4,6 +4,7 @@ import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/utils/utils.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class EmergencyContactsView extends StatefulWidget {
@@ -244,91 +245,221 @@ class _EmergencyContactsViewState extends State<EmergencyContactsView> {
           padding: const EdgeInsets.all(20),
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
-            // Banner
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.07),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.red.withOpacity(0.12)),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.info_outline_rounded, color: Colors.red, size: 18),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      "Your emergency contacts will be notified immediately when you trigger the SOS alert.",
-                      style: GoogleFonts.inter(color: Colors.red[800], fontSize: 12, height: 1.5, fontWeight: FontWeight.w500),
+            if (_isLoading)
+              _buildPageLoadingShimmer()
+            else ...[
+              // Banner
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.red.withValues(alpha: 0.07),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.12)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.info_outline_rounded, color: Colors.red, size: 18),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        "Your emergency contacts will be notified immediately when you trigger the SOS alert.",
+                        style: GoogleFonts.inter(color: Colors.red[800], fontSize: 12, height: 1.5, fontWeight: FontWeight.w500),
+                      ),
                     ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Quick Actions
+              Text("Quick Actions", style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey[800])),
+              const SizedBox(height: 10),
+              InkWell(
+                onTap: () => _showContactSheet(),
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.08), blurRadius: 15, offset: const Offset(0, 4))],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), shape: BoxShape.circle),
+                        child: const Icon(Icons.add_rounded, color: AppColors.primary, size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Text("Add New Contact", style: GoogleFonts.inter(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14)),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              Row(
+                children: [
+                  Text(
+                    "Saved Contacts (${_contacts.length})",
+                    style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey[800]),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 20),
+              const SizedBox(height: 12),
 
-            // Quick Actions
-            Text("Quick Actions", style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey[800])),
-            const SizedBox(height: 10),
-            InkWell(
-              onTap: () => _showContactSheet(),
+              if (_contacts.isEmpty)
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      children: [
+                        Icon(Icons.contact_emergency_outlined, size: 48, color: Colors.grey[300]),
+                        const SizedBox(height: 12),
+                        Text("No emergency contacts saved", style: GoogleFonts.inter(color: Colors.grey)),
+                        const SizedBox(height: 6),
+                        Text("Tap 'Add New Contact' to get started", style: GoogleFonts.inter(color: Colors.grey[400], fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                ..._contacts.map((contact) => _buildContactCard(contact)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPageLoadingShimmer() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Shimmer.fromColors(
+          baseColor: Colors.grey[200]!,
+          highlightColor: Colors.grey[50]!,
+          child: Container(
+            width: double.infinity,
+            height: 72,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Shimmer.fromColors(
+          baseColor: Colors.grey[200]!,
+          highlightColor: Colors.grey[50]!,
+          child: Container(
+            height: 14,
+            width: 110,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Shimmer.fromColors(
+          baseColor: Colors.grey[200]!,
+          highlightColor: Colors.grey[50]!,
+          child: Container(
+            width: double.infinity,
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.white,
               borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        // Contact cards placeholder
+        ...List.generate(
+          3,
+          (index) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Shimmer.fromColors(
+              baseColor: Colors.grey[200]!,
+              highlightColor: Colors.grey[50]!,
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.08), blurRadius: 15, offset: const Offset(0, 4))],
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), shape: BoxShape.circle),
-                      child: const Icon(Icons.add_rounded, color: AppColors.primary, size: 20),
+                      width: 44,
+                      height: 44,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            height: 14,
+                            width: 120,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            height: 12,
+                            width: 100,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            height: 10,
+                            width: 70,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
                     ),
                     const SizedBox(width: 10),
-                    Text("Add New Contact", style: GoogleFonts.inter(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14)),
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 24),
-
-            Row(
-              children: [
-                Text(
-                  "Saved Contacts (${_contacts.length})",
-                  style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey[800]),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            if (_isLoading)
-              const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator(color: AppColors.primary)))
-            else if (_contacts.isEmpty)
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    children: [
-                      Icon(Icons.contact_emergency_outlined, size: 48, color: Colors.grey[300]),
-                      const SizedBox(height: 12),
-                      Text("No emergency contacts saved", style: GoogleFonts.inter(color: Colors.grey)),
-                      const SizedBox(height: 6),
-                      Text("Tap 'Add New Contact' to get started", style: GoogleFonts.inter(color: Colors.grey[400], fontSize: 12)),
-                    ],
-                  ),
-                ),
-              )
-            else
-              ..._contacts.map((contact) => _buildContactCard(contact)),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 

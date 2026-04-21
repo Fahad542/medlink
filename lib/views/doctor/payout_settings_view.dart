@@ -4,6 +4,7 @@ import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:medlink/utils/utils.dart';
 
 class PayoutSettingsView extends StatefulWidget {
   const PayoutSettingsView({super.key});
@@ -12,33 +13,28 @@ class PayoutSettingsView extends StatefulWidget {
   State<PayoutSettingsView> createState() => _PayoutSettingsViewState();
 }
 
-class _PayoutSettingsViewState extends State<PayoutSettingsView> with SingleTickerProviderStateMixin {
+class _PayoutSettingsViewState extends State<PayoutSettingsView> {
   final ApiServices _apiServices = ApiServices();
-  late TabController _tabController;
   final _bankNameController = TextEditingController();
   final _accountNameController = TextEditingController();
   final _accountNumberController = TextEditingController();
   final _swiftCodeController = TextEditingController();
 
-  final _mobileNumberController = TextEditingController();
   bool _isLoading = false;
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _loadPayoutAccount();
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     _bankNameController.dispose();
     _accountNameController.dispose();
     _accountNumberController.dispose();
     _swiftCodeController.dispose();
-    _mobileNumberController.dispose();
     super.dispose();
   }
 
@@ -70,9 +66,7 @@ class _PayoutSettingsViewState extends State<PayoutSettingsView> with SingleTick
       }
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to load payout account')),
-      );
+      Utils.toastMessage(context, 'Unable to load payout account', isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -85,8 +79,10 @@ class _PayoutSettingsViewState extends State<PayoutSettingsView> with SingleTick
     final expiryRaw = _swiftCodeController.text.trim();
 
     if (name.isEmpty || number.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Account name and card number are required')),
+      Utils.toastMessage(
+        context,
+        'Account name and card number are required',
+        isError: true,
       );
       return;
     }
@@ -113,18 +109,14 @@ class _PayoutSettingsViewState extends State<PayoutSettingsView> with SingleTick
       final response = await _apiServices.upsertDoctorPayoutAccount(payload);
       if (response != null && response['success'] == true) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Payout account saved')),
-        );
+        Utils.toastMessage(context, 'Payout account saved');
         Navigator.pop(context);
       } else {
         throw Exception('Failed');
       }
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to save payout account')),
-      );
+      Utils.toastMessage(context, 'Unable to save payout account', isError: true);
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -135,84 +127,16 @@ class _PayoutSettingsViewState extends State<PayoutSettingsView> with SingleTick
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: const CustomAppBar(title: "Payout Settings"),
-      body: Column(
-        children: [
-          const SizedBox(height: 20),
-          // Custom Tab Bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Container(
-              height: 50,
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: TabBar(
-                controller: _tabController,
-                dividerColor: Colors.transparent, // Remove underlining line
-                indicator: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                labelColor: Colors.white,
-                unselectedLabelColor: Colors.grey[600],
-                labelStyle: GoogleFonts.inter(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-                tabs: const [
-                  Tab(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: Text("Bank Account"),
-                    ),
-                  ),
-                  Tab(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: Text("Mobile Money"),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildBankForm(),
-                      _buildMobileForm(),
-                    ],
-                  ),
-          ),
-        ],
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _buildBankForm(),
     );
   }
 
   Widget _buildBankForm() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+      physics: const ClampingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -223,70 +147,12 @@ class _PayoutSettingsViewState extends State<PayoutSettingsView> with SingleTick
           _buildTextField("Account Number", "Enter account number", _accountNumberController, Icons.numbers_rounded, isNumber: true),
           const SizedBox(height: 20),
           _buildTextField("SWIFT / BIC Code (Optional)", "Enter code", _swiftCodeController, Icons.code_rounded),
-          
+
           const SizedBox(height: 48),
           CustomButton(
             text: _isSaving ? "Saving..." : "Save Bank Details",
             isLoading: _isSaving,
             onPressed: _saveBankDetails,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMobileForm() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      physics: const BouncingScrollPhysics(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF4CAF50).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF4CAF50).withOpacity(0.3)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.phone_android_rounded, color: Color(0xFF4CAF50), size: 20),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    "Payments will be sent to your registered M-PESA number.",
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF2E7D32),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          _buildTextField("M-PESA Number", "e.g. +254 700 000 000", _mobileNumberController, Icons.phone_rounded, isNumber: true),
-          
-          const SizedBox(height: 48),
-          CustomButton(
-            text: "Save M-PESA Details",
-            backgroundColor: const Color(0xFF4CAF50),
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Mobile money details saved successfully")),
-              );
-            },
           ),
         ],
       ),

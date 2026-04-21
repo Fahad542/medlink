@@ -19,6 +19,7 @@ class DoctorModel {
   final int sessionDuration;
   final List<dynamic> rawAvailability;
   final int totalReviews;
+  final int totalPatients;
   final List<Map<String, dynamic>> recentReviews;
   final int patientsCount;
 
@@ -40,6 +41,7 @@ class DoctorModel {
     this.sessionDuration = 30,
     this.rawAvailability = const [],
     this.totalReviews = 0,
+    this.totalPatients = 0,
     this.recentReviews = const [],
     this.patientsCount = 0,
   });
@@ -113,9 +115,21 @@ class DoctorModel {
       parsedTotalReviews = parsedRecentReviewsRaw.length;
     }
 
-    int parsedPatientsCount = int.tryParse(getField('patientsCount')?.toString() ?? 
-        getField('totalPatients')?.toString() ?? 
-        getField('patientCount')?.toString() ?? '0') ?? 0;
+    int parsedTotalPatients =
+        int.tryParse(getField('totalPatients')?.toString() ?? '0') ?? 0;
+    if (parsedTotalPatients == 0) {
+      parsedTotalPatients = int.tryParse(
+              getField('patientsCount')?.toString() ??
+                  getField('totalPatientCount')?.toString() ??
+                  '0') ??
+          0;
+    }
+    int parsedPatientsCount = int.tryParse(
+            getField('patientsCount')?.toString() ??
+                getField('totalPatients')?.toString() ??
+                getField('patientCount')?.toString() ??
+                '0') ??
+        0;
 
     String extractTime(bool isStart) {
       if (rawAvailability.isEmpty) return isStart ? "09:00 AM" : "05:00 PM";
@@ -202,6 +216,7 @@ class DoctorModel {
           30,
       rawAvailability: rawAvailability,
       totalReviews: parsedTotalReviews,
+      totalPatients: parsedTotalPatients,
       recentReviews: parsedRecentReviews,
       patientsCount: parsedPatientsCount,
     );
@@ -226,6 +241,7 @@ class DoctorModel {
       'sessionDuration': sessionDuration,
       'rawAvailability': rawAvailability,
       'totalReviews': totalReviews,
+      'totalPatients': totalPatients,
       'recentReviews': recentReviews,
       'patientsCount': patientsCount,
     };

@@ -17,6 +17,7 @@ import 'package:medlink/utils/utils.dart';
 import 'package:medlink/utils/gps_coord.dart';
 import 'package:medlink/utils/trip_driver_location.dart';
 import 'package:medlink/utils/vehicle_map_marker.dart';
+import 'package:medlink/core/constants/sos_constants.dart';
 
 class AmbulanceTrackingView extends StatefulWidget {
   final AmbulanceModel ambulance;
@@ -162,6 +163,9 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
       case 'REQUESTED':
         return 'Trip is being confirmed';
       default:
+        if (sosSt == 'EXPIRED') {
+          return SosConstants.noAmbulanceDriverMessage;
+        }
         if (sosSt == 'OPEN') return 'Searching for the nearest ambulance';
         if (sosSt == 'ASSIGNED') return 'Live location updates below';
         return 'Live tracking';
@@ -808,11 +812,10 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                                 widget
                                                     .ambulance.profilePhotoUrl);
                                       } else {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          const SnackBar(
-                                              content: Text(
-                                                  "Driver contact not available")),
+                                        Utils.toastMessage(
+                                          context,
+                                          "Driver contact not available",
+                                          isError: true,
                                         );
                                       }
                                     },

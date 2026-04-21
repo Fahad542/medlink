@@ -53,6 +53,7 @@ class DoctorAppointmentsViewModel extends ChangeNotifier {
         if (data != null) {
           _upcomingAppointments =
               data.map((item) => AppointmentModel.fromJson(item)).toList();
+          AppointmentModel.sortByCreatedAtDescending(_upcomingAppointments);
         } else {
           _upcomingAppointments = [];
         }
@@ -71,6 +72,7 @@ class DoctorAppointmentsViewModel extends ChangeNotifier {
         if (data != null) {
           _pastAppointments =
               data.map((item) => AppointmentModel.fromJson(item)).toList();
+          AppointmentModel.sortByCreatedAtDescending(_pastAppointments);
         } else {
           _pastAppointments = [];
         }
@@ -89,6 +91,7 @@ class DoctorAppointmentsViewModel extends ChangeNotifier {
         if (data != null) {
           _cancelledAppointments =
               data.map((item) => AppointmentModel.fromJson(item)).toList();
+          AppointmentModel.sortByCreatedAtDescending(_cancelledAppointments);
         } else {
           _cancelledAppointments = [];
         }
@@ -96,20 +99,6 @@ class DoctorAppointmentsViewModel extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint("Error fetching cancelled doctor appointments: $e");
-    }
-  }
-
-  Future<bool> approveAppointment(String id) async {
-    try {
-      final response = await _apiServices.approveAppointment(id);
-      if (response != null && response['success'] == true) {
-        await fetchAllAppointments();
-        return true;
-      }
-      return false;
-    } catch (e) {
-      debugPrint("Error approving appointment: $e");
-      return false;
     }
   }
 

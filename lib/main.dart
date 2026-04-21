@@ -90,7 +90,10 @@ class MedLinkApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => RegisterViewModel()),
         ChangeNotifierProvider(
             create: (_) => UserViewModel()), // Session Management
-        ChangeNotifierProvider(create: (_) => HomeViewModel()),
+        ChangeNotifierProvider(
+            create: (context) => HomeViewModel(
+                  Provider.of<UserViewModel>(context, listen: false),
+                )),
         ChangeNotifierProvider(create: (_) => EmergencyViewModel()),
         ChangeNotifierProvider(create: (_) => DoctorViewModel()),
         ChangeNotifierProvider(create: (_) => AppointmentViewModel()),
@@ -103,7 +106,10 @@ class MedLinkApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => DoctorAppointmentsViewModel()),
         ChangeNotifierProvider(create: (_) => DoctorPatientsViewModel()),
         ChangeNotifierProvider(create: (_) => PrescriptionViewModel()),
-        ChangeNotifierProvider(create: (_) => DoctorDashboardViewModel()),
+        ChangeNotifierProvider(
+            create: (context) => DoctorDashboardViewModel(
+                  Provider.of<UserViewModel>(context, listen: false),
+                )),
         ChangeNotifierProvider(create: (_) => CallViewModel()),
         ChangeNotifierProvider.value(value: WaitingRoomSocketService.instance),
         ChangeNotifierProvider.value(value: CallSocketService.instance),

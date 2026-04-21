@@ -72,7 +72,7 @@ class PrescriptionViewModel extends ChangeNotifier {
       }
       return false;
     } catch (e) {
-      Utils.toastMessage(context, e.toString(), isError: true);
+      Utils.toastError(context, e);
       return false;
     } finally {
       _isLoading = false;

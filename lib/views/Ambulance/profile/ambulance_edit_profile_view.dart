@@ -7,6 +7,7 @@ import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
+import 'package:medlink/utils/utils.dart';
 
 class AmbulanceEditProfileView extends StatefulWidget {
   /// Initial values from driver profile (passed from profile screen).
@@ -206,16 +207,12 @@ class _AmbulanceEditProfileViewState extends State<AmbulanceEditProfileView> {
       );
 
       if (mounted) {
+        Utils.toastMessage(context, "Profile updated successfully!");
         Navigator.pop(context, true); // Return true to refresh
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Profile updated successfully!")),
-        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Update failed: $e")),
-        );
+        Utils.toastError(context, e);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -252,14 +249,14 @@ class _AmbulanceEditProfileViewState extends State<AmbulanceEditProfileView> {
           child: TextField(
             controller: controller,
             keyboardType: keyboardType,
-            style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600),
+            style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w400),
             decoration: InputDecoration(
               filled: true,
               fillColor: Colors.white,
               hintText: "Enter $label",
               hintStyle: GoogleFonts.inter(
                   color: Colors.grey[400],
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w400,
                   fontSize: 14),
               prefixIcon: Padding(
                 padding: const EdgeInsets.all(10),

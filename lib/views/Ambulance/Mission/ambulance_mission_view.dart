@@ -15,6 +15,7 @@ import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:medlink/utils/gps_coord.dart';
 import 'package:medlink/utils/vehicle_map_marker.dart';
+import 'package:medlink/utils/utils.dart';
 
 class AmbulanceMissionView extends StatefulWidget {
   const AmbulanceMissionView({super.key});
@@ -544,11 +545,10 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
                                                 ),
                                               );
                                             } else {
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
-                                                const SnackBar(
-                                                    content: Text(
-                                                        "Patient contact not available")),
+                                              Utils.toastMessage(
+                                                context,
+                                                "Patient contact not available",
+                                                isError: true,
                                               );
                                             }
                                           },
@@ -583,11 +583,10 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
                                                       patientName,
                                                       null);
                                             } else {
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
-                                                const SnackBar(
-                                                    content: Text(
-                                                        "Patient contact not available")),
+                                              Utils.toastMessage(
+                                                context,
+                                                "Patient contact not available",
+                                                isError: true,
                                               );
                                             }
                                           },

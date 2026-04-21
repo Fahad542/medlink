@@ -95,15 +95,44 @@ class _PrescriptionBottomSheetState extends State<PrescriptionBottomSheet> {
     setState(() => _isLoading = true);
 
     try {
+      final bpSystolic = int.tryParse(_bpSystolicCtrl.text.trim());
+      final bpDiastolic = int.tryParse(_bpDiastolicCtrl.text.trim());
+      final pulse = int.tryParse(_pulseCtrl.text.trim());
+      final temperature = double.tryParse(_tempCtrl.text.trim());
+      final weight = double.tryParse(_weightCtrl.text.trim());
+
+      final errors = <String>[];
+      if (bpSystolic != null && (bpSystolic < 50 || bpSystolic > 250)) {
+        errors.add('Systolic BP must be between 50 and 250');
+      }
+      if (bpDiastolic != null && (bpDiastolic < 30 || bpDiastolic > 160)) {
+        errors.add('Diastolic BP must be between 30 and 160');
+      }
+      if (pulse != null && (pulse < 30 || pulse > 250)) {
+        errors.add('Pulse must be between 30 and 250');
+      }
+      if (temperature != null && (temperature < 25 || temperature > 115)) {
+        errors.add('Temperature must be between 25 and 115');
+      }
+      if (weight != null && (weight < 1 || weight > 500)) {
+        errors.add('Weight must be between 1 and 500');
+      }
+      if (errors.isNotEmpty) {
+        if (mounted) {
+          Utils.toastMessage(context, errors.join(', '), isError: true);
+        }
+        return;
+      }
+
       final Map<String, dynamic> data = {
         "chiefComplaint": _complaintCtrl.text.trim(),
         "provisionalDiagnosis": _diagnosisCtrl.text.trim(),
         "vitals": {
-          "bpSystolic": int.tryParse(_bpSystolicCtrl.text),
-          "bpDiastolic": int.tryParse(_bpDiastolicCtrl.text),
-          "pulse": int.tryParse(_pulseCtrl.text),
-          "temperatureC": double.tryParse(_tempCtrl.text),
-          "weightKg": double.tryParse(_weightCtrl.text),
+          "bpSystolic": bpSystolic,
+          "bpDiastolic": bpDiastolic,
+          "pulse": pulse,
+          "temperatureC": temperature,
+          "weightKg": weight,
         },
         "tests": _labTests.map((test) => {"testName": test, "notes": null}).toList(),
         "medications": _medicines.map((med) => {
@@ -127,7 +156,7 @@ class _PrescriptionBottomSheetState extends State<PrescriptionBottomSheet> {
       }
     } catch (e) {
       if (mounted) {
-        Utils.toastMessage(context, e.toString(), isError: true);
+        Utils.toastError(context, e);
       }
     } finally {
       if (mounted) {

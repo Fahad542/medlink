@@ -42,6 +42,7 @@ class AppointmentViewModel extends ChangeNotifier {
           fetched =
               data.map((json) => AppointmentModel.fromJson(json)).toList();
         }
+        AppointmentModel.sortByCreatedAtDescending(fetched);
         _upcomingAppointments = fetched;
       } else if (status == 'cancelled') {
         final response = await _apiService.getCancelledAppointments();
@@ -50,6 +51,7 @@ class AppointmentViewModel extends ChangeNotifier {
           fetched =
               data.map((json) => AppointmentModel.fromJson(json)).toList();
         }
+        AppointmentModel.sortByCreatedAtDescending(fetched);
         _cancelledAppointments = fetched;
       } else if (status == 'past') {
         final response = await _apiService.getPastAppointments();
@@ -58,6 +60,7 @@ class AppointmentViewModel extends ChangeNotifier {
           fetched =
               data.map((json) => AppointmentModel.fromJson(json)).toList();
         }
+        AppointmentModel.sortByCreatedAtDescending(fetched);
         _pastAppointments = fetched;
       }
     } catch (e) {
@@ -65,6 +68,25 @@ class AppointmentViewModel extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  /// Calls PATCH /patient/appointments/:id/confirm then refetches upcoming list.
+  Future<bool> confirmPatientAppointment(
+    String appointmentId,
+    String patientId,
+  ) async {
+    try {
+      final response =
+          await _apiService.confirmPatientAppointment(appointmentId);
+      final ok = response != null && response['success'] == true;
+      if (ok) {
+        await fetchAppointments(patientId, status: 'upcoming');
+      }
+      return ok;
+    } catch (e) {
+      debugPrint('Error confirming appointment: $e');
+      return false;
     }
   }
 
@@ -92,7 +114,8 @@ class AppointmentViewModel extends ChangeNotifier {
             _upcomingAppointments.indexWhere((a) => a.id == appointmentId);
         if (upcomingIndex != -1) {
           final appointment = _upcomingAppointments.removeAt(upcomingIndex);
-          _pastAppointments.insert(0, appointment);
+          _pastAppointments.add(appointment);
+          AppointmentModel.sortByCreatedAtDescending(_pastAppointments);
         }
         notifyListeners();
         return true;
@@ -113,6 +136,7 @@ class AppointmentViewModel extends ChangeNotifier {
         final List<dynamic> data = response['data'];
         _upcomingAppointments =
             data.map((json) => AppointmentModel.fromJson(json)).toList();
+        AppointmentModel.sortByCreatedAtDescending(_upcomingAppointments);
       }
     } catch (e) {
       debugPrint("Error loading upcoming appointments: $e");

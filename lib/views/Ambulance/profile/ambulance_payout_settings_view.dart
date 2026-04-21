@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/widgets/custom_button.dart';
+import 'package:medlink/utils/utils.dart';
 
 class AmbulancePayoutSettingsView extends StatefulWidget {
   const AmbulancePayoutSettingsView({super.key});
@@ -71,8 +72,10 @@ class _AmbulancePayoutSettingsViewState
     final name = _accountNameController.text.trim();
     final number = _cardNumberController.text.trim();
     if (name.isEmpty || number.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Account name and card number are required')),
+      Utils.toastMessage(
+        context,
+        'Account name and card number are required',
+        isError: true,
       );
       return;
     }
@@ -100,14 +103,10 @@ class _AmbulancePayoutSettingsViewState
       });
       if (!mounted) return;
       if (ok != null && ok['success'] == true) {
+        Utils.toastMessage(context, 'Payout account saved');
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Payout account saved')),
-        );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unable to save payout account')),
-        );
+        Utils.toastMessage(context, 'Unable to save payout account', isError: true);
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -153,7 +152,7 @@ class _AmbulancePayoutSettingsViewState
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Add payout details before withdrawal requests.',
+                    'Save your payout method for driver earnings.',
                     style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600]),
                   ),
                 ],

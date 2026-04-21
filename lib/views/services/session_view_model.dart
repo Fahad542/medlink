@@ -5,6 +5,24 @@ import 'package:medlink/models/user_model.dart';
 import 'package:medlink/models/doctor_model.dart';
 import 'package:medlink/models/ambulance_model.dart';
 import 'package:medlink/models/user_login_model.dart';
+import 'package:medlink/utils/jwt_user_id.dart';
+
+UserLoginModel _mergeSessionUserIdFromJwt(UserLoginModel session) {
+  final user = session.data?.user;
+  final token = session.data?.accessToken;
+  if (user == null || token == null || token.isEmpty) return session;
+  if (user.id != null) return session;
+  final jwtId = readAuthUserIdFromJwt(token);
+  if (jwtId == null) return session;
+  final merged = Map<String, dynamic>.from(user.toJson())..['id'] = jwtId;
+  return UserLoginModel(
+    success: session.success,
+    data: Data(
+      accessToken: session.data!.accessToken,
+      user: User.fromJson(merged),
+    ),
+  );
+}
 
 /// Manages user session and auth token. Persists to SharedPreferences so the user
 /// stays logged in after closing the app until they log out.
@@ -24,6 +42,26 @@ class UserViewModel with ChangeNotifier {
   String? get role => _role;
   String? get accessToken => _accessToken;
 
+  /// Debug: prints full `user_session_v2` shape (includes `access_token`).
+  static void printFullSession(String tag, UserLoginModel? session) {
+    if (session == null) {
+      debugPrint('[SESSION][$tag] <null>');
+      return;
+    }
+    try {
+      final text =
+          const JsonEncoder.withIndent('  ').convert(session.toJson());
+      debugPrint('[SESSION][$tag] --- start (chars=${text.length}) ---');
+      const chunk = 900;
+      for (var i = 0; i < text.length; i += chunk) {
+        debugPrint(text.substring(i, i + chunk > text.length ? text.length : i + chunk));
+      }
+      debugPrint('[SESSION][$tag] --- end ---');
+    } catch (e, st) {
+      debugPrint('[SESSION][$tag] encode/print failed: $e\n$st');
+    }
+  }
+
   // Load user from disk on startup
   Future<void> loadUser() async {
     final SharedPreferences sp = await SharedPreferences.getInstance();
@@ -32,13 +70,18 @@ class UserViewModel with ChangeNotifier {
     if (sessionStr != null) {
       try {
         final Map<String, dynamic> data = jsonDecode(sessionStr);
-        _loginSession = UserLoginModel.fromJson(data);
-        _accessToken = _loginSession?.data?.accessToken;
+        var session = UserLoginModel.fromJson(data);
+        final idBefore = session.data?.user?.id;
+        session = _mergeSessionUserIdFromJwt(session);
+        _loginSession = session;
+        _accessToken = session.data?.accessToken;
 
-        // Print token on app startup
-        print("====== APP STARTUP TOKEN ======");
-        print(_accessToken);
-        print("===============================");
+        if (idBefore == null && session.data?.user?.id != null) {
+          await sp.setString(
+              'user_session_v2', jsonEncode(session.toJson()));
+        }
+
+        printFullSession('loadUser(disk→memory)', _loginSession);
 
         _role = _loginSession?.data?.user?.role?.toLowerCase();
 
@@ -65,13 +108,14 @@ class UserViewModel with ChangeNotifier {
   Future<void> saveUserLoginSession(UserLoginModel sessionModel) async {
     final SharedPreferences sp = await SharedPreferences.getInstance();
 
-    _loginSession = sessionModel;
-    _accessToken = sessionModel.data?.accessToken;
-    _role = sessionModel.data?.user?.role?.toLowerCase();
+    final patched = _mergeSessionUserIdFromJwt(sessionModel);
+    _loginSession = patched;
+    _accessToken = patched.data?.accessToken;
+    _role = patched.data?.user?.role?.toLowerCase();
 
     if (_role == 'ambulance') _role = 'driver';
 
-    final userJson = sessionModel.data?.user?.toJson() ?? {};
+    final userJson = patched.data?.user?.toJson() ?? {};
     if (_role == 'patient') {
       _patient = UserModel.fromJson(userJson);
     } else if (_role == 'doctor') {
@@ -80,7 +124,8 @@ class UserViewModel with ChangeNotifier {
       _driver = AmbulanceModel.fromJson(userJson);
     }
 
-    await sp.setString('user_session_v2', jsonEncode(sessionModel.toJson()));
+    await sp.setString('user_session_v2', jsonEncode(patched.toJson()));
+    printFullSession('saveUserLoginSession', _loginSession);
     notifyListeners();
   }
 
@@ -108,16 +153,18 @@ class UserViewModel with ChangeNotifier {
     }
 
     // Wrap everything in UserLoginModel format for consistency
-    final loginModel = UserLoginModel(
+    var loginModel = UserLoginModel(
       success: true,
       data: Data(
         accessToken: _accessToken,
         user: User.fromJson(userJson),
       ),
     );
+    loginModel = _mergeSessionUserIdFromJwt(loginModel);
 
     _loginSession = loginModel;
     await sp.setString('user_session_v2', jsonEncode(loginModel.toJson()));
+    printFullSession('saveUser', _loginSession);
     notifyListeners();
   }
 

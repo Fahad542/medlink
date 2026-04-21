@@ -11,6 +11,7 @@ import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.da
 import 'package:medlink/views/Patient%20App/appointment/appointment_payment_view.dart';
 import 'package:medlink/views/services/settings_view_model.dart';
 import 'package:medlink/views/main/main_screen.dart';
+import 'package:medlink/utils/utils.dart';
 
 class AppointmentDetailsView extends StatelessWidget {
   final DoctorModel doctor;
@@ -191,10 +192,10 @@ class AppointmentDetailsView extends StatelessWidget {
                   final patientId = userViewModel.patient?.id;
 
                   if (patientId == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text(
-                              "Error: User session not found. Please login again.")),
+                    Utils.toastMessage(
+                      context,
+                      "User session not found. Please login again.",
+                      isError: true,
                     );
                     return;
                   }
@@ -238,10 +239,10 @@ class AppointmentDetailsView extends StatelessWidget {
                       _showFinalSuccessDialog(context);
                     }
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text(result['message'] ??
-                              "Failed to initiate payment.")),
+                    Utils.toastMessage(
+                      context,
+                      result['message'] ?? "Failed to initiate payment.",
+                      isError: true,
                     );
                   }
                 }),
@@ -273,7 +274,7 @@ class AppointmentDetailsView extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               Text(
-                "Booking Confirmed!",
+                "Payment successful",
                 style: GoogleFonts.inter(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -282,7 +283,7 @@ class AppointmentDetailsView extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                "Your appointment has been successfully booked and paid for. You can track it in your appointments list.",
+                "Your visit is booked. Open Appointments and tap Confirm visit to finalize with your doctor.",
                 style: GoogleFonts.inter(
                     fontSize: 14, color: Colors.grey[600], height: 1.5),
                 textAlign: TextAlign.center,

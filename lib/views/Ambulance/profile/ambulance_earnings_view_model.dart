@@ -5,6 +5,7 @@ class AmbulanceEarningsViewModel extends ChangeNotifier {
   final ApiServices _apiServices = ApiServices();
 
   num _totalBalance = 0;
+  num _availableToWithdraw = 0;
   num _earningsToday = 0;
   num _earningsThisWeek = 0;
   String _currency = 'CFA';
@@ -17,13 +18,15 @@ class AmbulanceEarningsViewModel extends ChangeNotifier {
 
   bool get isLoading => _isLoading;
   bool get isLoadingTransactions => _isLoadingTransactions;
-  List<Map<String, dynamic>> get transactions =>
-      List.unmodifiable(_transactions);
+  num get totalBalance => _totalBalance;
+  num get availableToWithdraw => _availableToWithdraw;
+  List<Map<String, dynamic>> get transactions => List.unmodifiable(_transactions);
   String? get maskedPayoutCard => _maskedPayoutCard;
   bool get hasPayoutAccount => _hasPayoutAccount;
 
   String get currency => _currency;
   String get totalBalanceFormatted => _formatAmount(_totalBalance);
+  String get availableToWithdrawFormatted => _formatAmount(_availableToWithdraw);
   String get earningsTodayFormatted => _formatAmount(_earningsToday);
   String get earningsThisWeekFormatted => _formatAmount(_earningsThisWeek);
 
@@ -41,10 +44,14 @@ class AmbulanceEarningsViewModel extends ChangeNotifier {
     return '$_currency $formattedValue';
   }
 
-  Future<void> fetchEarningsSummary() async {
-    _isLoading = true;
-    _isLoadingTransactions = true;
-    notifyListeners();
+  /// [silent]: when true (e.g. pull-to-refresh), keep the current UI visible and
+  /// only show the [RefreshIndicator] spinner instead of the full-screen shimmer.
+  Future<void> fetchEarningsSummary({bool silent = false}) async {
+    if (!silent) {
+      _isLoading = true;
+      _isLoadingTransactions = true;
+      notifyListeners();
+    }
     try {
       await Future.wait([
         _fetchSummary(),
@@ -52,8 +59,10 @@ class AmbulanceEarningsViewModel extends ChangeNotifier {
         _fetchPayoutAccount(),
       ]);
     } finally {
-      _isLoading = false;
-      _isLoadingTransactions = false;
+      if (!silent) {
+        _isLoading = false;
+        _isLoadingTransactions = false;
+      }
       notifyListeners();
     }
   }
@@ -65,9 +74,14 @@ class AmbulanceEarningsViewModel extends ChangeNotifier {
         final data = response['data'];
         if (data is Map) {
           final balance = data['totalBalance'];
-          _totalBalance = balance is num
-              ? balance
-              : (num.tryParse(balance?.toString() ?? '0') ?? 0);
+          _totalBalance = balance is num ? balance : (num.tryParse(balance?.toString() ?? '0') ?? 0);
+          final atw = data['availableToWithdraw'];
+          if (atw != null) {
+            _availableToWithdraw =
+                atw is num ? atw : (num.tryParse(atw.toString()) ?? _totalBalance);
+          } else {
+            _availableToWithdraw = _totalBalance;
+          }
           final today = data['earningsToday'];
           _earningsToday = today is num
               ? today

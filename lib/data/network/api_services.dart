@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/data/network/network_api_services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -136,6 +137,18 @@ class ApiServices {
   Future<dynamic> getMySos() async {
     try {
       return await _apiServices.getGetApiResponse(AppUrl.createSos);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Re-open search for an EXPIRED SOS (same id). Backend: `POST /patient/sos/:id/retry`
+  Future<dynamic> retryPatientSos(String sosId) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        '${AppUrl.createSos}/$sosId/retry',
+        jsonEncode({}),
+      );
     } catch (e) {
       rethrow;
     }
@@ -518,13 +531,16 @@ class ApiServices {
     String phone = '',
   }) async {
     try {
+      // Never send "" for phone: a unique `phone` column allows only one "" row;
+      // social sign-in has no number — send null so DB can store NULL (many NULLs OK).
+      final trimmedPhone = phone.trim();
       final body = <String, dynamic>{
         'provider': provider,
         'providerUserId': providerUserId,
         'role': role,
         'email': email,
         'fullName': fullName,
-        'phone': phone.trim().isNotEmpty ? phone.trim() : '',
+        'phone': trimmedPhone.isEmpty ? null : trimmedPhone,
       };
       return await _apiServices.getPostApiResponseNoAuth(
         AppUrl.socialLogin,
@@ -608,6 +624,17 @@ class ApiServices {
     try {
       return await _apiServices.getPostApiResponse(
           AppUrl.doctorRegisterStep1, jsonEncode(data));
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> doctorCheckEmailAvailability(String email) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        AppUrl.doctorCheckEmailAvailability,
+        jsonEncode({'email': email}),
+      );
     } catch (e) {
       rethrow;
     }
@@ -878,6 +905,18 @@ class ApiServices {
     }
   }
 
+  /// Marks the 1:1 thread with [peerId] (other User.id) as read for the current user.
+  Future<void> markChatConversationRead(int peerId) async {
+    try {
+      await _apiServices.getPostApiResponse(
+        AppUrl.markChatConversationRead,
+        jsonEncode({'peerId': peerId}),
+      );
+    } catch (e) {
+      debugPrint('markChatConversationRead: $e');
+    }
+  }
+
   Future<dynamic> uploadImage(File file) async {
     try {
       return await _apiServices.getPostMultipartApiResponse(
@@ -940,6 +979,17 @@ class ApiServices {
     try {
       final url =
           '${AppUrl.baseUrl}/patient/appointments/$appointmentId/complete';
+      return await _apiServices.getPatchApiResponse(url, {});
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Patient-only: finalizes a paid PENDING booking (CONFIRMED + PAID + earnings split on server).
+  Future<dynamic> confirmPatientAppointment(String appointmentId) async {
+    try {
+      final url =
+          '${AppUrl.bookAppointments}/$appointmentId/confirm';
       return await _apiServices.getPatchApiResponse(url, {});
     } catch (e) {
       rethrow;
@@ -1188,15 +1238,6 @@ class ApiServices {
     }
   }
 
-  Future<dynamic> approveAppointment(String id) async {
-    try {
-      return await _apiServices.getPatchApiResponse(
-          "${AppUrl.doctorAppointmentActions}/$id/approve", {});
-    } catch (e) {
-      rethrow;
-    }
-  }
-
   Future<dynamic> doctorCancelAppointment(String id, String reason) async {
     try {
       return await _apiServices.getPatchApiResponse(
@@ -1335,6 +1376,45 @@ class ApiServices {
         imageFile,
         fileKey: 'coverImage',
       );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> updateDoctorArticle({
+    required int articleId,
+    required String title,
+    required String category,
+    required String contentHtml,
+    required bool isPublished,
+    String? imagePath,
+  }) async {
+    try {
+      final Map<String, String> data = {
+        'title': title,
+        'category': category,
+        'contentHtml': contentHtml,
+        'isPublished': isPublished.toString(),
+      };
+      File? imageFile;
+      if (imagePath != null) {
+        imageFile = File(imagePath);
+      }
+      return await _apiServices.getPatchMultipartApiResponse(
+        '${AppUrl.doctorArticleById}/$articleId',
+        data,
+        imageFile,
+        fileKey: 'coverImage',
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> deleteDoctorArticle(int articleId) async {
+    try {
+      return await _apiServices
+          .getDeleteApiResponse('${AppUrl.doctorArticleById}/$articleId');
     } catch (e) {
       rethrow;
     }

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/views/services/settings_view_model.dart';
 import 'package:provider/provider.dart';
+import 'package:medlink/utils/utils.dart';
 
 class DoctorStep5PracticeDetails extends StatefulWidget {
   final VoidCallback onNext;
@@ -272,9 +273,11 @@ class _DoctorStep5PracticeDetailsState extends State<DoctorStep5PracticeDetails>
                 if (_formKey.currentState!.validate() && _selectedDays.isNotEmpty) {
                   widget.onNext();
                 } else if (_selectedDays.isEmpty) {
-                   ScaffoldMessenger.of(context).showSnackBar(
-                     const SnackBar(content: Text("Please select at least one day")),
-                   );
+                  Utils.toastMessage(
+                    context,
+                    "Please select at least one day",
+                    isError: true,
+                  );
                 }
               },
             ),

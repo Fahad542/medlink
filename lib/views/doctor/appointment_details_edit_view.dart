@@ -3,6 +3,7 @@ import 'package:medlink/core/constants/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/models/appointment_model.dart';
 import 'package:medlink/views/Patient App/consultation/video_call_view.dart';
+import 'package:medlink/utils/utils.dart';
 
 class AppointmentDetailsEditView extends StatefulWidget {
   final AppointmentModel appointment;
@@ -164,9 +165,7 @@ class _AppointmentDetailsEditViewState extends State<AppointmentDetailsEditView>
                   onPressed: () {
                     // Save logic would go here
                     setState(() => _isEditing = false);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Changes saved successfully!")),
-                    );
+                    Utils.toastMessage(context, "Changes saved successfully!");
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,

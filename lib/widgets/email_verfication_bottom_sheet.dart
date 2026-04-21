@@ -115,7 +115,8 @@ class _EmailVerificationSheetState extends State<EmailVerificationSheet> {
                 controller: widget.emailController,
                 validator: (v) {
                   if (v == null || v.isEmpty) return "Required";
-                  if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                  // Allow common email aliases such as name+tag@gmail.com
+                  if (!RegExp(r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$")
                       .hasMatch(v)) {
                     return "Invalid email address";
                   }
@@ -129,6 +130,7 @@ class _EmailVerificationSheetState extends State<EmailVerificationSheet> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 16),
                       child: Container(
+                        width: double.infinity,
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
@@ -137,31 +139,58 @@ class _EmailVerificationSheetState extends State<EmailVerificationSheet> {
                           border: Border.all(color: Colors.amber.shade200),
                         ),
                         child: Row(
-                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.bug_report_outlined,
                                 size: 16, color: Colors.amber.shade800),
                             const SizedBox(width: 8),
-                            Text(
-                              "Debug OTP: ${widget.debugOtp ?? 'Checking console...'}",
-                              style: TextStyle(
-                                color: Colors.amber.shade900,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                            Expanded(
+                              child: Text(
+                                "Debug OTP: ${widget.debugOtp ?? 'Checking console...'}",
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.amber.shade900,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
                     ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      for (int i = 0; i < 6; i++) ...[
-                        _buildOtpDigitField(i),
-                        if (i != 5) const SizedBox(width: 10),
-                      ],
-                    ],
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      const int otpLength = 6;
+                      const double minSpacing = 6;
+                      const double maxSpacing = 10;
+                      const double minCellWidth = 38;
+                      const double maxCellWidth = 44;
+
+                      final double totalSlots = otpLength.toDouble();
+                      final double spacingSlots = (otpLength - 1).toDouble();
+                      final double candidateByMax =
+                          (constraints.maxWidth - (spacingSlots * maxSpacing)) /
+                              totalSlots;
+                      final double cellWidth = candidateByMax.clamp(
+                        minCellWidth,
+                        maxCellWidth,
+                      );
+                      final double spacing =
+                          ((constraints.maxWidth - (cellWidth * totalSlots)) /
+                                  spacingSlots)
+                              .clamp(minSpacing, maxSpacing);
+
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          for (int i = 0; i < otpLength; i++) ...[
+                            _buildOtpDigitField(i, width: cellWidth),
+                            if (i != otpLength - 1) SizedBox(width: spacing),
+                          ],
+                        ],
+                      );
+                    },
                   ),
                   if (_otpError != null)
                     Padding(
@@ -226,12 +255,12 @@ class _EmailVerificationSheetState extends State<EmailVerificationSheet> {
     );
   }
 
-  Widget _buildOtpDigitField(int index) {
+  Widget _buildOtpDigitField(int index, {required double width}) {
     bool isFocused = _focusNodes[index].hasFocus;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
-      width: 44,
+      width: width,
       height: 56,
       decoration: BoxDecoration(
         color: Colors.white,

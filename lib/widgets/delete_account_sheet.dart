@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/data/network/api_services.dart';
@@ -27,11 +28,43 @@ class DeleteAccountSheet extends StatefulWidget {
 
 class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
   final ApiServices _apiServices = ApiServices();
-  final TextEditingController _otpController = TextEditingController();
-  
+
+  static const int _otpLength = 6;
+  final List<TextEditingController> _otpControllers =
+      List.generate(_otpLength, (_) => TextEditingController());
+  final List<FocusNode> _otpFocusNodes =
+      List.generate(_otpLength, (_) => FocusNode());
+
   bool _isLoading = false;
   int _step = 1; // 1: Initial Warning, 2: OTP Entry
   String? _debugOtp;
+
+  @override
+  void initState() {
+    super.initState();
+    for (final n in _otpFocusNodes) {
+      n.addListener(() {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
+  String get _otpText => _otpControllers.map((c) => c.text).join();
+
+  void _onOtpDigitEntered(int index, String value) {
+    if (value.isNotEmpty) {
+      if (index < _otpLength - 1) {
+        _otpFocusNodes[index + 1].requestFocus();
+      } else {
+        _otpFocusNodes[index].unfocus();
+      }
+    } else {
+      if (index > 0) {
+        _otpFocusNodes[index - 1].requestFocus();
+      }
+    }
+    setState(() {});
+  }
 
   Future<void> _sendOtp() async {
     setState(() => _isLoading = true);
@@ -45,19 +78,22 @@ class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
           setState(() => _debugOtp = data['otp'].toString());
         }
         Utils.toastMessage(context, 'OTP sent to your registered email/phone');
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _otpFocusNodes[0].requestFocus();
+        });
       } else {
         Utils.toastMessage(context, response['message'] ?? 'Failed to send OTP', isError: true);
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      Utils.toastMessage(context, e.toString(), isError: true);
+      Utils.toastError(context, e);
     }
   }
 
   Future<void> _verifyOtpAndDelete() async {
-    final otp = _otpController.text.trim();
-    if (otp.isEmpty || otp.length < 6) {
-      Utils.toastMessage(context, 'Please enter valid OTP', isError: true);
+    final otp = _otpText.trim();
+    if (otp.length < _otpLength) {
+      Utils.toastMessage(context, 'Please enter the full $_otpLength-digit OTP', isError: true);
       return;
     }
 
@@ -65,7 +101,7 @@ class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
     try {
       final response = await _apiServices.verifyDeleteAccountOtp(otp);
       setState(() => _isLoading = false);
-      
+
       if (response != null && response['success'] == true) {
         Utils.toastMessage(context, 'Account successfully deleted');
         Navigator.pop(context);
@@ -80,8 +116,76 @@ class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      Utils.toastMessage(context, e.toString(), isError: true);
+      Utils.toastError(context, e);
     }
+  }
+
+  @override
+  void dispose() {
+    for (final c in _otpControllers) {
+      c.dispose();
+    }
+    for (final f in _otpFocusNodes) {
+      f.dispose();
+    }
+    super.dispose();
+  }
+
+  Widget _buildOtpDigitField(int index, {required double width}) {
+    final isFocused = _otpFocusNodes[index].hasFocus;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      width: width,
+      height: 56,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: isFocused
+            ? Border.all(color: AppColors.primary, width: 2)
+            : Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          if (isFocused)
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.2),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            )
+          else
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+        ],
+      ),
+      child: Center(
+        child: TextField(
+          controller: _otpControllers[index],
+          focusNode: _otpFocusNodes[index],
+          keyboardType: TextInputType.number,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.inter(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: Colors.black87,
+          ),
+          cursorColor: AppColors.primary,
+          maxLength: 1,
+          showCursor: false,
+          onChanged: (value) => _onOtpDigitEntered(index, value),
+          decoration: const InputDecoration(
+            counterText: '',
+            filled: false,
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            contentPadding: EdgeInsets.zero,
+          ),
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        ),
+      ),
+    );
   }
 
   @override
@@ -137,7 +241,7 @@ class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
             const SizedBox(height: 32),
 
             if (_step == 2) ...[
-               if (kDebugMode && _debugOtp != null)
+              if (kDebugMode && _debugOtp != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: Container(
@@ -164,47 +268,32 @@ class _DeleteAccountSheetState extends State<DeleteAccountSheet> {
                     ),
                   ),
                 ),
-               Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
-                        blurRadius: 15,
-                        offset: const Offset(0, 4),
-                      ),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  const double minSpacing = 6;
+                  const double maxSpacing = 10;
+                  const double maxCellWidth = 44;
+                  const double minCellWidth = 36;
+                  final totalSlots = _otpLength.toDouble();
+                  final spacingSlots = (_otpLength - 1).toDouble();
+                  final candidateByMax =
+                      (constraints.maxWidth - (spacingSlots * maxSpacing)) / totalSlots;
+                  final cellWidth = candidateByMax.clamp(minCellWidth, maxCellWidth);
+                  final spacing = ((constraints.maxWidth - (cellWidth * totalSlots)) / spacingSlots)
+                      .clamp(minSpacing, maxSpacing);
+
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      for (int i = 0; i < _otpLength; i++) ...[
+                        _buildOtpDigitField(i, width: cellWidth),
+                        if (i != _otpLength - 1) SizedBox(width: spacing),
+                      ],
                     ],
-                  ),
-                  child: TextField(
-                    controller: _otpController,
-                    keyboardType: TextInputType.number,
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w400, fontSize: 15, color: Colors.black87),
-                    cursorColor: AppColors.primary,
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.white,
-                      hintText: "Enter 6-digit OTP",
-                      hintStyle: GoogleFonts.inter(color: Colors.grey[500], fontWeight: FontWeight.w400, fontSize: 13),
-                      prefixIcon: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(Icons.security_rounded, color: AppColors.primary, size: 18),
-                        ),
-                      ),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
-                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-                    ),
-                  ),
-                ),
-              ],
+                  );
+                },
+              ),
+            ],
 
             const SizedBox(height: 32),
 

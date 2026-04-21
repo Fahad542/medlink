@@ -9,6 +9,7 @@ import 'package:medlink/views/doctor/Doctor%20profile/doctor_profile_view.dart';
 import 'package:provider/provider.dart';
 import 'package:medlink/views/Patient App/appointment/appointment_viewmodel.dart';
 import 'package:medlink/utils/utils.dart';
+import 'package:medlink/widgets/appointment_schedule_rows.dart';
 import 'package:medlink/data/network/api_services.dart';
 
 import 'package:medlink/views/services/session_view_model.dart';
@@ -24,9 +25,23 @@ class AppointmentInfoCard extends StatelessWidget {
     this.showConfirmationActions = false,
   });
 
-  void _showAppointmentOptions(BuildContext context) {
+  /// When [appointment] is still PENDING, PATCH confirm must succeed before complete.
+  Future<bool> _confirmVisitIfPending(BuildContext rootContext) async {
+    if (appointment.status != AppointmentStatus.pending) return true;
+    final userVM = Provider.of<UserViewModel>(rootContext, listen: false);
+    final patientId = userVM.patient?.id;
+    if (patientId == null || patientId.isEmpty) {
+      Utils.toastMessage(rootContext, 'Please sign in again.', isError: true);
+      return false;
+    }
+    final vm = Provider.of<AppointmentViewModel>(rootContext, listen: false);
+    return vm.confirmPatientAppointment(appointment.id, patientId);
+  }
+
+  void showAppointmentOptions(BuildContext outerContext) {
     showModalBottomSheet(
-      context: context,
+      context: outerContext,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (context) => Container(
@@ -83,9 +98,6 @@ class AppointmentInfoCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-
-            // Pay Now section was here and has been removed as per user request.
-
 
             // View Prescription — only if prescription exists
             if (appointment.prescription != null)
@@ -169,18 +181,36 @@ class AppointmentInfoCard extends StatelessWidget {
                   _showRescheduleDialog(context);
                 },
               ),
-            // Confirm Session — for all appointments that are not already completed or cancelled
+            if (appointment.status == AppointmentStatus.completed)
+              _buildOptionItem(
+                context,
+                icon: Icons.star_rate_rounded,
+                title: "Rate Doctor",
+                subtitle: "Share your feedback for this consultation",
+                color: Colors.amber.shade700,
+                onTap: () {
+                  Navigator.pop(context);
+                  _showDoctorReviewBottomSheet(context);
+                },
+              ),
+            // Confirm Session — includes PATCH .../confirm when still PENDING, then complete.
             if (appointment.status != AppointmentStatus.completed &&
                 appointment.status != AppointmentStatus.cancelled)
               _buildOptionItem(
                 context,
                 icon: Icons.verified_rounded,
                 title: "Confirm Session",
-                subtitle: "Mark this visit as completed",
+                subtitle: appointment.status == AppointmentStatus.pending
+                    ? "Finalize your booking and mark this visit as completed"
+                    : "Mark this visit as completed",
                 color: Colors.green,
                 onTap: () {
                   Navigator.pop(context);
-                  _showConfirmSessionDialog(context);
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (outerContext.mounted) {
+                      _showConfirmSessionDialog(outerContext);
+                    }
+                  });
                 },
               ),
 
@@ -367,9 +397,8 @@ class AppointmentInfoCard extends StatelessWidget {
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text("Reschedule Request Sent")));
+                        Utils.toastMessage(
+                            context, "Reschedule Request Sent");
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
@@ -413,7 +442,9 @@ class AppointmentInfoCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    "Has this session been completed successfully?",
+                    appointment.status == AppointmentStatus.pending
+                        ? "This will confirm your visit with the doctor and mark the session as completed."
+                        : "Has this session been completed successfully?",
                     textAlign: TextAlign.center,
                     style: TextStyle(color: Colors.grey[600], fontSize: 14),
                   ),
@@ -442,24 +473,40 @@ class AppointmentInfoCard extends StatelessWidget {
                               : () async {
                                   setState(() => isCompleting = true);
 
+                                  final dialogCtx = context;
                                   final vm = Provider.of<AppointmentViewModel>(
-                                      context,
+                                      dialogCtx,
                                       listen: false);
-                                  bool success = await vm.completeAppointment(
+
+                                  final visitOk =
+                                      await _confirmVisitIfPending(dialogCtx);
+                                  if (!visitOk) {
+                                    if (dialogCtx.mounted) {
+                                      setState(() => isCompleting = false);
+                                      Utils.toastMessage(
+                                        dialogCtx,
+                                        'Could not finalize booking. Try again.',
+                                        isError: true,
+                                      );
+                                    }
+                                    return;
+                                  }
+
+                                  final success = await vm.completeAppointment(
                                       appointment.id.toString());
 
-                                  if (context.mounted) {
+                                  if (dialogCtx.mounted) {
                                     setState(() => isCompleting = false);
-                                    Navigator.pop(context); // Close dialog
+                                    Navigator.pop(dialogCtx);
 
                                     Utils.toastMessage(
-                                        context,
+                                        dialogCtx,
                                         success
                                             ? "Session confirmed successfully"
                                             : "Failed to confirm session",
                                         isError: !success);
                                     if (success) {
-                                      _showDoctorReviewBottomSheet(context);
+                                      _showDoctorReviewBottomSheet(dialogCtx);
                                     }
                                   }
                                 },
@@ -547,7 +594,7 @@ class AppointmentInfoCard extends StatelessWidget {
                         : () async {
                             if (rating <= 0) {
                               Utils.toastMessage(
-                                context,
+                                ctx,
                                 "Please select a star rating first",
                                 isError: true,
                               );
@@ -555,6 +602,7 @@ class AppointmentInfoCard extends StatelessWidget {
                             }
                             setState(() => submitting = true);
                             bool ok = false;
+                            String? errorMessage;
                             try {
                               final res = await api.submitDoctorReview(
                                 appointment.id.toString(),
@@ -562,19 +610,27 @@ class AppointmentInfoCard extends StatelessWidget {
                                 comment: commentController.text.trim(),
                               );
                               ok = res != null && res['success'] == true;
-                            } catch (_) {}
-                            if (!context.mounted) return;
+                              if (!ok && res is Map) {
+                                errorMessage =
+                                    res['message']?.toString() ?? 'Review could not be submitted';
+                              }
+                            } catch (e) {
+                              errorMessage = e.toString();
+                            }
+                            if (!ctx.mounted) return;
                             if (ok) {
                               Navigator.pop(ctx);
                               Utils.toastMessage(
-                                context,
+                                ctx,
                                 "Thank you for your review!",
                               );
                             } else {
                               setState(() => submitting = false);
                               Utils.toastMessage(
-                                context,
-                                "Review could not be submitted",
+                                ctx,
+                                (errorMessage != null && errorMessage.isNotEmpty)
+                                    ? errorMessage
+                                    : "Review could not be submitted",
                                 isError: true,
                               );
                             }
@@ -719,13 +775,8 @@ class AppointmentInfoCard extends StatelessWidget {
                                               fontSize: 12,
                                               color: Color(0xFF64748B),
                                               fontWeight: FontWeight.w500)),
-                                    Text(
-                                      DateFormat('MMM dd, yyyy • hh:mm a')
-                                          .format(ap.dateTime),
-                                      style: TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.grey[500]),
-                                    ),
+                                    AppointmentScheduleRows(
+                                        appointment: ap, dense: true),
                                   ],
                                 ),
                               ),
@@ -976,17 +1027,12 @@ class AppointmentInfoCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     _buildRxActionButton(Icons.download_rounded, () {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        const SnackBar(
-                            content: Text("Downloading prescription...")),
-                      );
+                      Utils.toastMessage(
+                          ctx, "Downloading prescription...");
                     }),
                     const SizedBox(width: 20),
                     _buildRxActionButton(Icons.share_rounded, () {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        const SnackBar(
-                            content: Text("Sharing prescription...")),
-                      );
+                      Utils.toastMessage(ctx, "Sharing prescription...");
                     }),
                   ],
                 ),
@@ -1314,6 +1360,10 @@ class AppointmentInfoCard extends StatelessWidget {
       statusBg = Colors.red.withOpacity(0.1);
       statusColor = Colors.red;
       statusText = "Cancelled";
+    } else if (appointment.status == AppointmentStatus.pending) {
+      statusBg = Colors.orange.shade100;
+      statusColor = Colors.orange.shade900;
+      statusText = "Confirm visit";
     } else if (appointment.status == AppointmentStatus.unconfirmed) {
       statusBg = Colors.orange;
       statusColor = Colors.white;
@@ -1321,7 +1371,7 @@ class AppointmentInfoCard extends StatelessWidget {
     }
 
     return GestureDetector(
-      onTap: isCancelled ? null : () => _showAppointmentOptions(context),
+      onTap: isCancelled ? null : () => showAppointmentOptions(context),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(12),
@@ -1374,23 +1424,9 @@ class AppointmentInfoCard extends StatelessWidget {
                         appointment.doctor?.specialty ?? "Specialist",
                         style: TextStyle(color: Colors.grey[600], fontSize: 13),
                       ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Icon(Icons.access_time_rounded,
-                              size: 14,
-                              color: AppColors.primary.withOpacity(0.7)),
-                          const SizedBox(width: 4),
-                          Text(
-                            DateFormat('MMM d, h:mm a')
-                                .format(appointment.dateTime),
-                            style: TextStyle(
-                                color: AppColors.primary.withOpacity(0.8),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500),
-                          ),
-                        ],
-                      ),
+                      const SizedBox(height: 4),
+                      AppointmentScheduleRows(
+                          appointment: appointment, dense: true),
                     ],
                   ),
                 ),
@@ -1415,7 +1451,7 @@ class AppointmentInfoCard extends StatelessWidget {
                   )
                 else
                   GestureDetector(
-                    onTap: () => _showAppointmentOptions(context),
+                    onTap: () => showAppointmentOptions(context),
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
@@ -1428,6 +1464,44 @@ class AppointmentInfoCard extends StatelessWidget {
                   ),
               ],
             ),
+
+            if (showConfirmationActions &&
+                !isDone &&
+                appointment.status == AppointmentStatus.pending) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => _showConfirmSessionDialog(context),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(
+                    'Confirm session',
+                    style: GoogleFonts.inter(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  'Payment received. Confirm session to finalize your booking and mark the visit complete.',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: Colors.grey[600],
+                    height: 1.3,
+                  ),
+                ),
+              ),
+            ],
 
             // Bottom Actions ONLY if enabled and upcoming
             if (showConfirmationActions &&

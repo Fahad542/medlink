@@ -10,6 +10,7 @@ import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:medlink/views/main/main_screen.dart';
 import 'package:medlink/views/services/settings_view_model.dart';
 import 'package:provider/provider.dart';
+import 'package:medlink/utils/utils.dart';
 
 class AppointmentPaymentView extends StatefulWidget {
   final DoctorModel doctor;
@@ -105,20 +106,17 @@ class _AppointmentPaymentViewState extends State<AppointmentPaymentView> {
                                     errorMsg.toLowerCase().contains('connection was lost');
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(isNetworkError 
-                  ? "Network connection lost. Please check your internet and try again."
-                  : "Payment failed: $errorMsg"),
-              backgroundColor: isNetworkError ? Colors.orange : Colors.red,
-            ),
+          Utils.toastMessage(
+            context,
+            isNetworkError
+                ? "Network connection lost. Please check your internet and try again."
+                : "Payment failed: $errorMsg",
+            isError: true,
           );
         }
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Error: $e")),
-          );
+          Utils.toastError(context, e);
         }
       }
     }
@@ -151,7 +149,7 @@ class _AppointmentPaymentViewState extends State<AppointmentPaymentView> {
             ),
             const SizedBox(height: 8),
             Text(
-              "Your appointment with Dr. ${widget.doctor.name} has been confirmed.",
+              "Your payment was successful. Open Appointments and tap Confirm visit to finalize your booking with Dr. ${widget.doctor.name}.",
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(color: Colors.grey[600]),
             ),

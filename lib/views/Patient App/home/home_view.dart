@@ -5,21 +5,23 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/Patient%20App/emergency/emergency_viewmodel.dart';
-import 'package:medlink/views/Patient%20App/emergency/destination_picker_view.dart';
 import 'package:medlink/widgets/sos_button.dart';
 import 'package:medlink/views/Patient%20App/Find%20a%20doctor/doctor_list_view.dart';
 import 'package:medlink/views/Patient App/consultation/chat_list_view.dart';
 import 'package:medlink/views/Patient App/prescription/prescription_view.dart';
 import 'package:medlink/views/Patient App/home/category_list_view.dart';
+import 'package:medlink/views/Patient App/profile/personal_info_view.dart';
 import 'package:medlink/widgets/shimmer_widgets.dart';
 import 'package:medlink/views/Patient App/appointment/appointment_list_view.dart';
 import 'package:medlink/views/Patient App/health/health_hub_view.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
 import 'package:medlink/views/Patient%20App/home/home_viewmodel.dart';
 import 'package:medlink/models/appointment_model.dart';
-import 'package:medlink/widgets/appointment_info_card.dart';
 import 'package:medlink/widgets/appointment_list_shimmer.dart';
+import 'package:medlink/widgets/appointment_info_card.dart';
+import 'package:medlink/widgets/emergency_action_dialog.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -48,11 +50,11 @@ class _HomeViewState extends State<HomeView> {
 
   @override
   Widget build(BuildContext context) {
+    final userVM = Provider.of<UserViewModel>(context);
     return ChangeNotifierProvider(
-      create: (_) => HomeViewModel(),
+      create: (_) => HomeViewModel(userVM),
       child: Consumer<HomeViewModel>(
         builder: (context, homeVM, child) {
-          final userVM = Provider.of<UserViewModel>(context); // Session User
           final emergencyVM = Provider.of<EmergencyViewModel>(context);
           final appointmentVM = Provider.of<AppointmentViewModel>(context);
 
@@ -84,18 +86,29 @@ class _HomeViewState extends State<HomeView> {
                         Row(
                           // Profile Header
                           children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const PersonalInformationView(),
                                   ),
-                                ],
+                                );
+                              },
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.05),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: _buildProfileAvatar(userVM),
                               ),
-                              child: _buildProfileAvatar(userVM),
                             ),
                             const SizedBox(width: 14),
                             Column(
@@ -139,12 +152,13 @@ class _HomeViewState extends State<HomeView> {
                         ),
                         // Badged Notification Icon
                         GestureDetector(
-                          onTap: () {
-                            Navigator.push(
+                          onTap: () async {
+                            await Navigator.push(
                               context,
                               MaterialPageRoute(
                                   builder: (_) => const ChatListView()),
                             );
+                            await homeVM.fetchUnreadMessagesCount();
                           },
                           child: Stack(
                             clipBehavior: Clip.none,
@@ -172,20 +186,37 @@ class _HomeViewState extends State<HomeView> {
                                   color: const Color(0xFF1E293B), // Darker icon
                                 ),
                               ),
-                              Positioned(
-                                top: 0,
-                                right: 0,
-                                child: Container(
-                                  width: 16,
-                                  height: 16,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.error,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                        color: Colors.white, width: 2),
+                              if (homeVM.unreadMessagesCount > 0)
+                                Positioned(
+                                  top: -2,
+                                  right: -2,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 5, vertical: 1),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 16,
+                                      minHeight: 16,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.error,
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                          color: Colors.white, width: 1.5),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        homeVM.unreadMessagesCount > 99
+                                            ? '99+'
+                                            : '${homeVM.unreadMessagesCount}',
+                                        style: GoogleFonts.inter(
+                                          color: Colors.white,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
                             ],
                           ),
                         ),
@@ -382,10 +413,8 @@ class _HomeViewState extends State<HomeView> {
                                 .map((appointment) => Padding(
                                       padding:
                                           const EdgeInsets.only(bottom: 12.0),
-                                      child: AppointmentInfoCard(
-                                        appointment: appointment,
-                                        showConfirmationActions: true,
-                                      ),
+                                      child:
+                                          _buildCompactAppointmentCard(appointment),
                                     )),
                             const SizedBox(height: 15),
                           ],
@@ -413,11 +442,17 @@ class _HomeViewState extends State<HomeView> {
 
   void _showSOSConfirmation(
       BuildContext context, EmergencyViewModel emergencyVM) {
-    // Navigate to maps view to pick destination before triggering SOS
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const DestinationPickerView(),
+    showDialog(
+      context: context,
+      builder: (_) => EmergencyActionDialog(
+        title: "Activate SOS",
+        message: "Are you sure you want to trigger emergency SOS alert?",
+        actionText: "Activate",
+        actionColor: AppColors.error,
+        onConfirm: () {
+          Navigator.pop(context);
+          emergencyVM.triggerSos(context);
+        },
       ),
     );
   }
@@ -518,6 +553,113 @@ class _HomeViewState extends State<HomeView> {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _buildCompactAppointmentCard(AppointmentModel appointment) {
+    final doctor = appointment.doctor;
+    final doctorName = (doctor?.name.isNotEmpty == true)
+        ? doctor!.name
+        : "Unknown Doctor";
+    final specialty =
+        (doctor?.specialty.isNotEmpty == true) ? doctor!.specialty : "General";
+    final profileImage = doctor?.imageUrl ?? '';
+    final dateLabel =
+        DateFormat('MMM d, h:mm a').format(appointment.displayScheduledStart);
+    final dur = appointment.scheduledDurationLabel;
+    final dateLine =
+        dur != null ? '$dateLabel · $dur' : dateLabel;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: const Color(0xFFE8EEF5),
+            backgroundImage:
+                profileImage.isNotEmpty ? NetworkImage(profileImage) : null,
+            child: profileImage.isEmpty
+                ? const Icon(Icons.person, color: Colors.grey)
+                : null,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  doctorName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF1F2937),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  specialty,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF71717A),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(Icons.watch_later_outlined,
+                        size: 14, color: AppColors.primary),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        dateLine,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.primary,
+                          height: 1.2,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                AppointmentInfoCard(
+                  appointment: appointment,
+                  showConfirmationActions: true,
+                ).showAppointmentOptions(context);
+              },
+              borderRadius: BorderRadius.circular(24),
+              child: const Padding(
+                padding: EdgeInsets.all(12),
+                child: Icon(Icons.more_vert_rounded, color: Colors.grey),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -672,7 +814,7 @@ class _HomeViewState extends State<HomeView> {
             },
             borderRadius: BorderRadius.circular(16),
             child: Container(
-              width: 100,
+              width: 112,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -775,8 +917,10 @@ class _HomeViewState extends State<HomeView> {
                         MaterialPageRoute(
                             builder: (_) => const DoctorListView()));
                   } else if (banner.type == 'emergency') {
-                    Provider.of<EmergencyViewModel>(context, listen: false)
-                        .triggerSos(context);
+                    _showSOSConfirmation(
+                      context,
+                      Provider.of<EmergencyViewModel>(context, listen: false),
+                    );
                   } else if (banner.type == 'health') {
                     Navigator.push(
                         context,
@@ -977,11 +1121,28 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildProfileAvatar(UserViewModel userVM) {
-    final profileImage = userVM.patient?.profileImage;
+    final profileImage = userVM.patient?.profileImage?.trim();
     final hasImage = profileImage != null && profileImage.isNotEmpty;
 
+    // Same placeholder as profile header when no photo uploaded.
+    Widget placeholderAvatar() {
+      return CircleAvatar(
+        radius: 26,
+        backgroundColor: Colors.white,
+        child: Icon(
+          Icons.person,
+          size: 31,
+          color: Colors.grey[600],
+        ),
+      );
+    }
+
+    if (!hasImage) {
+      return placeholderAvatar();
+    }
+
     // Local file (FileImage path)
-    if (hasImage && !profileImage.startsWith('http')) {
+    if (!profileImage.startsWith('http')) {
       return CircleAvatar(
         radius: 26,
         backgroundColor: Colors.white,
@@ -989,16 +1150,12 @@ class _HomeViewState extends State<HomeView> {
       );
     }
 
-    // Network image — use Image.network with errorBuilder
-    final imageUrl = hasImage
-        ? profileImage
-        : "https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=400&auto=format&fit=crop&q=60";
-
     return CustomNetworkImage(
-      imageUrl: imageUrl,
+      imageUrl: profileImage,
       width: 52,
       height: 52,
       fit: BoxFit.cover,
+      shape: BoxShape.circle,
     );
   }
 }

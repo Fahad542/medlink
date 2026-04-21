@@ -1,6 +1,6 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:medlink/utils/user_facing_errors.dart';
 
 class Utils {
   static void toastMessage(BuildContext context, String message, {bool isError = false}) {
@@ -25,68 +25,60 @@ class Utils {
                 ),
               );
             },
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: isError 
-                        ? Colors.red.withOpacity(0.1) 
-                        : Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isError 
-                          ? Colors.red.withOpacity(0.2) 
-                          : Colors.green.withOpacity(0.2),
-                      width: 1,
-                    ),
-                    // boxShadow: [
-                    //   BoxShadow(
-                    //     color: Colors.black.withOpacity(0.05),
-                    //     blurRadius: 10,
-                    //     offset: const Offset(0, 4),
-                    //   ),
-                    // ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        isError ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
-                        color: isError ? Colors.red : Colors.green,
-                        size: 24,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              isError ? "Error" : "Success",
-                              style: GoogleFonts.inter(
-                                color: isError ? Colors.red : Colors.green,
-                                fontSize: 14, // Golden Rule
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              message,
-                              style: GoogleFonts.inter(
-                                color: Colors.black87,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isError
+                      ? Colors.red.withOpacity(0.25)
+                      : Colors.green.withOpacity(0.25),
+                  width: 1,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isError ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
+                    color: isError ? Colors.red : Colors.green,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          isError ? "Error" : "Success",
+                          style: GoogleFonts.inter(
+                            color: isError ? Colors.red : Colors.green,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          message,
+                          style: GoogleFonts.inter(
+                            color: Colors.black87,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -98,5 +90,10 @@ class Utils {
     Future.delayed(const Duration(seconds: 3), () {
       overlayEntry.remove();
     });
+  }
+
+  /// Prefer over [toastMessage(..., isError: true)] with [Object.toString] in catch blocks.
+  static void toastError(BuildContext context, Object error) {
+    toastMessage(context, UserFacingErrors.forException(error), isError: true);
   }
 }

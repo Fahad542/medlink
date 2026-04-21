@@ -4,9 +4,20 @@ import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/widgets/custom_button.dart';
 
 class LogoutConfirmationDialog extends StatelessWidget {
-  final VoidCallback onLogout;
+  final VoidCallback onConfirm;
+  final String title;
+  final String message;
+  final String confirmText;
+  final Color confirmColor;
 
-  const LogoutConfirmationDialog({super.key, required this.onLogout});
+  const LogoutConfirmationDialog({
+    super.key,
+    required this.onConfirm,
+    this.title = "Logout",
+    this.message = "Are you sure you want to log out?",
+    this.confirmText = "Logout",
+    this.confirmColor = AppColors.primary,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +32,7 @@ class LogoutConfirmationDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              "Logout",
+              title,
               textAlign: TextAlign.center,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 20,
@@ -31,7 +42,7 @@ class LogoutConfirmationDialog extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              "Are you sure you want to log out?",
+              message,
               textAlign: TextAlign.center,
               style: GoogleFonts.plusJakartaSans(
                 color: Colors.grey[600],
@@ -65,9 +76,9 @@ class LogoutConfirmationDialog extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: CustomButton(
-                    text: "Logout",
-                    backgroundColor: Colors.red,
-                    onPressed: onLogout,
+                    text: confirmText,
+                    backgroundColor: confirmColor,
+                    onPressed: onConfirm,
                     height: 48,
                     fontSize: 14,
                     borderRadius: 16,

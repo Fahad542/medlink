@@ -9,6 +9,7 @@ import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.da
 import 'package:medlink/views/doctor/Doctor%20profile/doctor_profile_view_model.dart';
 import 'package:intl/intl.dart';
 import 'appointment_details_view.dart'; // Import Details View
+import 'package:medlink/utils/utils.dart';
 
 class BookAppointmentView extends StatelessWidget {
   final DoctorModel doctor;
@@ -125,16 +126,18 @@ class _BookAppointmentContentState extends State<_BookAppointmentContent> {
                        return; // Still loading availability
                     }
                     if (isBooked) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text("This slot is already taken")),
+                      Utils.toastMessage(
+                        context,
+                        "This slot is already taken",
+                        isError: true,
                       );
                       return;
                     }
                     if (isPast) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text("Cannot book a past time slot")),
+                      Utils.toastMessage(
+                        context,
+                        "Cannot book a past time slot",
+                        isError: true,
                       );
                       return;
                     }
@@ -197,8 +200,10 @@ class _BookAppointmentContentState extends State<_BookAppointmentContent> {
                   text: "Confirm Appointment",
                   onPressed: () {
                     if (viewModel.selectedTime == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Please select a time slot")),
+                      Utils.toastMessage(
+                        context,
+                        "Please select a time slot",
+                        isError: true,
                       );
                       return;
                     }
@@ -332,14 +337,18 @@ class _BookAppointmentContentState extends State<_BookAppointmentContent> {
               return InkWell(
                 onTap: () {
                   if (isPast) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Cannot book a past date")),
+                    Utils.toastMessage(
+                      context,
+                      "Cannot book a past date",
+                      isError: true,
                     );
                     return;
                   }
                   if (!isDocAvailable) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("Doctor is not available on ${DateFormat('EEEE').format(currentDate)}")),
+                    Utils.toastMessage(
+                      context,
+                      "Doctor is not available on ${DateFormat('EEEE').format(currentDate)}",
+                      isError: true,
                     );
                     return;
                   }

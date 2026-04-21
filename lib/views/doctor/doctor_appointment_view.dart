@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/models/appointment_model.dart';
-import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart'; // We can reuse this or create a doctor specific one if needed
 import 'package:medlink/views/doctor/doctor_appointments_view_model.dart';
 // Reuse existing view
 import 'package:provider/provider.dart';
@@ -15,13 +13,13 @@ import 'package:medlink/views/doctor/Consultation/submit_consultation_view.dart'
 import '../../models/user_model.dart';
 import 'package:medlink/views/doctor/past_appointments_view.dart';
 import 'package:medlink/views/doctor/past_appointments_view_model.dart';
-import 'package:medlink/widgets/custom_button.dart';
-import 'package:medlink/views/doctor/Doctor%20Patient%20Dashboard/appointment_detail_view.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/doctor/Dashboard/doctor_dashboard_view_model.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/widgets/no_data_widget.dart';
 import 'package:medlink/widgets/appointment_list_shimmer.dart';
+import 'package:intl/intl.dart';
+import 'package:medlink/utils/utils.dart';
 
 class DoctorAppointmentView extends StatelessWidget {
   final bool showBackButton;
@@ -135,10 +133,17 @@ class DoctorAppointmentView extends StatelessWidget {
   }
 }
 
-class DoctorAppointmentCard extends StatelessWidget {
+class DoctorAppointmentCard extends StatefulWidget {
   final AppointmentModel appointment;
 
   const DoctorAppointmentCard({super.key, required this.appointment});
+
+  @override
+  State<DoctorAppointmentCard> createState() => _DoctorAppointmentCardState();
+}
+
+class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
+  AppointmentModel get appointment => widget.appointment;
 
   @override
   Widget build(BuildContext context) {
@@ -153,6 +158,11 @@ class DoctorAppointmentCard extends StatelessWidget {
     final String patientInitials = patientName.isNotEmpty
         ? patientName.trim().split(' ').map((l) => l[0]).take(2).join()
         : "??";
+    final baseTime =
+        DateFormat('MMM d, h:mm a').format(appointment.displayScheduledStart);
+    final durLabel = appointment.scheduledDurationLabel;
+    final appointmentTimeLine =
+        durLabel != null ? '$baseTime · $durLabel' : baseTime;
 
     if (appointment.status == AppointmentStatus.completed) {
       statusBg = Colors.green.withOpacity(0.1);
@@ -236,19 +246,27 @@ class DoctorAppointmentCard extends StatelessWidget {
                               ),
                             )),
                   );
+                } else if (appointment.status == AppointmentStatus.pending) {
+                  Utils.toastMessage(
+                    context,
+                    'Waiting for the patient to confirm this visit in the app after payment.',
+                    isError: true,
+                  );
                 } else if (appointment.status == AppointmentStatus.confirmed ||
-                    appointment.status == AppointmentStatus.pending) {
-                  // Allow consultation for both CONFIRMED and PENDING
+                    appointment.status == AppointmentStatus.upcoming) {
                   Navigator.push(
                       context,
                       MaterialPageRoute(
                           builder: (_) => SubmitConsultationView(
-                              appointment: appointment)));
+                              appointment: appointment)),
+                    );
                 } else {
                   // For other statuses (cancelled, etc.)
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content:
-                          Text("Cannot start consultation for this visit")));
+                  Utils.toastMessage(
+                    context,
+                    "Cannot start consultation for this visit",
+                    isError: true,
+                  );
                 }
               },
               borderRadius: BorderRadius.circular(16),
@@ -299,24 +317,30 @@ class DoctorAppointmentCard extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            "General Checkup", // Placeholder for reason
+                            (appointment.reason != null &&
+                                    appointment.reason!.trim().isNotEmpty)
+                                ? appointment.reason!.trim()
+                                : 'Consultation',
                             style: GoogleFonts.inter(
                                 color: Colors.grey[600], fontSize: 13),
                           ),
                           const SizedBox(height: 6),
                           Row(
                             children: [
-                              Icon(Icons.access_time_rounded,
-                                  size: 14,
-                                  color: AppColors.primary.withOpacity(0.7)),
-                              const SizedBox(width: 4),
-                              Text(
-                                DateFormat('MMM d, h:mm a')
-                                    .format(appointment.dateTime),
-                                style: GoogleFonts.inter(
-                                    color: AppColors.primary.withOpacity(0.8),
+                              const Icon(Icons.watch_later_outlined,
+                                  size: 15, color: AppColors.primary),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  appointmentTimeLine,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
                                     fontSize: 13,
-                                    fontWeight: FontWeight.w500),
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
@@ -326,8 +350,8 @@ class DoctorAppointmentCard extends StatelessWidget {
                     if (isUpcoming)
                       IconButton(
                         icon: const Icon(Icons.more_vert, color: Colors.grey),
-                        onPressed: () => _showAppointmentActions(
-                            context, appointment, patientName),
+                        onPressed: () =>
+                            _showAppointmentActions(context, patientName),
                       )
                     else
                       Container(
@@ -350,6 +374,27 @@ class DoctorAppointmentCard extends StatelessWidget {
             ),
           ),
 
+          if (appointment.status == AppointmentStatus.pending) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Text(
+                'Payment received. The patient will confirm this visit in the app to finalize the booking and release your share.',
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  color: Colors.grey.shade800,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ],
+
           // Bottom Actions for Unconfirmed (Request Confirmation)
 
           if (appointment.status == AppointmentStatus.unconfirmed) ...[
@@ -364,9 +409,10 @@ class DoctorAppointmentCard extends StatelessWidget {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text(
-                                "Confirmation request sent to ${appointment.user?.name ?? 'patient'}")));
+                        Utils.toastMessage(
+                          context,
+                          "Confirmation request sent to ${appointment.user?.name ?? 'patient'}",
+                        );
                       },
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(
@@ -393,18 +439,17 @@ class DoctorAppointmentCard extends StatelessWidget {
   }
 
   void _showAppointmentActions(
-      BuildContext context, AppointmentModel appointment, String patientName) {
-    final userVM = Provider.of<UserViewModel>(context, listen: false);
+      BuildContext cardContext, String patientName) {
+    final userVM = Provider.of<UserViewModel>(cardContext, listen: false);
     final uId = userVM.loginSession?.data?.user?.id?.toString();
     final dId = userVM.doctor?.id;
     final currentUserId = (uId != null && uId.isNotEmpty) ? uId :
                           (dId != null && dId.isNotEmpty) ? dId : "0";
-
     showModalBottomSheet(
-      context: context,
+      context: cardContext,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => Container(
+      builder: (sheetContext) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         decoration: const BoxDecoration(
           color: Colors.white,
@@ -458,8 +503,7 @@ class DoctorAppointmentCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            _buildBSActionItem(
-              context,
+            _appointmentBottomSheetActionItem(
               iconData: Icons.chat_bubble_outline_rounded,
               assetPath: "assets/Icons/chat.png",
               iconSize: 18,
@@ -467,9 +511,9 @@ class DoctorAppointmentCard extends StatelessWidget {
               subtitle: "Start a chat related to this visit",
               color: AppColors.primary,
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop(sheetContext);
                 Navigator.push(
-                    context,
+                    cardContext,
                     MaterialPageRoute(
                         builder: (_) => ChatView(
                               recipientName: patientName,
@@ -480,8 +524,7 @@ class DoctorAppointmentCard extends StatelessWidget {
                             )));
               },
             ),
-            _buildBSActionItem(
-              context,
+            _appointmentBottomSheetActionItem(
               iconData: Icons.videocam_outlined,
               assetPath: "assets/Icons/video.png",
               iconSize: 24,
@@ -489,9 +532,9 @@ class DoctorAppointmentCard extends StatelessWidget {
               subtitle: "Start video consultation",
               color: AppColors.primary,
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop(sheetContext);
                 Navigator.push(
-                    context,
+                    cardContext,
                     MaterialPageRoute(
                         builder: (_) => WaitingRoomView(
                               callTargetName: patientName,
@@ -500,58 +543,68 @@ class DoctorAppointmentCard extends StatelessWidget {
                             )));
               },
             ),
-            _buildBSActionItem(
-              context,
+            _appointmentBottomSheetActionItem(
               iconData: Icons.edit_calendar_outlined,
               title: "Reschedule",
               subtitle: "Change appointment date or time",
               color: AppColors.primary,
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop(sheetContext);
                 // Reschedule logic
               },
             ),
-            _buildBSActionItem(
-              context,
+            _appointmentBottomSheetActionItem(
               iconData: Icons.cancel_outlined,
               title: "Cancel Appointment",
               subtitle: "Cancel this scheduled visit",
               color: Colors.red,
               showBorder: false,
               onTap: () async {
-                Navigator.pop(context);
+                Navigator.pop(sheetContext);
 
                 bool success = false;
                 try {
-                  // Check for DoctorAppointmentsViewModel (used in tabs)
                   try {
-                    final vm = Provider.of<DoctorAppointmentsViewModel>(context,
+                    final vm = Provider.of<DoctorAppointmentsViewModel>(
+                        cardContext,
                         listen: false);
                     success = await vm.cancelAppointment(
                         appointment.id, "Doctor unavailable");
+                    if (success) {
+                      try {
+                        Provider.of<DoctorDashboardViewModel>(cardContext,
+                                listen: false)
+                            .fetchData();
+                      } catch (_) {}
+                    }
                   } catch (e) {
-                    // If not found, check for DoctorDashboardViewModel (used in home)
                     final dashVM = Provider.of<DoctorDashboardViewModel>(
-                        context,
+                        cardContext,
                         listen: false);
                     final api = ApiServices();
                     final response = await api.doctorCancelAppointment(
                         appointment.id, "Doctor unavailable");
                     if (response != null && response['success'] == true) {
                       success = true;
-                      dashVM.fetchData(); // Refresh dashboard instantly
+                      dashVM.fetchData();
                     }
                   }
                 } catch (e) {
                   debugPrint("Error during cancellation: $e");
                 }
 
+                if (!cardContext.mounted) return;
                 if (success) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text("Appointment Cancelled Successfully!")));
+                  Utils.toastMessage(
+                    cardContext,
+                    "Appointment Cancelled Successfully!",
+                  );
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text("Failed to Cancel Appointment")));
+                  Utils.toastMessage(
+                    cardContext,
+                    "Failed to Cancel Appointment",
+                    isError: true,
+                  );
                 }
               },
             ),
@@ -561,71 +614,70 @@ class DoctorAppointmentCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildBSActionItem(
-    BuildContext context, {
-    required IconData iconData,
-    required String title,
-    required String subtitle,
-    required Color color,
-    required VoidCallback onTap,
-    String? assetPath,
-    double iconSize = 20,
-    bool showBorder = true,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          border: showBorder
-              ? Border(bottom: BorderSide(color: Colors.grey.shade100))
-              : null,
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: assetPath != null
-                  ? Image.asset(assetPath,
-                      color: color, width: iconSize, height: iconSize)
-                  : Icon(iconData, color: color, size: iconSize),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1E293B),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.arrow_forward_ios_rounded,
-                size: 16, color: Colors.grey.shade300),
-          ],
-        ),
+Widget _appointmentBottomSheetActionItem({
+  required IconData iconData,
+  required String title,
+  required String subtitle,
+  required Color color,
+  required VoidCallback onTap,
+  String? assetPath,
+  double iconSize = 20,
+  bool showBorder = true,
+}) {
+  return InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(16),
+    child: Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        border: showBorder
+            ? Border(bottom: BorderSide(color: Colors.grey.shade100))
+            : null,
       ),
-    );
-  }
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: assetPath != null
+                ? Image.asset(assetPath,
+                    color: color, width: iconSize, height: iconSize)
+                : Icon(iconData, color: color, size: iconSize),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.arrow_forward_ios_rounded,
+              size: 16, color: Colors.grey.shade300),
+        ],
+      ),
+    ),
+  );
 }

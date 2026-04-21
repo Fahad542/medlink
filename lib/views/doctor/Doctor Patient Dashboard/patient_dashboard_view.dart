@@ -30,12 +30,13 @@ class PatientDashboardView extends StatelessWidget {
           body: viewModel.isLoading
               ? _buildShimmerLoading(context)
               : SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
+                  physics: const ClampingScrollPhysics(),
                   child: Stack(
+                    clipBehavior: Clip.none,
                     children: [
                       // 1. Enhanced Header Background
                       Container(
-                        height: 240,
+                        height: 268,
                         decoration: const BoxDecoration(
                           gradient: LinearGradient(
                             begin: Alignment.topLeft,
@@ -171,7 +172,7 @@ class PatientDashboardView extends StatelessWidget {
                                                                       appointmentId: patient.lastAppointmentId ?? "0",
                                                                       doctorId: currentUserId.toString(),
                                                                       patientId: patient.id.toString(),
-                                                                    )));
+                                                                                              )));
                                                       }, iconSize: 16, bgColor: Colors.white.withOpacity(0.15)),
                                                       const SizedBox(width: 8),
                                                       _buildHeaderAction("assets/Icons/video.png",
@@ -256,43 +257,44 @@ class PatientDashboardView extends StatelessWidget {
                             ),
                           ),
 
-                          const SizedBox(height: 16),
-
-                          // 3. Latest Vitals
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-                            child: Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.03),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                      child: _buildCompactVitalItem(
-                                          "BP", profile?.bps ?? "120/80", "mmHg", Icons.favorite_outline, Colors.pink)),
-                                  Container(width: 1, height: 40, color: Colors.grey.shade200),
-                                  Expanded(
-                                      child: _buildCompactVitalItem("Heart", "${profile?.heartRate ?? 72}", "bpm",
-                                          Icons.monitor_heart_outlined, Colors.blue)),
-                                  Container(width: 1, height: 40, color: Colors.grey.shade200),
-                                  Expanded(
-                                      child: _buildCompactVitalItem("Weight", "${profile?.weight ?? 75}", "kg",
-                                          Icons.monitor_weight_outlined, Colors.orange)),
-                                ],
+                          // 3. Latest Vitals — overlap teal header (same pattern as doctor/patient profile KPIs)
+                          Transform.translate(
+                            offset: const Offset(0, -18),
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.06),
+                                      blurRadius: 14,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                        child: _buildCompactVitalItem(
+                                            "BP", profile?.bps ?? "120/80", "mmHg", Icons.favorite_outline, Colors.pink)),
+                                    Container(width: 1, height: 40, color: Colors.grey.shade200),
+                                    Expanded(
+                                        child: _buildCompactVitalItem("Heart", "${profile?.heartRate ?? 72}", "bpm",
+                                            Icons.monitor_heart_outlined, Colors.blue)),
+                                    Container(width: 1, height: 40, color: Colors.grey.shade200),
+                                    Expanded(
+                                        child: _buildCompactVitalItem("Weight", "${profile?.weight ?? 75}", "kg",
+                                            Icons.monitor_weight_outlined, Colors.orange)),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
 
-                          const SizedBox(height: 28),
+                          const SizedBox(height: 12),
 
                           // 4. Quick Actions
                           const Padding(

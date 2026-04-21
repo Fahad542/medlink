@@ -1,32 +1,192 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/data/network/api_services.dart';
+import 'package:medlink/services/chat_socket_service.dart';
+import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/models/home_ui_models.dart'; // Added import
+import 'package:medlink/utils/utils.dart';
+import 'package:medlink/utils/jwt_user_id.dart';
 
 class HomeViewModel extends ChangeNotifier {
   // State
   bool _isSosVisible = true;
   int _currentBannerIndex = 0;
   Timer? _bannerTimer;
+  final UserViewModel _userViewModel;
+  final ChatSocketService _chatSocket = ChatSocketService.instance;
+  StreamSubscription<Map<String, dynamic>>? _chatSub;
+  StreamSubscription<Map<String, dynamic>>? _chatReadSub;
+  final Set<String> _seenSocketKeys = {};
+  int _unreadMessagesCount = 0;
+  Timer? _sessionRefreshDebounce;
+  Timer? _socketUnreadDebounce;
   
   bool get isSosVisible => _isSosVisible;
   int get currentBannerIndex => _currentBannerIndex;
+  int get unreadMessagesCount => _unreadMessagesCount;
 
-  HomeViewModel() {
+  HomeViewModel(this._userViewModel) {
+    _userViewModel.addListener(_onUserSessionChanged);
     _startAutoScroll();
     fetchDoctorCategories();
+    _ensureChatRealtime();
+    fetchUnreadMessagesCount();
+  }
+
+  void _onUserSessionChanged() {
+    _sessionRefreshDebounce?.cancel();
+    _sessionRefreshDebounce = Timer(const Duration(milliseconds: 400), () {
+      _sessionRefreshDebounce = null;
+      _ensureChatRealtime();
+      unawaited(fetchUnreadMessagesCount());
+    });
+  }
+
+  /// Server is source of truth; debounced so bursts of socket events = one GET.
+  void _scheduleUnreadSyncFromSocket() {
+    _socketUnreadDebounce?.cancel();
+    _socketUnreadDebounce = Timer(const Duration(milliseconds: 450), () {
+      _socketUnreadDebounce = null;
+      unawaited(fetchUnreadMessagesCount());
+    });
   }
 
   @override
   void dispose() {
+    _userViewModel.removeListener(_onUserSessionChanged);
+    _sessionRefreshDebounce?.cancel();
+    _socketUnreadDebounce?.cancel();
     _bannerTimer?.cancel();
+    _chatSub?.cancel();
+    _chatReadSub?.cancel();
     super.dispose();
   }
 
   final _apiServices = ApiServices();
   List<CategoryItem> _apiCategories = [];
   bool _categoriesLoading = false;
+
+  int? get _myUserId =>
+      _userViewModel.loginSession?.data?.user?.id ??
+      int.tryParse(_userViewModel.patient?.id ?? '') ??
+      readAuthUserIdFromJwt(_userViewModel.accessToken);
+
+  static int? _participantId(Map<String, dynamic> msg, String camel, String snake) {
+    final a = msg[camel];
+    final b = msg[snake];
+    if (a is int) return a;
+    if (b is int) return b;
+    final s = a?.toString() ?? b?.toString() ?? '';
+    return int.tryParse(s);
+  }
+
+  void _ensureChatRealtime() {
+    final token = _userViewModel.accessToken;
+    if (token == null || token.isEmpty) return;
+    _chatSocket.connect(url: '${AppUrl.baseUrl}/chat', token: token);
+    _chatSub?.cancel();
+    _chatReadSub?.cancel();
+    _chatSub = _chatSocket.newMessageStream.listen(_onChatSocketMessage);
+    _chatReadSub = _chatSocket.conversationReadStream.listen((_) {
+      unawaited(fetchUnreadMessagesCount());
+    });
+  }
+
+  Future<void> fetchUnreadMessagesCount() async {
+    try {
+      final response = await _apiServices.getConversations();
+      List<dynamic>? list;
+      if (response is Map && response['data'] is List) {
+        list = response['data'] as List;
+      } else if (response is List) {
+        list = response;
+      }
+      if (list == null) return;
+
+      int total = 0;
+      for (final raw in list) {
+        if (raw is! Map) continue;
+        final item = Map<String, dynamic>.from(raw);
+        final other = item['other'];
+        if (other is Map) {
+          final role = other['role']?.toString().toUpperCase() ?? '';
+          if (role.isNotEmpty && role != 'DOCTOR') continue;
+        }
+        final u = item['unreadCount'] ?? item['unread'] ?? 0;
+        final count = u is int ? u : int.tryParse(u.toString()) ?? 0;
+        if (count > 0) total += count;
+      }
+
+      if (total != _unreadMessagesCount) {
+        _unreadMessagesCount = total;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Home unread count error: $e');
+    }
+  }
+
+  static Map<String, dynamic> _unwrapSocketMessage(Map<String, dynamic> payload) {
+    if (payload['message'] is Map) {
+      return Map<String, dynamic>.from(payload['message'] as Map);
+    }
+    if (payload['data'] is Map) {
+      return Map<String, dynamic>.from(payload['data'] as Map);
+    }
+    return payload;
+  }
+
+  bool _consumeSocketDedupe(Map<String, dynamic> msg) {
+    final rawId = msg['id'];
+    final mid = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+    late final String key;
+    if (mid != null && mid > 0) {
+      key = 'id:$mid';
+    } else {
+      final sid = msg['senderId']?.toString() ?? '';
+      final rid = msg['recipientId']?.toString() ?? '';
+      final sa = msg['sentAt']?.toString() ?? '';
+      final body = msg['body']?.toString() ?? '';
+      if (sid.isEmpty || sa.isEmpty) return true;
+      key = 'fb:$sid|$rid|$sa|$body';
+    }
+    if (_seenSocketKeys.contains(key)) return false;
+    _seenSocketKeys.add(key);
+    if (_seenSocketKeys.length > 400) _seenSocketKeys.clear();
+    return true;
+  }
+
+  void _onChatSocketMessage(Map<String, dynamic> payload) {
+    try {
+      final myId = _myUserId;
+
+      var msg = _unwrapSocketMessage(payload);
+      if (msg['id'] == null && payload['id'] != null) {
+        msg = Map<String, dynamic>.from(msg)..['id'] = payload['id'];
+      }
+      if (msg['sosId'] != null || msg['tripId'] != null) return;
+      if (!_consumeSocketDedupe(msg)) return;
+
+      final senderId = _participantId(msg, 'senderId', 'sender_id');
+      final recipientId = _participantId(msg, 'recipientId', 'recipient_id');
+      if (senderId == null || recipientId == null) {
+        _scheduleUnreadSyncFromSocket();
+        return;
+      }
+
+      if (myId != null &&
+          recipientId == myId &&
+          senderId != myId) {
+        _unreadMessagesCount += 1;
+        notifyListeners();
+      }
+      // Always reconcile with API so badge stays correct on any tab / if ids were wrong.
+      _scheduleUnreadSyncFromSocket();
+    } catch (e) {
+      debugPrint('Home chat socket error: $e');
+    }
+  }
 
   bool get categoriesLoading => _categoriesLoading;
 
@@ -127,8 +287,9 @@ class HomeViewModel extends ChangeNotifier {
       print("response $response");
       if (response != null && response['success'] == true) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('SOS Alert Sent Successfully! Help is on the way.')),
+          Utils.toastMessage(
+            context,
+            'SOS Alert Sent Successfully! Help is on the way.',
           );
         }
       } else {
@@ -136,9 +297,7 @@ class HomeViewModel extends ChangeNotifier {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error sending SOS: $e')),
-        );
+        Utils.toastError(context, e);
       }
     }
   }

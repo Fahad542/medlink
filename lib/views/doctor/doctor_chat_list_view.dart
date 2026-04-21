@@ -1,9 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/views/Patient App/consultation/chat_view.dart';
-// Assuming we might fetch User models later
 
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/doctor/doctor_chat_history_view_model.dart';
@@ -11,6 +12,40 @@ import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:medlink/widgets/custom_network_image.dart';
 import 'package:intl/intl.dart';
+
+/// Owns [DoctorChatHistoryViewModel] lifecycle (socket subscription + dispose).
+class DoctorChatListScreen extends StatefulWidget {
+  const DoctorChatListScreen({super.key});
+
+  @override
+  State<DoctorChatListScreen> createState() => _DoctorChatListScreenState();
+}
+
+class _DoctorChatListScreenState extends State<DoctorChatListScreen> {
+  late final DoctorChatHistoryViewModel _viewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewModel = DoctorChatHistoryViewModel(
+      Provider.of<UserViewModel>(context, listen: false),
+    );
+  }
+
+  @override
+  void dispose() {
+    _viewModel.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider.value(
+      value: _viewModel,
+      child: const DoctorChatListView(),
+    );
+  }
+}
 
 class DoctorChatListView extends StatefulWidget {
   const DoctorChatListView({super.key});
@@ -20,19 +55,63 @@ class DoctorChatListView extends StatefulWidget {
 }
 
 class _DoctorChatListViewState extends State<DoctorChatListView> {
+  String _fetchSeed = '';
+  bool _fetchQueued = false;
+
+  void _fetchChatsIfReady() {
+    final userVM = Provider.of<UserViewModel>(context, listen: false);
+    // Must match JWT user id (chat DB uses User.id). Prefer session id, then doctor model.
+    final loginId = userVM.loginSession?.data?.user?.id?.toString();
+    final docId = userVM.doctor != null ? userVM.doctor!.id.trim() : '';
+    final String? doctorId = (loginId != null && loginId.isNotEmpty)
+        ? loginId
+        : (docId.isNotEmpty ? docId : null);
+    final token = userVM.accessToken ?? '';
+    final nextSeed = '${doctorId ?? ''}|$token';
+
+    // Fetch whenever auth/session identity becomes available or changes.
+    if (nextSeed == _fetchSeed) return;
+    _fetchSeed = nextSeed;
+
+    if (doctorId == null || doctorId.isEmpty) {
+      debugPrint('Doctor chat list: no user id — cannot load conversations');
+      return;
+    }
+
+    if (_fetchQueued) return;
+    _fetchQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchQueued = false;
+      if (!mounted) return;
+      Provider.of<DoctorChatHistoryViewModel>(context, listen: false)
+          .fetchChatHistory(doctorId);
+    });
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final userVM = Provider.of<UserViewModel>(context, listen: false);
-      final String? doctorId = userVM.loginSession?.data?.user?.id?.toString() ??
-          userVM.doctor?.id;
-          
-      if (doctorId != null && doctorId.isNotEmpty) {
-        Provider.of<DoctorChatHistoryViewModel>(context, listen: false)
-            .fetchChatHistory(doctorId);
-      }
+      if (!mounted) return;
+      _fetchChatsIfReady();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!mounted) return;
+    // Defer network fetch so notifyListeners never runs during build phase.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _fetchChatsIfReady();
+    });
+  }
+
+  @override
+  void dispose() {
+    _fetchQueued = false;
+    super.dispose();
   }
 
   @override
@@ -162,19 +241,30 @@ class _DoctorChatListViewState extends State<DoctorChatListView> {
                                 ]
                               ],
                             ),
-                            onTap: () {
+                            onTap: () async {
                               final userVM = Provider.of<UserViewModel>(
                                   context,
                                   listen: false);
-                              print('=== DEBUG CHAT VIEWW ===');
-                              print('loginSession user id: ${userVM.loginSession?.data?.user?.id}');
-                              print('doctor id: ${userVM.doctor?.id}');
-                              print('patient id: ${userVM.patient?.id}');
+                              final patientIdInt =
+                                  int.tryParse(chat.patient?.id ?? '');
+                              if (patientIdInt != null) {
+                                Provider.of<DoctorChatHistoryViewModel>(context,
+                                        listen: false)
+                                    .clearUnreadForPatient(patientIdInt);
+                                unawaited(
+                                  Provider.of<DoctorChatHistoryViewModel>(
+                                    context,
+                                    listen: false,
+                                  ).markThreadReadForPatient(patientIdInt),
+                                );
+                              }
                               final uId = userVM.loginSession?.data?.user?.id?.toString();
                               final dId = userVM.doctor?.id;
-                              final currentUserId = (uId != null && uId.isNotEmpty) ? uId :
-                                                    (dId != null && dId.isNotEmpty) ? dId : "0";
-                              Navigator.push(
+                              final currentUserIdStr =
+                                  (dId != null && dId.isNotEmpty)
+                                      ? dId
+                                      : (uId ?? '');
+                              await Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                       builder: (_) => ChatView(
@@ -183,12 +273,28 @@ class _DoctorChatListViewState extends State<DoctorChatListView> {
                                             profileImage:
                                                 chat.patient?.profilePhotoUrl ?? "",
                                             appointmentId:
-                                                "", // Pass empty string so viewmodel can extract it from the chat history
+                                                "",
                                             doctorId:
-                                                currentUserId.toString(),
-                                            patientId:
-                                                chat.patient?.id.toString() ?? "",
+                                                currentUserIdStr.toString(),
+                                            patientId: chat.patient?.id ?? "",
                                           )));
+                              final loginId =
+                                  userVM.loginSession?.data?.user?.id?.toString();
+                              final docId = userVM.doctor != null
+                                  ? userVM.doctor!.id.trim()
+                                  : '';
+                              final String? doctorIdForFetch =
+                                  (loginId != null && loginId.isNotEmpty)
+                                      ? loginId
+                                      : (docId.isNotEmpty ? docId : null);
+                              if (doctorIdForFetch != null &&
+                                  doctorIdForFetch.isNotEmpty &&
+                                  context.mounted) {
+                                await Provider.of<DoctorChatHistoryViewModel>(
+                                        context,
+                                        listen: false)
+                                    .fetchChatHistory(doctorIdForFetch);
+                              }
                             },
                           ),
                         );

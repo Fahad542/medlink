@@ -6,6 +6,7 @@ import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/views/Patient%20App/emergency/emergency_viewmodel.dart';
 import 'package:provider/provider.dart';
 import 'package:medlink/services/google_maps_service.dart';
+import 'package:medlink/utils/utils.dart';
 
 /// Two-step SOS flow: **pickup** (where you are) then **destination** (hospital / drop-off).
 /// Both are sent to `POST /patient/sos` as `lat`/`lng` and `destinationLat`/`destinationLng`.
@@ -58,10 +59,10 @@ class _DestinationPickerViewState extends State<DestinationPickerView> {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         if (mounted && showErrors) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Turn on location to use your current position.'),
-            ),
+          Utils.toastMessage(
+            context,
+            'Turn on location to use your current position.',
+            isError: true,
           );
         }
         return null;
@@ -74,10 +75,10 @@ class _DestinationPickerViewState extends State<DestinationPickerView> {
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
         if (mounted && showErrors) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Location permission is required for pickup.'),
-            ),
+          Utils.toastMessage(
+            context,
+            'Location permission is required for pickup.',
+            isError: true,
           );
         }
         return null;
@@ -163,9 +164,7 @@ class _DestinationPickerViewState extends State<DestinationPickerView> {
 
   void _continueFromPickup() {
     if (_workingPin == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Choose where you need pickup.')),
-      );
+      Utils.toastMessage(context, 'Choose where you need pickup.', isError: true);
       return;
     }
     setState(() {
@@ -180,8 +179,10 @@ class _DestinationPickerViewState extends State<DestinationPickerView> {
 
   void _openReviewDialog() {
     if (_pickup == null || _workingPin == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Choose your destination (hospital / drop-off).')),
+      Utils.toastMessage(
+        context,
+        'Choose your destination (hospital / drop-off).',
+        isError: true,
       );
       return;
     }

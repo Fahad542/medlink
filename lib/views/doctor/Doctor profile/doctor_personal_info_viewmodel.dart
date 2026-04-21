@@ -7,6 +7,7 @@ import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'dart:async';
 import 'package:medlink/services/google_maps_service.dart';
+import 'package:medlink/utils/utils.dart';
 
 class DoctorPersonalInfoViewModel extends ChangeNotifier {
   final UserViewModel _userViewModel;
@@ -102,10 +103,18 @@ class DoctorPersonalInfoViewModel extends ChangeNotifier {
           final currentAccessToken =
               _userViewModel.loginSession!.data!.accessToken;
           final currentRole = _userViewModel.loginSession!.data!.user?.role;
+          // Profile API often omits user id; without it, chat and other flows lose JWT user id.
+          final previousUserId = _userViewModel.loginSession!.data!.user?.id;
+          final dynamic rawId = data['id'] ?? data['_id'];
+          final int? idFromResponse = rawId is int
+              ? rawId
+              : int.tryParse(rawId?.toString() ?? '');
+          final int? mergedUserId = idFromResponse ?? previousUserId;
 
           final Map<String, dynamic> updatedUserJson = {
             ...data,
             'role': currentRole ?? 'DOCTOR',
+            if (mergedUserId != null) 'id': mergedUserId,
           };
 
           final Map<String, dynamic> updatedSessionJson = {
@@ -156,17 +165,13 @@ class DoctorPersonalInfoViewModel extends ChangeNotifier {
         await fetchDoctorProfile();
 
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Profile updated successfully")),
-          );
+          Utils.toastMessage(context, "Profile updated successfully");
           Navigator.pop(context);
         }
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error updating profile: $e")),
-        );
+        Utils.toastError(context, e);
       }
     } finally {
       _isLoading = false;
@@ -228,17 +233,13 @@ class DoctorPersonalInfoViewModel extends ChangeNotifier {
         debugPrint("AVAILABILITY UPDATE SUCCESS. FETCHING PROFILE...");
         await fetchDoctorProfile();
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Availability updated successfully")),
-          );
+          Utils.toastMessage(context, "Availability updated successfully");
           Navigator.pop(context);
         }
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error updating availability: $e")),
-        );
+        Utils.toastError(context, e);
       }
     } finally {
       _isLoading = false;

@@ -7,13 +7,16 @@ import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/services/sos_socket_service.dart';
 import 'package:medlink/utils/gps_coord.dart';
 import 'package:medlink/utils/trip_driver_location.dart';
+import 'package:medlink/utils/utils.dart';
+import 'package:medlink/core/constants/sos_constants.dart';
 
-/// Real-time SOS feedback for the patient UI (SnackBars / toasts).
+/// Real-time SOS feedback for the patient UI (custom toasts via [Utils.toastMessage]).
 class EmergencyToast {
   final String message;
   final Color backgroundColor;
+  final bool isError;
 
-  EmergencyToast(this.message, this.backgroundColor);
+  EmergencyToast(this.message, this.backgroundColor, {this.isError = false});
 }
 
 class EmergencyViewModel extends ChangeNotifier {
@@ -31,9 +34,17 @@ class EmergencyViewModel extends ChangeNotifier {
   StreamSubscription<Map<String, dynamic>>? _sosSub;
   StreamSubscription<Map<String, dynamic>>? _tripSub;
   StreamSubscription<Map<String, dynamic>>? _locSub;
+  Timer? _searchUiTicker;
 
   /// Logged-in patient user id (string — numeric or UUID from API).
   String? _currentPatientId;
+
+  /// Server-driven driver search window (minutes). Default until API responds.
+  int _searchWindowMinutes = 2;
+  DateTime? _searchWindowStartedAt;
+  DateTime? _searchWindowEndsAt;
+  String? _noDriverFoundMessage;
+  bool _canRetrySearch = false;
 
   /// Trip id (string) for `trip:locationUpdated` / `joinTrip` — supports int ids and UUIDs.
   String? _trackedTripIdKey;
@@ -54,6 +65,132 @@ class EmergencyViewModel extends ChangeNotifier {
   Map<String, dynamic>? get activeTrip => _activeTrip;
   String? get tripStatus => _activeTrip?['status']?.toString();
   String? get lastCompletedTripId => _lastCompletedTripId;
+
+  int get searchWindowMinutes => _searchWindowMinutes;
+  DateTime? get searchWindowStartedAt => _searchWindowStartedAt;
+  DateTime? get searchWindowEndsAt => _searchWindowEndsAt;
+  String? get noDriverFoundMessage => _noDriverFoundMessage;
+  bool get canRetrySearch => _canRetrySearch;
+
+  /// Progress 0→1 while OPEN and unassigned; null when not applicable.
+  double? get searchWindowProgressFraction {
+    if (_sosStatus != 'OPEN' || _assignedAmbulance != null) return null;
+    final ends = _searchWindowEndsAt;
+    final started = _searchWindowStartedAt;
+    if (ends == null || started == null) return null;
+    final now = DateTime.now();
+    if (!now.isBefore(ends)) return 1.0;
+    final total = ends.difference(started).inMilliseconds;
+    if (total <= 0) return 1.0;
+    final elapsed = now.difference(started).inMilliseconds;
+    return (elapsed / total).clamp(0.0, 1.0);
+  }
+
+  /// Remaining time in the driver search window (OPEN, unassigned only).
+  Duration? get searchWindowRemaining {
+    if (_sosStatus != 'OPEN' || _assignedAmbulance != null) return null;
+    final ends = _searchWindowEndsAt;
+    if (ends == null) return null;
+    final d = ends.difference(DateTime.now());
+    return d.isNegative ? Duration.zero : d;
+  }
+
+  DateTime? _tryParseIso(dynamic v) {
+    if (v == null) return null;
+    final s = v.toString();
+    if (s.isEmpty) return null;
+    return DateTime.tryParse(s);
+  }
+
+  void _recomputeSearchWindowEndsIfNeeded() {
+    final started = _searchWindowStartedAt;
+    if (started == null) return;
+    if (_searchWindowEndsAt == null ||
+        _sosStatus == 'OPEN' ||
+        _sosStatus == 'EXPIRED') {
+      _searchWindowEndsAt =
+          started.add(Duration(minutes: _searchWindowMinutes));
+    }
+  }
+
+  /// Merges timing / retry fields from REST or `sos:updated` payloads.
+  void _mergeSosTimingFromMap(Map<String, dynamic> m) {
+    final rawMin = m['searchWindowMinutes'];
+    if (rawMin != null) {
+      final v = int.tryParse(rawMin.toString()) ?? _searchWindowMinutes;
+      _searchWindowMinutes = v.clamp(1, 1440);
+    }
+    final startedRaw = m['searchWindowStartedAt'];
+    if (startedRaw != null) {
+      _searchWindowStartedAt = _tryParseIso(startedRaw);
+    }
+    final endsRaw = m['searchWindowEndsAt'];
+    if (endsRaw != null) {
+      _searchWindowEndsAt = _tryParseIso(endsRaw);
+    } else {
+      _recomputeSearchWindowEndsIfNeeded();
+    }
+
+    final st = m['status']?.toString() ?? _sosStatus;
+    final nd = m['noDriverFoundMessage'];
+    if (nd != null && nd.toString().trim().isNotEmpty) {
+      _noDriverFoundMessage = nd.toString();
+    } else if (st == 'EXPIRED') {
+      _noDriverFoundMessage = SosConstants.noAmbulanceDriverMessage;
+    } else {
+      _noDriverFoundMessage = null;
+    }
+
+    final cr = m['canRetrySearch'];
+    if (cr is bool) {
+      _canRetrySearch = cr;
+    } else if (cr != null) {
+      _canRetrySearch = cr.toString() == 'true';
+    } else {
+      _canRetrySearch = st == 'EXPIRED';
+    }
+  }
+
+  void _applyAssignedDriverFromSosMap(Map<String, dynamic> sos) {
+    final st = sos['status']?.toString();
+    final assignedId = sos['assignedDriverId'];
+    if (st == 'ASSIGNED' && sos['assignedDriver'] is Map) {
+      _assignedAmbulance = AmbulanceModel.fromJson(
+        Map<String, dynamic>.from(sos['assignedDriver']),
+      );
+    } else if (st == 'OPEN' &&
+        (assignedId == null || assignedId.toString().isEmpty)) {
+      _assignedAmbulance = null;
+    } else if (st == 'EXPIRED') {
+      _assignedAmbulance = null;
+    }
+  }
+
+  void _ingestSosRecord(Map<String, dynamic> sos) {
+    _sosId = sos['id']?.toString() ?? _sosId;
+    _sosStatus = sos['status']?.toString();
+    _mergeSosTimingFromMap(sos);
+    _activeTrip = sos['trip'] is Map
+        ? Map<String, dynamic>.from(sos['trip'])
+        : _activeTrip;
+    _applyAssignedDriverFromSosMap(sos);
+    _mergeDriverLocationFromTripMap(_activeTrip);
+  }
+
+  void _startSearchUiTicker() {
+    _searchUiTicker?.cancel();
+    _searchUiTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!_isSosActive) return;
+      if (_sosStatus != 'OPEN' || _assignedAmbulance != null) return;
+      if (_searchWindowEndsAt == null) return;
+      notifyListeners();
+    });
+  }
+
+  void _stopSearchUiTicker() {
+    _searchUiTicker?.cancel();
+    _searchUiTicker = null;
+  }
 
   void _syncTrackedTripIdFromActiveTrip() {
     final id = _activeTrip?['id'];
@@ -91,6 +228,7 @@ class EmergencyViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _pollingTimer?.cancel();
+    _searchUiTicker?.cancel();
     _sosSub?.cancel();
     _tripSub?.cancel();
     _locSub?.cancel();
@@ -134,20 +272,50 @@ class EmergencyViewModel extends ChangeNotifier {
       _toastController.add(EmergencyToast(
         '$name accepted your request. Ambulance is on the way.',
         const Color(0xFF2E7D32),
+        isError: false,
       ));
     } else if (status == 'OPEN' && prev == 'ASSIGNED') {
       _toastController.add(EmergencyToast(
         'Driver released your request. Still searching for an ambulance…',
         const Color(0xFFE65100),
+        isError: false,
       ));
     } else if (status == 'CANCELLED') {
       _toastController.add(EmergencyToast(
         'Your emergency request was cancelled.',
         Colors.red.shade800,
+        isError: true,
+      ));
+    } else if (status == 'EXPIRED' &&
+        prev != 'EXPIRED' &&
+        prev != null &&
+        prev.isNotEmpty) {
+      final msg = (payload['noDriverFoundMessage']?.toString().trim().isNotEmpty ==
+              true)
+          ? payload['noDriverFoundMessage'].toString()
+          : SosConstants.noAmbulanceDriverMessage;
+      _toastController.add(EmergencyToast(
+        msg,
+        Colors.red.shade800,
+        isError: true,
+      ));
+    } else if (status == 'OPEN' && prev == 'EXPIRED') {
+      _toastController.add(EmergencyToast(
+        SosConstants.retrySearchingMessage,
+        const Color(0xFF1565C0),
+        isError: false,
       ));
     }
 
     _lastSosStatusById[sid] = status;
+  }
+
+  void _seedSosStatusTrackingForCurrent() {
+    final sid = _sosId;
+    final st = _sosStatus;
+    if (sid != null && sid.isNotEmpty && st != null && st.isNotEmpty) {
+      _lastSosStatusById[sid] = st;
+    }
   }
 
   /// Avoid re-firing trip milestone toasts after REST restore or duplicate socket payloads.
@@ -179,6 +347,7 @@ class EmergencyViewModel extends ChangeNotifier {
         _toastController.add(EmergencyToast(
           'Trip requested. Waiting for confirmation…',
           const Color(0xFF1565C0),
+          isError: false,
         ));
         break;
       case 'ACCEPTED':
@@ -192,30 +361,35 @@ class EmergencyViewModel extends ChangeNotifier {
         _toastController.add(EmergencyToast(
           '$driverName is on the way to your location.',
           const Color(0xFF1565C0),
+          isError: false,
         ));
         break;
       case 'ARRIVED':
         _toastController.add(EmergencyToast(
           '$driverName has arrived at the pickup point.',
           const Color(0xFF2E7D32),
+          isError: false,
         ));
         break;
       case 'IN_PROGRESS':
         _toastController.add(EmergencyToast(
           'Heading to the hospital.',
           const Color(0xFF1565C0),
+          isError: false,
         ));
         break;
       case 'COMPLETED':
         _toastController.add(EmergencyToast(
           'Trip completed. Thank you for using Medlink.',
           const Color(0xFF2E7D32),
+          isError: false,
         ));
         break;
       case 'CANCELLED':
         _toastController.add(EmergencyToast(
           'Ambulance trip was cancelled.',
           Colors.red.shade800,
+          isError: true,
         ));
         break;
       default:
@@ -241,13 +415,22 @@ class EmergencyViewModel extends ChangeNotifier {
 
       _maybeEmitSosToast(m);
 
+      _sosId = m['id']?.toString() ?? _sosId;
       _sosStatus = m['status']?.toString();
-      _sosId = m['id']?.toString();
+      _mergeSosTimingFromMap(m);
+
       final assigned = m['assignedDriver'];
-      if (assigned is Map) {
+      if (_sosStatus == 'ASSIGNED' && assigned is Map) {
         _assignedAmbulance = AmbulanceModel.fromJson(
           Map<String, dynamic>.from(assigned),
         );
+      } else if (_sosStatus == 'OPEN') {
+        final aid = m['assignedDriverId'];
+        if (aid == null || aid.toString().isEmpty) {
+          _assignedAmbulance = null;
+        }
+      } else if (_sosStatus == 'EXPIRED') {
+        _assignedAmbulance = null;
       }
 
       if (_sosStatus == 'RESOLVED' || _sosStatus == 'CANCELLED') {
@@ -256,6 +439,11 @@ class EmergencyViewModel extends ChangeNotifier {
       }
 
       _isSosActive = true;
+      if (_sosStatus == 'OPEN' && _assignedAmbulance == null) {
+        _startSearchUiTicker();
+      } else {
+        _stopSearchUiTicker();
+      }
       notifyListeners();
     });
 
@@ -346,15 +534,11 @@ class EmergencyViewModel extends ChangeNotifier {
       if (response != null && response['data'] is List) {
         final list = response['data'] as List;
         if (list.isNotEmpty) {
-          final sos = list.first;
-          // Check if the latest SOS is still active
-          if (sos['status'] == 'OPEN' || sos['status'] == 'ASSIGNED') {
+          final sos = Map<String, dynamic>.from(list.first as Map);
+          final st = sos['status']?.toString();
+          if (st == 'OPEN' || st == 'ASSIGNED' || st == 'EXPIRED') {
             _isSosActive = true;
-            _sosId = sos['id']?.toString();
-            _sosStatus = sos['status']?.toString();
-            _activeTrip = sos['trip'] is Map
-                ? Map<String, dynamic>.from(sos['trip'])
-                : null;
+            _ingestSosRecord(sos);
             _seedTripStatusFromMap(_activeTrip);
             _syncTrackedTripIdFromActiveTrip();
             final tripId = _activeTrip?['id'];
@@ -366,11 +550,12 @@ class EmergencyViewModel extends ChangeNotifier {
                 _sosId!.isNotEmpty) {
               _socket.joinSos(_sosId!);
             }
-            if (sos['status'] == 'ASSIGNED' && sos['assignedDriver'] != null) {
-              _assignedAmbulance =
-                  AmbulanceModel.fromJson(sos['assignedDriver']);
+            if (st == 'OPEN' && _assignedAmbulance == null) {
+              _startSearchUiTicker();
+            } else {
+              _stopSearchUiTicker();
             }
-            _mergeDriverLocationFromTripMap(_activeTrip);
+            _seedSosStatusTrackingForCurrent();
             notifyListeners();
             if (!_realtimeEnabled) {
               _startPollingForDriver();
@@ -462,13 +647,10 @@ class EmergencyViewModel extends ChangeNotifier {
           _isSosActive = false;
           notifyListeners();
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Turn on location and allow access so we can send your position with SOS.',
-                ),
-                backgroundColor: Colors.orange,
-              ),
+            Utils.toastMessage(
+              context,
+              'Turn on location and allow access so we can send your position with SOS.',
+              isError: true,
             );
           }
           return;
@@ -486,9 +668,22 @@ class EmergencyViewModel extends ChangeNotifier {
       );
 
       if (response != null) {
-        if (response['data'] != null) {
-          _sosId = response['data']['id']?.toString();
+        final data = response['data'];
+        if (data is Map<String, dynamic>) {
+          _ingestSosRecord(Map<String, dynamic>.from(data));
+        } else if (data is Map) {
+          _ingestSosRecord(Map<String, dynamic>.from(data));
+        } else if (response is Map &&
+            response['id'] != null &&
+            response['status'] != null) {
+          _ingestSosRecord(Map<String, dynamic>.from(response));
+        } else if (data != null && data is Map && data['id'] != null) {
+          _sosId = data['id']?.toString();
         }
+        if (_sosStatus == 'OPEN' && _assignedAmbulance == null) {
+          _startSearchUiTicker();
+        }
+        _seedSosStatusTrackingForCurrent();
         if (!_realtimeEnabled) {
           _startPollingForDriver();
         } else {
@@ -500,11 +695,12 @@ class EmergencyViewModel extends ChangeNotifier {
 
         debugPrint("SOS Created: ${response['data']}");
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('SOS Alert Sent Successfully! Finding Driver...'),
-              backgroundColor: Colors.red,
-            ),
+          final friendly = response['message']?.toString();
+          Utils.toastMessage(
+            context,
+            (friendly != null && friendly.isNotEmpty)
+                ? friendly
+                : 'SOS Alert Sent Successfully! Finding Driver...',
           );
         }
       } else {
@@ -512,9 +708,7 @@ class EmergencyViewModel extends ChangeNotifier {
         notifyListeners();
         debugPrint("Failed to create SOS");
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to send SOS')),
-          );
+          Utils.toastMessage(context, 'Failed to send SOS', isError: true);
         }
       }
     } catch (e) {
@@ -522,9 +716,7 @@ class EmergencyViewModel extends ChangeNotifier {
       notifyListeners();
       debugPrint("Error creating SOS: $e");
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        Utils.toastError(context, e);
       }
     }
   }
@@ -538,19 +730,17 @@ class EmergencyViewModel extends ChangeNotifier {
           final list = response['data'] as List;
           if (list.isNotEmpty) {
             // Check the most recent SOS
-            final sos = list.first;
-            _sosStatus = sos['status']?.toString();
-            _activeTrip = sos['trip'] is Map
-                ? Map<String, dynamic>.from(sos['trip'])
-                : null;
+            final sos = Map<String, dynamic>.from(list.first as Map);
+            final st = sos['status']?.toString();
+            _ingestSosRecord(sos);
             _syncTrackedTripIdFromActiveTrip();
-            if (sos['status'] == 'ASSIGNED' && sos['assignedDriver'] != null) {
-              _assignedAmbulance =
-                  AmbulanceModel.fromJson(sos['assignedDriver']);
+            if (st == 'OPEN' && _assignedAmbulance == null) {
+              _startSearchUiTicker();
+            } else {
+              _stopSearchUiTicker();
             }
             _mergeDriverLocationFromTripMap(_activeTrip);
-            if (sos['status'] == 'RESOLVED' ||
-                sos['status'] == 'CANCELLED') {
+            if (st == 'RESOLVED' || st == 'CANCELLED') {
               final trip = _activeTrip;
               final tripStatus = trip?['status']?.toString();
               if (tripStatus == 'COMPLETED') {
@@ -570,6 +760,7 @@ class EmergencyViewModel extends ChangeNotifier {
 
   String get sosTitle {
     if (!_isSosActive) return '';
+    if (_sosStatus == 'EXPIRED') return 'No driver found';
     final trip = tripStatus;
     if (trip == 'ARRIVED') return 'Ambulance Arrived';
     if (trip == 'IN_PROGRESS') return 'Trip In Progress';
@@ -578,6 +769,20 @@ class EmergencyViewModel extends ChangeNotifier {
   }
 
   String get sosEtaText {
+    if (_sosStatus == 'EXPIRED') {
+      return _noDriverFoundMessage ?? SosConstants.noAmbulanceDriverMessage;
+    }
+    final rem = searchWindowRemaining;
+    if (_sosStatus == 'OPEN' &&
+        _assignedAmbulance == null &&
+        rem != null &&
+        rem > Duration.zero) {
+      final s = rem.inSeconds;
+      final m = s ~/ 60;
+      final sec = s % 60;
+      if (m > 0) return '${m}m ${sec}s';
+      return '${sec}s';
+    }
     final trip = _activeTrip;
     if (trip == null) return _assignedAmbulance?.estimatedArrival ?? '...';
     final timeMinutes = trip['timeMinutes'];
@@ -602,9 +807,58 @@ class EmergencyViewModel extends ChangeNotifier {
     _trackedTripIdKey = null;
     _lastSosStatusById.clear();
     _lastTripStatusById.clear();
+    _searchWindowStartedAt = null;
+    _searchWindowEndsAt = null;
+    _noDriverFoundMessage = null;
+    _canRetrySearch = false;
+    _searchWindowMinutes = 2;
+    _stopSearchUiTicker();
     _socket.clearJoinedRooms();
     _pollingTimer?.cancel();
     notifyListeners();
+  }
+
+  /// Re-open driver search for an EXPIRED SOS (`POST /patient/sos/:id/retry`).
+  Future<void> retrySosSearch(BuildContext context) async {
+    if (!_canRetrySearch && _sosStatus != 'EXPIRED') return;
+    final id = _sosId;
+    if (id == null || id.isEmpty) return;
+    try {
+      final response = await _apiServices.retryPatientSos(id);
+      if (response == null) {
+        if (context.mounted) {
+          Utils.toastMessage(context, 'Could not retry search', isError: true);
+        }
+        return;
+      }
+      final data = response['data'];
+      if (data is Map) {
+        _ingestSosRecord(Map<String, dynamic>.from(data));
+      }
+      _isSosActive = true;
+      if (_sosStatus == 'OPEN' && _assignedAmbulance == null) {
+        _startSearchUiTicker();
+      }
+      if (!_realtimeEnabled) {
+        _startPollingForDriver();
+      } else if (_sosId != null && _sosId!.isNotEmpty) {
+        _socket.joinSos(_sosId!);
+      }
+      _seedSosStatusTrackingForCurrent();
+      notifyListeners();
+      if (context.mounted) {
+        final msg = response['message']?.toString();
+        Utils.toastMessage(
+          context,
+          (msg != null && msg.isNotEmpty)
+              ? msg
+              : SosConstants.retrySearchingMessage,
+        );
+      }
+    } catch (e) {
+      debugPrint('retrySosSearch error: $e');
+      if (context.mounted) Utils.toastError(context, e);
+    }
   }
 
   void clearCompletedTripReviewPrompt() {

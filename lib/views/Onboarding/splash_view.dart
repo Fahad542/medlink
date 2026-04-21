@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/views/services/session_view_model.dart'; // Session
 import 'package:provider/provider.dart';
 import 'package:medlink/views/main/main_screen.dart'; // Patient Home
@@ -75,54 +74,17 @@ class _SplashViewState extends State<SplashView> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primary,
+      backgroundColor: Colors.white,
       body: Center(
         child: FadeTransition(
           opacity: _fadeAnimation,
           child: ScaleTransition(
             scale: _scaleAnimation,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 20,
-                        spreadRadius: 5,
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.health_and_safety,
-                    size: 80,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  "MedLink Africa",
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  "Emergency & Healthcare",
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white.withOpacity(0.9),
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
+            child: Image.asset(
+              'assets/Icons/remove_back.png',
+              width: 340,
+              height: 340,
+              fit: BoxFit.contain,
             ),
           ),
         ),

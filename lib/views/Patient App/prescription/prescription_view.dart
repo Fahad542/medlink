@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:medlink/views/Patient App/prescriptions/prescription_view_model.dart';
 import 'package:medlink/widgets/prescription_list_shimmer.dart';
+import 'package:medlink/utils/utils.dart';
 
 class PrescriptionView extends StatefulWidget {
   const PrescriptionView({super.key});
@@ -302,9 +303,7 @@ class _PrescriptionViewState extends State<PrescriptionView> {
 
     if (success) {
       Navigator.of(ctx).pop(); // close bottom sheet
-      ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text("Report uploaded successfully ✓"), backgroundColor: Color(0xFF00897B)),
-      );
+      Utils.toastMessage(ctx, "Report uploaded successfully ✓");
     }
   }
 
@@ -691,9 +690,7 @@ class _PrescriptionViewState extends State<PrescriptionView> {
                       icon: Icons.download_rounded,
                       label: "Download",
                       onTap: () {
-                        ScaffoldMessenger.of(ctx).showSnackBar(
-                          const SnackBar(content: Text("Downloading PDF..."), backgroundColor: Colors.teal),
-                        );
+                        Utils.toastMessage(ctx, "Downloading PDF...");
                       },
                     ),
                     const SizedBox(width: 32),

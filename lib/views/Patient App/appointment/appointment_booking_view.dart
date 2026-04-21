@@ -9,6 +9,7 @@ import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:provider/provider.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_payment_view.dart';
+import 'package:medlink/utils/utils.dart';
 
 class AppointmentBookingView extends StatefulWidget {
   final DoctorModel doctor;
@@ -158,8 +159,10 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
                       return GestureDetector(
                         onTap: () {
                           if (isOffDay) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text("Doctor is not available on ${DateFormat('EEEE').format(date)}")),
+                            Utils.toastMessage(
+                              context,
+                              "Doctor is not available on ${DateFormat('EEEE').format(date)}",
+                              isError: true,
                             );
                             return;
                           }
@@ -232,8 +235,10 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
                         return InkWell(
                           onTap: () {
                             if (isBooked) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text("This slot is already booked")),
+                              Utils.toastMessage(
+                                context,
+                                "This slot is already booked",
+                                isError: true,
                               );
                               return;
                             }
@@ -340,8 +345,10 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
 
   Future<void> _handleInitialBooking() async {
     if (_selectedTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please select a time slot")),
+      Utils.toastMessage(
+        context,
+        "Please select a time slot",
+        isError: true,
       );
       return;
     }
@@ -350,10 +357,10 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
     final patientId = userViewModel.patient?.id;
 
     if (patientId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content:
-                Text("Error: User session not found. Please login again.")),
+      Utils.toastMessage(
+        context,
+        "User session not found. Please login again.",
+        isError: true,
       );
       return;
     }
@@ -385,9 +392,10 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
         _showPayment = true;
       });
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(result['message'] ?? "Failed to initiate booking.")),
+      Utils.toastMessage(
+        context,
+        result['message'] ?? "Failed to initiate booking.",
+        isError: true,
       );
     }
   }

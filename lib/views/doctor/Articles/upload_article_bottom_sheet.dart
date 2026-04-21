@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/models/health_article_model.dart';
 import 'package:medlink/utils/utils.dart';
 import 'package:medlink/views/Patient%20App/health/health_hub_viewmodel.dart';
 import 'package:provider/provider.dart';
 
 class UploadArticleBottomSheet extends StatefulWidget {
-  const UploadArticleBottomSheet({super.key});
+  const UploadArticleBottomSheet({super.key, this.article});
+  final HealthArticle? article;
 
   @override
   State<UploadArticleBottomSheet> createState() => _UploadArticleBottomSheetState();
@@ -22,6 +24,20 @@ class _UploadArticleBottomSheetState extends State<UploadArticleBottomSheet> {
   File? _image;
   final _picker = ImagePicker();
   bool _isLoading = false;
+  bool _isPublished = true;
+  bool get _isEditing => widget.article != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final article = widget.article;
+    if (article != null) {
+      _titleController.text = article.title;
+      _categoryController.text = article.category;
+      _contentController.text = article.contentHtml;
+      _isPublished = article.isPublished;
+    }
+  }
 
   Future<void> _pickImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
@@ -34,7 +50,7 @@ class _UploadArticleBottomSheetState extends State<UploadArticleBottomSheet> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_image == null) {
+    if (!_isEditing && _image == null) {
       Utils.toastMessage(context, "Please select a cover image", isError: true);
       return;
     }
@@ -42,24 +58,42 @@ class _UploadArticleBottomSheetState extends State<UploadArticleBottomSheet> {
     setState(() => _isLoading = true);
 
     final viewModel = Provider.of<HealthHubViewModel>(context, listen: false);
-    final success = await viewModel.uploadArticle(
-      title: _titleController.text.trim(),
-      category: _categoryController.text.trim(),
-      contentHtml: _contentController.text.trim(),
-      isPublished: true,
-      imagePath: _image?.path,
-    );
+    final success = _isEditing
+        ? await viewModel.updateArticle(
+            articleId: widget.article!.id,
+            title: _titleController.text.trim(),
+            category: _categoryController.text.trim(),
+            contentHtml: _contentController.text.trim(),
+            isPublished: _isPublished,
+            imagePath: _image?.path,
+          )
+        : await viewModel.uploadArticle(
+            title: _titleController.text.trim(),
+            category: _categoryController.text.trim(),
+            contentHtml: _contentController.text.trim(),
+            isPublished: _isPublished,
+            imagePath: _image?.path,
+          );
 
     setState(() => _isLoading = false);
 
     if (success) {
       if (mounted) {
         Navigator.pop(context);
-        Utils.toastMessage(context, "Article uploaded successfully!");
+        Utils.toastMessage(
+          context,
+          _isEditing
+              ? "Article updated successfully!"
+              : "Article uploaded successfully!",
+        );
       }
     } else {
       if (mounted) {
-        Utils.toastMessage(context, "Failed to upload article", isError: true);
+        Utils.toastMessage(
+          context,
+          _isEditing ? "Failed to update article" : "Failed to upload article",
+          isError: true,
+        );
       }
     }
   }
@@ -104,7 +138,7 @@ class _UploadArticleBottomSheetState extends State<UploadArticleBottomSheet> {
               ),
               const SizedBox(height: 20),
               Text(
-                "Upload New Article",
+                _isEditing ? "Edit Article" : "Upload New Article",
                 style: GoogleFonts.inter(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -112,6 +146,33 @@ class _UploadArticleBottomSheetState extends State<UploadArticleBottomSheet> {
                 ),
               ),
               const SizedBox(height: 20),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      "Published",
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  Switch.adaptive(
+                    value: _isPublished,
+                    activeColor: AppColors.primary,
+                    onChanged: _isLoading
+                        ? null
+                        : (value) {
+                            setState(() {
+                              _isPublished = value;
+                            });
+                          },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
 
               // Image Picker
               GestureDetector(
@@ -127,7 +188,13 @@ class _UploadArticleBottomSheetState extends State<UploadArticleBottomSheet> {
                             image: FileImage(_image!),
                             fit: BoxFit.cover,
                           )
-                        : null,
+                        : (_isEditing &&
+                                (widget.article?.coverImageUrl ?? '').isNotEmpty)
+                            ? DecorationImage(
+                                image: NetworkImage(widget.article!.coverImageUrl),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
                   ),
                   child: _image == null
                       ? Column(
@@ -206,7 +273,7 @@ class _UploadArticleBottomSheetState extends State<UploadArticleBottomSheet> {
                           ),
                         )
                       : Text(
-                          "Publish Article",
+                          _isEditing ? "Update Article" : "Publish Article",
                           style: GoogleFonts.inter(
                             fontSize: 16,
                             fontWeight: FontWeight.normal,

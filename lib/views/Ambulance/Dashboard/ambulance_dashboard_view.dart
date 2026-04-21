@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 
 import 'package:medlink/core/constants/app_url.dart';
+import 'package:medlink/utils/utils.dart';
 
 class AmbulanceDashboardView extends StatefulWidget {
   const AmbulanceDashboardView({super.key});
@@ -337,12 +338,9 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView> {
 
   Widget _buildRequestCard(BuildContext context,
       AmbulanceDashboardViewModel viewModel, Map<String, dynamic> request) {
-    final createdAt = request['createdAt'];
-    final remaining =
-        AmbulanceDashboardViewModel.remainingAcceptTime(createdAt);
-    final progress = AmbulanceDashboardViewModel.acceptProgressFraction(
-            createdAt)
-        .clamp(0.0, 1.0);
+    final remaining = viewModel.remainingAcceptTimeForRequest(request);
+    final progress =
+        viewModel.acceptProgressFractionFor(request).clamp(0.0, 1.0);
     final countdownColor = progress < 0.2
         ? Colors.red
         : (progress < 0.45 ? Colors.orange : AppColors.primary);
@@ -405,10 +403,10 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView> {
           ),
           const SizedBox(height: 2),
           Text(
-            request['location'],
+            request['location']?.toString() ?? '',
             style: GoogleFonts.inter(
                 color: Colors.grey[600], fontSize: 11), // Smaller Subtitle
-            maxLines: 1,
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 10),
@@ -452,9 +450,19 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView> {
           const SizedBox(height: 8), // Reduced spacing
           Row(
             children: [
-              _buildCompactInfo(Icons.near_me, request['distance']),
-              const SizedBox(width: 12),
-              _buildCompactInfo(Icons.medical_services, request['severity']),
+              Icon(Icons.near_me, size: 14, color: Colors.grey[500]),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  request['distance']?.toString() ?? '—',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12), // Reduced spacing
@@ -524,13 +532,10 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView> {
                           Navigator.pop(context);
 
                           if (mainVm.hasActiveTrip) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'You already have an active trip. Complete it before accepting another request.',
-                                ),
-                                backgroundColor: Colors.red,
-                              ),
+                            Utils.toastMessage(
+                              context,
+                              'You already have an active trip. Complete it before accepting another request.',
+                              isError: true,
                             );
                             return;
                           }
@@ -550,12 +555,10 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView> {
                                       const medlink_app.AmbulanceMissionView()),
                             );
                           } else if (!success && context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                    "Failed to accept request. It may have been taken."),
-                                backgroundColor: Colors.red,
-                              ),
+                            Utils.toastMessage(
+                              context,
+                              "Failed to accept request. It may have been taken.",
+                              isError: true,
                             );
                           }
                         },
@@ -568,20 +571,6 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildCompactInfo(IconData icon, String text) {
-    return Row(
-      children: [
-        Icon(icon, size: 14, color: Colors.grey[500]), // Decreased size
-        const SizedBox(width: 6),
-        Text(
-          text,
-          style: const TextStyle(
-              fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-        ),
-      ],
     );
   }
 

@@ -19,10 +19,16 @@ class ChatSocketService {
 
   final StreamController<Map<String, dynamic>> _newMessageController =
       StreamController.broadcast();
- 
+  final StreamController<Map<String, dynamic>> _typingController =
+      StreamController.broadcast();
+  final StreamController<Map<String, dynamic>> _conversationReadController =
+      StreamController.broadcast();
+
   Stream<Map<String, dynamic>> get newMessageStream =>
       _newMessageController.stream;
- 
+  Stream<Map<String, dynamic>> get typingStream => _typingController.stream;
+  Stream<Map<String, dynamic>> get conversationReadStream =>
+      _conversationReadController.stream;
   bool get isConnected => _socket?.connected == true;
  
   void connect({required String url, required String token}) {
@@ -33,6 +39,8 @@ class ChatSocketService {
         _url == chatUrl &&
         _token == token &&
         _socket!.connected == true) {
+      // Keep user room fresh on reused active socket.
+      _emitJoinUser();
       return;
     }
  
@@ -76,7 +84,19 @@ class ChatSocketService {
       final m = _toMap(data);
       if (m != null) _newMessageController.add(m);
     });
- 
+    socket.on('chat:typing', (data) {
+      final m = _toMap(data);
+      if (m != null) _typingController.add(m);
+    });
+    socket.on('chat:conversationRead', (data) {
+      final m = _toMap(data);
+      if (m != null) _conversationReadController.add(m);
+    });
+    // Backward compatibility if backend emits plain `typing`.
+    socket.on('typing', (data) {
+      final m = _toMap(data);
+      if (m != null) _typingController.add(m);
+    });
     _socket = socket;
     socket.connect();
   }
@@ -191,7 +211,31 @@ class ChatSocketService {
     debugPrint('[ChatSocketService] 📤 EMITTING sendMessage: $payload');
     _socket!.emit('sendMessage', payload);
   }
- 
+  void sendTyping({
+    required String recipientId,
+    required bool isTyping,
+    String? appointmentId,
+    String? sosId,
+    String? tripId,
+  }) {
+    if (_socket == null) return;
+    final rId = int.tryParse(recipientId);
+    if (rId == null) return;
+
+    final payload = <String, dynamic>{
+      'recipientId': rId,
+      'isTyping': isTyping,
+    };
+    final appt = int.tryParse((appointmentId ?? '').trim());
+    final sos = int.tryParse((sosId ?? '').trim());
+    final trip = int.tryParse((tripId ?? '').trim());
+    if (appt != null) payload['appointmentId'] = appt;
+    if (sos != null) payload['sosId'] = sos;
+    if (trip != null) payload['tripId'] = trip;
+    _socket!.emit('typing', payload);
+    // Backward compatibility for servers expecting namespaced event.
+    _socket!.emit('chat:typing', payload);
+  }
   void disconnect() {
     _joinedAppointmentId = null;
     _lastAppointmentId = null;

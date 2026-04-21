@@ -26,8 +26,49 @@ class DoctorPatientsView extends StatefulWidget {
   State<DoctorPatientsView> createState() => _DoctorPatientsViewState();
 }
 
-class _DoctorPatientsViewState extends State<DoctorPatientsView> {
+class _DoctorPatientsViewState extends State<DoctorPatientsView>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
+  late final TabController _tabController;
+  bool _syncedTabWithViewModel = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(_onPatientTabChanged);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_syncedTabWithViewModel) return;
+    _syncedTabWithViewModel = true;
+    final vm = Provider.of<DoctorPatientsViewModel>(context, listen: false);
+    final idx = vm.selectedFilterIndex.clamp(0, 1);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_tabController.index != idx) {
+        _tabController.index = idx;
+      }
+    });
+  }
+
+  void _onPatientTabChanged() {
+    if (_tabController.indexIsChanging) return;
+    final vm = Provider.of<DoctorPatientsViewModel>(context, listen: false);
+    if (vm.selectedFilterIndex != _tabController.index) {
+      vm.setFilterIndex(_tabController.index);
+    }
+  }
+
+  @override
+  void dispose() {
+    _tabController.removeListener(_onPatientTabChanged);
+    _tabController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,20 +79,54 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
           appBar: CustomAppBar(
             title: "My Patients",
             automaticallyImplyLeading: widget.showBackButton,
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(60),
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  dividerColor: Colors.transparent,
+                  indicator: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(25),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  labelColor: AppColors.primary,
+                  unselectedLabelColor: Colors.white.withValues(alpha: 0.9),
+                  labelStyle: GoogleFonts.inter(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                  unselectedLabelStyle: GoogleFonts.inter(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                  tabs: [
+                    Tab(text: viewModel.filters[0]),
+                    Tab(text: viewModel.filters[1]),
+                  ],
+                ),
+              ),
+            ),
           ),
           body: Column(
             children: [
-              // Search and Filters
               Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Column(
-                  children: [
-                    _buildSearchBar(viewModel),
-                    const SizedBox(height: 12),
-                    _buildFilterChips(viewModel),
-                  ],
-                ),
+                child: _buildSearchBar(viewModel),
               ),
 
               // Patient List
@@ -72,7 +147,7 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
                             ],
                           )
                         : ListView.builder(
-                            physics: const BouncingScrollPhysics(),
+                            physics: const ClampingScrollPhysics(),
                             padding: const EdgeInsets.only(
                                 left: 16, right: 16, top: 0, bottom: 100),
                             itemCount: viewModel.patients.length,
@@ -130,72 +205,6 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
       ),
-    );
-  }
-
-  Widget _buildFilterChips(DoctorPatientsViewModel viewModel) {
-    return Row(
-      children: List.generate(viewModel.filters.length, (index) {
-        final isSelected = viewModel.selectedFilterIndex == index;
-        return Expanded(
-          child: GestureDetector(
-            onTap: () => viewModel.setFilterIndex(index),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
-              margin: EdgeInsets.only(right: index == 0 ? 8 : 0),
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(
-                gradient: isSelected
-                    ? const LinearGradient(
-                        colors: [AppColors.primary, Color(0xFF008985)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      )
-                    : null,
-                color: isSelected ? null : Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.02),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (isSelected)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: Icon(
-                          index == 0
-                              ? Icons.people_rounded
-                              : Icons.person_rounded,
-                          color: Colors.white,
-                          size: 15,
-                        ),
-                      ),
-                    AnimatedDefaultTextStyle(
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeInOut,
-                      style: GoogleFonts.inter(
-                        color: isSelected ? Colors.white : Colors.grey[600],
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                        letterSpacing: 0.3,
-                      ),
-                      child: Text(viewModel.filters[index]),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      }),
     );
   }
 
@@ -416,7 +425,7 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView> {
                                 appointmentId: patient.lastAppointmentId ?? "0",
                                 doctorId: currentUserId.toString(),
                                 patientId: patient.id.toString(),
-                              )),
+                                )),
                     );
                   },
                   borderRadius: BorderRadius.circular(16),

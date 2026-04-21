@@ -33,58 +33,33 @@ class AmbulanceProfileView extends StatelessWidget {
               child: Column(
                 children: [
                   _buildProfileHeader(context, viewModel),
-                  // Stats Row
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 24),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            GestureDetector(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (context) =>
-                                            const AmbulanceReviewsView()),
-                                  );
-                                },
-                                child: _buildStatItem(
-                                    viewModel.rating.isNotEmpty
-                                        ? viewModel.rating
-                                        : "0.0",
-                                    "Rating",
-                                    Icons.star_rounded,
-                                    Colors.amber)),
-                            _buildVerticalDivider(),
-                            _buildStatItem(
-                                viewModel.totalTrips.isNotEmpty
-                                    ? viewModel.totalTrips
-                                    : "0",
-                                "Trips",
-                                Icons.directions_car_rounded,
-                                AppColors.primary),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-
                   const SizedBox(height: 24),
 
                   // Menu Items
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Padding(
+                          padding: const EdgeInsets.only(left: 12, bottom: 8),
+                          child: Text(
+                            "ACCOUNT SETTINGS",
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF94A3B8),
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ),
                         _buildSettingsGroup([
-                          _buildSettingsTile(
+                          _buildPremiumTile(
                             context,
                             icon: Icons.person_outline_rounded,
+                            color: AppColors.primary,
                             title: "Edit Profile",
-                            iconColor: AppColors.primary,
+                            subtitle: "Update driver details",
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -123,107 +98,75 @@ class AmbulanceProfileView extends StatelessWidget {
                             },
                           ),
                           _buildDivider(),
-                          _buildSettingsTile(
+                          _buildPremiumTile(
                             context,
                             icon: Icons.language_rounded,
+                            color: AppColors.primary,
                             title: "Localization",
-                            iconColor: Colors.orange,
+                            subtitle: "Language & Region",
                             onTap: () => _showLanguageDialog(context),
-                          ),
-                          _buildDivider(),
-                          _buildSettingsTile(
-                            context,
-                            icon: Icons.notifications_none_rounded,
-                            title: "Notifications",
-                            iconColor: Colors.purple,
-                            onTap: () {}, // TODO
                           ),
                         ]),
 
-                        const SizedBox(height: 20),
-
-                        // Logout
-                        GestureDetector(
-                          onTap: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) => LogoutConfirmationDialog(
-                                onLogout: () => viewModel.logout(context),
-                              ),
-                            );
-                          },
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.error.withOpacity(0.05),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.logout_rounded,
-                                    color: AppColors.error, size: 18),
-                                const SizedBox(width: 8),
-                                Text(
-                                  "Logout",
-                                  style: GoogleFonts.inter(
-                                    color: AppColors.error,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
+                        const SizedBox(height: 28),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 12, bottom: 8),
+                          child: Text(
+                            "ACCOUNT ACTIONS",
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF94A3B8),
+                              letterSpacing: 1.2,
                             ),
                           ),
                         ),
-                        const SizedBox(height: 16),
-
-                        // Delete Account Action
-                        GestureDetector(
-                          onTap: () {
-                            DeleteAccountSheet.show(context);
-                          },
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.error.withOpacity(0.05),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.person_remove_rounded,
-                                    color: AppColors.error, size: 18),
-                                const SizedBox(width: 8),
-                                Text(
-                                  "Delete Account",
-                                  style: GoogleFonts.inter(
-                                    color: AppColors.error,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
+                        _buildSettingsGroup(
+                          [
+                            _buildPremiumTile(
+                              context,
+                              icon: Icons.logout_rounded,
+                              color: AppColors.primary,
+                              title: "Log Out",
+                              subtitle: "Sign out of your account",
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) =>
+                                      LogoutConfirmationDialog(
+                                    onConfirm: () => viewModel.logout(context),
                                   ),
-                                ),
-                              ],
+                                );
+                              },
                             ),
-                          ),
+                            _buildDivider(),
+                            _buildPremiumTile(
+                              context,
+                              icon: Icons.person_remove_rounded,
+                              color: AppColors.primary,
+                              title: "Delete Account",
+                              subtitle: "Permanently remove account",
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) =>
+                                      LogoutConfirmationDialog(
+                                    title: "Delete Account",
+                                    message:
+                                        "Are you sure you want to delete your account?",
+                                    confirmText: "Delete",
+                                    confirmColor: AppColors.primary,
+                                    onConfirm: () {
+                                      Navigator.pop(context);
+                                      DeleteAccountSheet.show(context);
+                                    },
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 30),
+                        const SizedBox(height: 110),
                       ],
                     ),
                   ),
@@ -239,55 +182,117 @@ class AmbulanceProfileView extends StatelessWidget {
   Widget _buildProfileHeader(
       BuildContext context, AmbulanceProfileViewModel viewModel) {
     return SizedBox(
-      height: 280,
+      height: 340,
       child: Stack(
-        alignment: Alignment.topCenter,
-        clipBehavior: Clip.none,
         children: [
           Container(
-            height: 220,
+            height: 300,
             width: double.infinity,
-            padding: const EdgeInsets.only(top: 8),
             decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF00695C), AppColors.primary],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(48)),
+              color: AppColors.primary,
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
             ),
-            child: SafeArea(
-              child: Column(
+            child: ClipRRect(
+              borderRadius:
+                  const BorderRadius.vertical(bottom: Radius.circular(30)),
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          viewModel.driverName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      const Icon(Icons.verified_rounded,
-                          color: Colors.lightGreenAccent, size: 20),
-                    ],
+                  Positioned(
+                    top: -100,
+                    right: -50,
+                    child: CircleAvatar(
+                      radius: 130,
+                      backgroundColor: Colors.white.withOpacity(0.08),
+                    ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    viewModel.licensePlate,
-                    style: GoogleFonts.inter(
-                      color: Colors.white70,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 0.5,
+                  Positioned(
+                    bottom: -50,
+                    left: -50,
+                    child: CircleAvatar(
+                      radius: 100,
+                      backgroundColor: Colors.white.withOpacity(0.05),
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.center,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 20, top: 20),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                  color: Colors.white.withOpacity(0.6),
+                                  width: 1.5),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 5),
+                                )
+                              ],
+                            ),
+                            child: CircleAvatar(
+                              radius: 45,
+                              backgroundColor: Colors.white,
+                              backgroundImage: NetworkImage(
+                                  AppUrl.getFullUrl(viewModel.profilePhotoUrl)),
+                              onBackgroundImageError: (_, __) {},
+                              child: AppUrl.getFullUrl(viewModel.profilePhotoUrl)
+                                      .isEmpty
+                                  ? const Icon(Icons.person,
+                                      size: 50, color: Colors.grey)
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  viewModel.driverName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              const Icon(Icons.verified_rounded,
+                                  color: Colors.lightGreenAccent, size: 20),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                  color: Colors.white.withOpacity(0.1)),
+                            ),
+                            child: Text(
+                              viewModel.licensePlate,
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -295,33 +300,50 @@ class AmbulanceProfileView extends StatelessWidget {
             ),
           ),
           Positioned(
+            left: 20,
+            right: 20,
             bottom: 0,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Container(
-                width: 110,
-                height: 110,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 4),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
+            child: Container(
+              height: 96,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 20,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AmbulanceReviewsView(),
+                        ),
+                      );
+                    },
+                    child: _buildStatItem(
+                      viewModel.rating.isNotEmpty ? viewModel.rating : "0.0",
+                      "Rating",
+                      Icons.star_rounded,
+                      Colors.amber,
                     ),
-                  ],
-                ),
-                child: ClipOval(
-                    child: Image.network(
-                  AppUrl.getFullUrl(viewModel.profilePhotoUrl),
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                      color: Colors.grey[200],
-                      child: const Icon(Icons.person,
-                          size: 44, color: Colors.grey)),
-                )),
+                  ),
+                  _buildVerticalDivider(),
+                  _buildStatItem(
+                    viewModel.totalTrips.isNotEmpty ? viewModel.totalTrips : "0",
+                    "Trips",
+                    Icons.directions_car_rounded,
+                    AppColors.primary,
+                  ),
+                ],
               ),
             ),
           ),
@@ -459,20 +481,22 @@ class AmbulanceProfileView extends StatelessWidget {
   Widget _buildStatItem(
       String value, String label, IconData icon, Color color) {
     return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
             color: color.withOpacity(0.1),
             shape: BoxShape.circle,
           ),
-          child: Icon(icon, color: color, size: 18),
+          child: Icon(icon, color: color, size: 16),
         ),
-        const SizedBox(height: 7),
+        const SizedBox(height: 5),
         Text(
           value,
           style: GoogleFonts.inter(
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.bold,
             color: AppColors.textPrimary,
           ),
@@ -480,7 +504,7 @@ class AmbulanceProfileView extends StatelessWidget {
         Text(
           label,
           style: GoogleFonts.inter(
-            fontSize: 12,
+            fontSize: 11,
             color: Colors.grey[500],
             fontWeight: FontWeight.w500,
           ),
@@ -552,6 +576,65 @@ class AmbulanceProfileView extends StatelessWidget {
             Icon(Icons.arrow_forward_ios_rounded,
                 size: 15, color: Colors.grey[300]),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPremiumTile(
+    BuildContext context, {
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1E293B),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: Colors.grey[500],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios_rounded,
+                  size: 14, color: Colors.grey[300]),
+            ],
+          ),
         ),
       ),
     );

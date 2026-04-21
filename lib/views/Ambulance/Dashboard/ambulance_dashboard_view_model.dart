@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/services/sos_socket_service.dart';
 
@@ -10,11 +12,14 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
   StreamSubscription<Map<String, dynamic>>? _sosSub;
   Timer? _countdownTickTimer;
 
-  /// Must match backend `getEmergencyRequests` pool window.
-  static const Duration sosDriverAcceptWindow = Duration(minutes: 2);
+  /// Dedupe reverse-geocode lookups by rounded coordinates.
+  final Map<String, String> _reverseGeocodeCache = {};
 
   bool _isOnline = true;
   List<Map<String, dynamic>> _activeRequests = [];
+
+  /// From public system settings; per-request overrides may exist on each SOS.
+  int _sosDriverSearchWindowMinutes = 2;
 
   // Stats from API
   int _totalTrips = 0;
@@ -27,13 +32,15 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
 
   AmbulanceDashboardViewModel() {
     _loadDashboard();
+    _loadSystemSosWindow();
     _loadActiveRequests();
     _loadProfile();
     _sosSub = _socket.sosUpdatedStream.listen(_handleSosUpdated);
     _countdownTickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!_isOnline) return;
       final before = _activeRequests.length;
-      _activeRequests.removeWhere((r) => !_isPoolSosFresh(r['createdAt']));
+      _activeRequests.removeWhere(
+          (r) => remainingAcceptTimeForRequest(r) <= Duration.zero);
       if (before != _activeRequests.length || _activeRequests.isNotEmpty) {
         notifyListeners();
       }
@@ -47,11 +54,23 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
     super.dispose();
   }
 
-  /// Time left to accept (from `createdAt`). Zero if expired.
-  static Duration remainingAcceptTime(dynamic createdAt) {
+  int _windowMinutesFor(Map<String, dynamic> r) {
+    final raw = r['searchWindowMinutes'];
+    if (raw != null) {
+      return (int.tryParse(raw.toString()) ?? _sosDriverSearchWindowMinutes)
+          .clamp(1, 1440);
+    }
+    return _sosDriverSearchWindowMinutes.clamp(1, 1440);
+  }
+
+  /// Time left to accept (from `searchWindowStartedAt`, else `createdAt`). Zero if expired.
+  Duration remainingAcceptTimeForRequest(Map<String, dynamic> r) {
+    final window = Duration(minutes: _windowMinutesFor(r));
+    final startRaw = r['searchWindowStartedAt'] ?? r['createdAt'];
+    if (startRaw == null) return Duration.zero;
     try {
-      final t = DateTime.parse(createdAt.toString()).toUtc();
-      final end = t.add(sosDriverAcceptWindow);
+      final t = DateTime.parse(startRaw.toString()).toUtc();
+      final end = t.add(window);
       final left = end.difference(DateTime.now().toUtc());
       return left.isNegative ? Duration.zero : left;
     } catch (_) {
@@ -59,16 +78,18 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
     }
   }
 
-  /// 1.0 = just created, 0.0 = window ended.
-  static double acceptProgressFraction(dynamic createdAt) {
+  /// 1.0 = window just started, 0.0 = window ended.
+  double acceptProgressFractionFor(Map<String, dynamic> r) {
+    final window = Duration(minutes: _windowMinutesFor(r));
+    final startRaw = r['searchWindowStartedAt'] ?? r['createdAt'];
+    if (startRaw == null) return 0.0;
     try {
-      final t = DateTime.parse(createdAt.toString()).toUtc();
+      final t = DateTime.parse(startRaw.toString()).toUtc();
       final now = DateTime.now().toUtc();
       final elapsed = now.difference(t);
       if (elapsed <= Duration.zero) return 1.0;
-      if (elapsed >= sosDriverAcceptWindow) return 0.0;
-      return 1.0 -
-          (elapsed.inMilliseconds / sosDriverAcceptWindow.inMilliseconds);
+      if (elapsed >= window) return 0.0;
+      return 1.0 - (elapsed.inMilliseconds / window.inMilliseconds);
     } catch (_) {
       return 0.0;
     }
@@ -80,6 +101,181 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
     final m = totalSec ~/ 60;
     final s = totalSec % 60;
     return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
+  static double? _toDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString());
+  }
+
+  static String _formatDistanceMeters(double meters) {
+    if (meters < 1000) {
+      return '${meters.round()} m away';
+    }
+    return '${(meters / 1000).toStringAsFixed(1)} km away';
+  }
+
+  static String _placemarkLine(Placemark p) {
+    final parts = <String>[
+      if (p.street != null && p.street!.trim().isNotEmpty) p.street!.trim(),
+      if (p.subLocality != null && p.subLocality!.trim().isNotEmpty)
+        p.subLocality!.trim(),
+      if (p.locality != null && p.locality!.trim().isNotEmpty) p.locality!.trim(),
+      if (p.administrativeArea != null &&
+          p.administrativeArea!.trim().isNotEmpty)
+        p.administrativeArea!.trim(),
+    ];
+    if (parts.isEmpty) {
+      final n = p.name?.trim();
+      if (n != null && n.isNotEmpty) return n;
+      return '';
+    }
+    return parts.join(', ');
+  }
+
+  Future<Position?> _tryDriverPosition() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return null;
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return null;
+      }
+      return Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
+    } catch (e) {
+      debugPrint('AmbulanceDashboardViewModel _tryDriverPosition: $e');
+      return null;
+    }
+  }
+
+  Future<String?> _reverseGeocode(double lat, double lng) async {
+    final key =
+        '${lat.toStringAsFixed(4)}_${lng.toStringAsFixed(4)}';
+    final cached = _reverseGeocodeCache[key];
+    if (cached != null) return cached;
+    try {
+      final list = await placemarkFromCoordinates(lat, lng);
+      if (list.isEmpty) return null;
+      final line = _placemarkLine(list.first).trim();
+      if (line.isEmpty) return null;
+      _reverseGeocodeCache[key] = line;
+      return line;
+    } catch (e) {
+      debugPrint('AmbulanceDashboardViewModel _reverseGeocode: $e');
+      return null;
+    }
+  }
+
+  Future<void> _enrichRequestsLocationAndDistance() async {
+    if (_activeRequests.isEmpty) return;
+
+    final driver = await _tryDriverPosition();
+    bool anyChange = false;
+
+    for (final r in _activeRequests) {
+      final lat = _toDouble(r['lat']);
+      final lng = _toDouble(r['lng']);
+
+      if (lat != null && lng != null && driver != null) {
+        final meters = Geolocator.distanceBetween(
+          driver.latitude,
+          driver.longitude,
+          lat,
+          lng,
+        );
+        final label = _formatDistanceMeters(meters);
+        if (r['distance'] != label) {
+          r['distance'] = label;
+          anyChange = true;
+        }
+      } else if (lat != null && lng != null) {
+        const fallback = 'Turn on location for distance';
+        if (r['distance'] != fallback) {
+          r['distance'] = fallback;
+          anyChange = true;
+        }
+      }
+
+      final hasAddr = r['hasAddressFromApi'] == true;
+      final loc = r['location']?.toString() ?? '';
+      final needsGeocode =
+          !hasAddr && lat != null && lng != null && loc == 'Loading address...';
+      if (needsGeocode) {
+        final resolved = await _reverseGeocode(lat, lng);
+        final next = resolved ?? 'Address unavailable';
+        if (r['location'] != next) {
+          r['location'] = next;
+          anyChange = true;
+        }
+      }
+    }
+
+    if (anyChange) notifyListeners();
+  }
+
+  Map<String, dynamic> _mapEmergencyRequest(Map<String, dynamic> m) {
+    final addrRaw = m['addressText']?.toString().trim();
+    final hasAddr = addrRaw != null && addrRaw.isNotEmpty;
+    final lat = _toDouble(m['lat']);
+    final lng = _toDouble(m['lng']);
+    return {
+      'id': m['id'].toString(),
+      'createdAt': m['createdAt'],
+      'searchWindowStartedAt': m['searchWindowStartedAt'],
+      'searchWindowMinutes': m['searchWindowMinutes'],
+      'patientName': m['patient']?['fullName'] ?? 'Unknown',
+      'lat': lat,
+      'lng': lng,
+      'hasAddressFromApi': hasAddr,
+      'distance': '—',
+      'location': hasAddr
+          ? addrRaw!
+          : (lat != null && lng != null ? 'Loading address...' : 'Location unavailable'),
+      'incident': m['emergencyType'] ?? 'Emergency',
+      'time': _formatTime(
+        (m['searchWindowStartedAt'] ?? m['createdAt'])?.toString(),
+      ),
+    };
+  }
+
+  Map<String, dynamic> _mapSosPayload(Map<String, dynamic> payload) {
+    final addrRaw = payload['addressText']?.toString().trim();
+    final hasAddr = addrRaw != null && addrRaw.isNotEmpty;
+    final lat = _toDouble(payload['lat']);
+    final lng = _toDouble(payload['lng']);
+    final patient = payload['patient'] is Map
+        ? Map<String, dynamic>.from(payload['patient'] as Map)
+        : <String, dynamic>{};
+
+    return {
+      'id': payload['id'].toString(),
+      'createdAt': payload['createdAt'],
+      'searchWindowStartedAt': payload['searchWindowStartedAt'],
+      'searchWindowMinutes': payload['searchWindowMinutes'],
+      'patientName': patient['fullName'] ?? 'Unknown',
+      'lat': lat,
+      'lng': lng,
+      'hasAddressFromApi': hasAddr,
+      'distance': '—',
+      'location': hasAddr
+          ? addrRaw!
+          : (lat != null && lng != null ? 'Loading address...' : 'Location unavailable'),
+      'incident': payload['emergencyType'] ?? 'Emergency',
+      'time': _formatTime(
+        (payload['searchWindowStartedAt'] ?? payload['createdAt'])
+            ?.toString(),
+      ),
+    };
   }
 
   bool get isOnline => _isOnline;
@@ -137,9 +333,28 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
   Future<void> refreshDashboard() async {
     await Future.wait([
       _loadDashboard(),
+      _loadSystemSosWindow(),
       _loadActiveRequests(),
       _loadProfile(), // Reload profile on pull-to-refresh
     ]);
+  }
+
+  Future<void> _loadSystemSosWindow() async {
+    try {
+      final response = await _apiServices.getSystemSettings();
+      if (response != null && response['success'] == true && response['data'] is Map) {
+        final raw =
+            (response['data'] as Map)['sosDriverSearchWindowMinutes'];
+        if (raw != null) {
+          _sosDriverSearchWindowMinutes =
+              (int.tryParse(raw.toString()) ?? _sosDriverSearchWindowMinutes)
+                  .clamp(1, 1440);
+        }
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('AmbulanceDashboardViewModel _loadSystemSosWindow: $e');
+    }
   }
 
   Future<void> toggleOnlineStatus(bool value) async {
@@ -171,24 +386,9 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
         final data = response['data'];
         if (data is List) {
           _activeRequests = List<Map<String, dynamic>>.from(
-            data
-                .where((item) {
-                  if (item is! Map) return false;
-                  return _isPoolSosFresh(item['createdAt']);
-                })
-                .map((item) {
-              final m = item as Map;
-              return {
-                'id': m['id'].toString(),
-                'createdAt': m['createdAt'],
-                'patientName': m['patient']?['fullName'] ?? 'Unknown',
-                'severity': m['severity'] ?? 'High',
-                'distance': 'Calculating...',
-                'location': m['addressText'] ??
-                    'Lat: ${m['lat']}, Lng: ${m['lng']}',
-                'incident': m['emergencyType'] ?? 'Emergency',
-                'time': _formatTime(m['createdAt']?.toString()),
-              };
+            data.where((item) => item is Map).map((item) {
+              final m = Map<String, dynamic>.from(item as Map);
+              return _mapEmergencyRequest(m);
             }),
           );
         }
@@ -197,6 +397,7 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
       debugPrint('Error loading active requests: $e');
     }
     notifyListeners();
+    unawaited(_enrichRequestsLocationAndDistance());
   }
 
   void _handleSosUpdated(Map<String, dynamic> payload) {
@@ -208,9 +409,8 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
     final status = payload['status']?.toString();
     final assigned = payload['assignedDriverId'];
 
-    final bool inPool = status == 'OPEN' &&
-        (assigned == null) &&
-        _isPoolSosFresh(payload['createdAt']);
+    final bool inPool =
+        status == 'OPEN' && (assigned == null || assigned.toString().isEmpty);
 
     if (!inPool) {
       _activeRequests.removeWhere((r) => r['id']?.toString() == id);
@@ -218,35 +418,13 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
       return;
     }
 
-    final patient = payload['patient'] is Map
-        ? Map<String, dynamic>.from(payload['patient'] as Map)
-        : <String, dynamic>{};
-
     _activeRequests.removeWhere((r) => r['id']?.toString() == id);
-    _activeRequests.insert(0, {
-      'id': id,
-      'createdAt': payload['createdAt'],
-      'patientName': patient['fullName'] ?? 'Unknown',
-      'severity': payload['severity'] ?? 'High',
-      'distance': 'Calculating...',
-      'location': payload['addressText'] ??
-          'Lat: ${payload['lat']}, Lng: ${payload['lng']}',
-      'incident': payload['emergencyType'] ?? 'Emergency',
-      'time': _formatTime(payload['createdAt']?.toString()),
-    });
+    _activeRequests.insert(
+      0,
+      _mapSosPayload(Map<String, dynamic>.from(payload)),
+    );
     notifyListeners();
-  }
-
-  /// Same rule as backend: unassigned pool SOS inside the accept window.
-  static bool _isPoolSosFresh(dynamic createdAt) {
-    if (createdAt == null) return false;
-    try {
-      final t = DateTime.parse(createdAt.toString()).toUtc();
-      final age = DateTime.now().toUtc().difference(t);
-      return !age.isNegative && age <= sosDriverAcceptWindow;
-    } catch (_) {
-      return false;
-    }
+    unawaited(_enrichRequestsLocationAndDistance());
   }
 
   String _formatTime(String? createdAt) {

@@ -1,40 +1,50 @@
 class HealthVideo {
   final int id;
   final String title;
-  final String? description;
+  final String? _description;
   final String videoUrl;
-  final String? thumbnailUrl;
+  final String? _thumbnailUrl;
   final String category;
-  final int viewCount;
-  final int likeCount;
   final String createdAt;
-  final bool likedByMe;
+  final int? _viewCount;
+  final int? _likeCount;
+  final bool? _likedByMe;
+
+  String get description => _description ?? '';
+  String get thumbnailUrl => _thumbnailUrl ?? '';
+  int get viewCount => _viewCount ?? 0;
+  int get likeCount => _likeCount ?? 0;
+  bool get likedByMe => _likedByMe ?? false;
 
   HealthVideo({
     required this.id,
     required this.title,
-    this.description,
+    String? description,
     required this.videoUrl,
-    this.thumbnailUrl,
+    String? thumbnailUrl,
     required this.category,
-    this.viewCount = 0,
-    this.likeCount = 0,
     required this.createdAt,
-    this.likedByMe = false,
-  });
+    int? viewCount,
+    int? likeCount,
+    bool? likedByMe,
+  })  : _description = description,
+        _thumbnailUrl = thumbnailUrl,
+        _viewCount = viewCount,
+        _likeCount = likeCount,
+        _likedByMe = likedByMe;
 
   factory HealthVideo.fromJson(Map<String, dynamic> json) {
     return HealthVideo(
       id: json['id'] ?? 0,
       title: json['title'] ?? '',
-      description: json['description'],
+      description: json['description'] ?? '',
       videoUrl: json['videoUrl'] ?? '',
-      thumbnailUrl: json['thumbnailUrl'],
+      thumbnailUrl: json['thumbnailUrl'] ?? '',
       category: json['category'] ?? '',
+      createdAt: json['createdAt'] ?? '',
       viewCount: json['viewCount'] ?? 0,
       likeCount: json['likeCount'] ?? 0,
-      createdAt: json['createdAt'] ?? '',
-      likedByMe: json['likedByMe'] ?? false,
+      likedByMe: json['likedByMe'] == true,
     );
   }
 
