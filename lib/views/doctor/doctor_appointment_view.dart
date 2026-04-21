@@ -18,8 +18,12 @@ import 'package:medlink/views/doctor/Dashboard/doctor_dashboard_view_model.dart'
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/widgets/no_data_widget.dart';
 import 'package:medlink/widgets/appointment_list_shimmer.dart';
-import 'package:intl/intl.dart';
-import 'package:medlink/utils/utils.dart';
+import 'package:medlink/widgets/consultation_type_badge.dart';
+import 'package:medlink/widgets/appointment_schedule_rows.dart';
+import 'package:medlink/widgets/appointment_reschedule_sheet.dart';
+import 'package:medlink/widgets/appointment_cancel_reason_dialog.dart';
+import 'package:medlink/services/notification_services.dart';
+import 'package:medlink/services/appointment_socket_service.dart';
 
 class DoctorAppointmentView extends StatelessWidget {
   final bool showBackButton;
@@ -143,7 +147,32 @@ class DoctorAppointmentCard extends StatefulWidget {
 }
 
 class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
+  bool _confirmBusy = false;
+
   AppointmentModel get appointment => widget.appointment;
+
+  Future<void> _confirmAppointment(BuildContext context) async {
+    if (_confirmBusy) return;
+    setState(() => _confirmBusy = true);
+    try {
+      final vm =
+          Provider.of<DoctorAppointmentsViewModel>(context, listen: false);
+      final ok = await vm.approveAppointment(appointment.id);
+      if (!context.mounted) return;
+      try {
+        Provider.of<DoctorDashboardViewModel>(context, listen: false)
+            .fetchData();
+      } catch (_) {}
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(ok
+            ? 'Appointment confirmed'
+            : 'Could not confirm. Try again.'),
+        backgroundColor: ok ? Colors.green.shade700 : Colors.red.shade700,
+      ));
+    } finally {
+      if (mounted) setState(() => _confirmBusy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -151,18 +180,15 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
     Color statusColor = AppColors.secondary;
     String statusText = "Upcoming";
 
-    final bool isUpcoming = appointment.status == AppointmentStatus.upcoming ||
+    final bool isUpcoming = appointment.isDoctorUpcomingSlot &&
+        (appointment.status == AppointmentStatus.upcoming ||
         appointment.status == AppointmentStatus.pending ||
-        appointment.status == AppointmentStatus.confirmed;
+        appointment.status == AppointmentStatus.confirmed ||
+        appointment.status == AppointmentStatus.rescheduled);
     final String patientName = appointment.user?.name ?? "Unknown Patient";
     final String patientInitials = patientName.isNotEmpty
         ? patientName.trim().split(' ').map((l) => l[0]).take(2).join()
         : "??";
-    final baseTime =
-        DateFormat('MMM d, h:mm a').format(appointment.displayScheduledStart);
-    final durLabel = appointment.scheduledDurationLabel;
-    final appointmentTimeLine =
-        durLabel != null ? '$baseTime · $durLabel' : baseTime;
 
     if (appointment.status == AppointmentStatus.completed) {
       statusBg = Colors.green.withOpacity(0.1);
@@ -180,6 +206,10 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
       statusBg = Colors.green.withOpacity(0.1);
       statusColor = Colors.green;
       statusText = "Confirmed";
+    } else if (appointment.status == AppointmentStatus.rescheduled) {
+      statusBg = Colors.blue.withOpacity(0.1);
+      statusColor = Colors.blue;
+      statusText = "Rescheduled";
     } else if (appointment.status == AppointmentStatus.unconfirmed) {
       statusBg = Colors.grey.withOpacity(0.1);
       statusColor = Colors.black;
@@ -247,13 +277,13 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
                             )),
                   );
                 } else if (appointment.status == AppointmentStatus.pending) {
-                  Utils.toastMessage(
-                    context,
-                    'Waiting for the patient to confirm this visit in the app after payment.',
-                    isError: true,
-                  );
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text(
+                        'Confirm this appointment first using the button below.'),
+                  ));
                 } else if (appointment.status == AppointmentStatus.confirmed ||
-                    appointment.status == AppointmentStatus.upcoming) {
+                    appointment.status == AppointmentStatus.upcoming ||
+                    appointment.status == AppointmentStatus.rescheduled) {
                   Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -262,11 +292,9 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
                     );
                 } else {
                   // For other statuses (cancelled, etc.)
-                  Utils.toastMessage(
-                    context,
-                    "Cannot start consultation for this visit",
-                    isError: true,
-                  );
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content:
+                          Text("Cannot start consultation for this visit")));
                 }
               },
               borderRadius: BorderRadius.circular(16),
@@ -325,25 +353,11 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
                                 color: Colors.grey[600], fontSize: 13),
                           ),
                           const SizedBox(height: 6),
-                          Row(
-                            children: [
-                              const Icon(Icons.watch_later_outlined,
-                                  size: 15, color: AppColors.primary),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  appointmentTimeLine,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                          AppointmentScheduleRows(
+                              appointment: appointment, dense: true),
+                          const SizedBox(height: 6),
+                          ConsultationTypeBadge(
+                              type: appointment.type, compact: true),
                         ],
                       ),
                     ),
@@ -376,20 +390,46 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
 
           if (appointment.status == AppointmentStatus.pending) ...[
             const SizedBox(height: 10),
-            Container(
+            const Divider(height: 1),
+            const SizedBox(height: 10),
+            SizedBox(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.orange.shade200),
+              child: FilledButton(
+                onPressed: _confirmBusy ? null : () => _confirmAppointment(context),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: _confirmBusy
+                    ? const SizedBox(
+                        height: 22,
+                        width: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        'Confirm appointment',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
               ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
               child: Text(
-                'Payment received. The patient will confirm this visit in the app to finalize the booking and release your share.',
+                'Patient has paid or booked this slot. Confirm to add it to your earnings.',
                 style: GoogleFonts.inter(
                   fontSize: 11,
-                  color: Colors.grey.shade800,
-                  height: 1.35,
+                  color: Colors.grey[600],
+                  height: 1.3,
                 ),
               ),
             ),
@@ -409,10 +449,9 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () {
-                        Utils.toastMessage(
-                          context,
-                          "Confirmation request sent to ${appointment.user?.name ?? 'patient'}",
-                        );
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text(
+                                "Confirmation request sent to ${appointment.user?.name ?? 'patient'}")));
                       },
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(
@@ -503,6 +542,17 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
               ),
             ),
             const SizedBox(height: 24),
+            if (appointment.status == AppointmentStatus.pending)
+              _appointmentBottomSheetActionItem(
+                iconData: Icons.check_circle_outline_rounded,
+                title: "Confirm appointment",
+                subtitle: "Accept visit and add fee to your earnings",
+                color: Colors.green.shade700,
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _confirmAppointment(cardContext);
+                },
+              ),
             _appointmentBottomSheetActionItem(
               iconData: Icons.chat_bubble_outline_rounded,
               assetPath: "assets/Icons/chat.png",
@@ -543,17 +593,35 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
                             )));
               },
             ),
-            _appointmentBottomSheetActionItem(
+            if (AppointmentModel.doctorCanCancel(appointment.status))
+              _appointmentBottomSheetActionItem(
               iconData: Icons.edit_calendar_outlined,
               title: "Reschedule",
               subtitle: "Change appointment date or time",
               color: AppColors.primary,
               onTap: () {
                 Navigator.pop(sheetContext);
-                // Reschedule logic
+                showAppointmentRescheduleSheet(
+                  context: cardContext,
+                  appointment: appointment,
+                  isDoctorContext: true,
+                  submit: (body) => ApiServices()
+                      .doctorRescheduleAppointment(appointment.id, body),
+                  onSuccess: () {
+                    try {
+                      Provider.of<DoctorAppointmentsViewModel>(cardContext,
+                              listen: false)
+                          .fetchUpcomingAppointments();
+                      Provider.of<DoctorDashboardViewModel>(cardContext,
+                              listen: false)
+                          .fetchData();
+                    } catch (_) {}
+                  },
+                );
               },
             ),
-            _appointmentBottomSheetActionItem(
+            if (AppointmentModel.doctorCanCancel(appointment.status))
+              _appointmentBottomSheetActionItem(
               iconData: Icons.cancel_outlined,
               title: "Cancel Appointment",
               subtitle: "Cancel this scheduled visit",
@@ -562,49 +630,87 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
               onTap: () async {
                 Navigator.pop(sheetContext);
 
-                bool success = false;
+                final reason = await showAppointmentCancelReasonDialog(
+                  cardContext,
+                  title: 'Cancel appointment?',
+                  subtitle:
+                      'The patient will be notified. Please give a short reason for cancellation.',
+                );
+                if (!cardContext.mounted || reason == null) return;
+
+                final apptVm = Provider.of<DoctorAppointmentsViewModel>(
+                    cardContext,
+                    listen: false);
+                final dashVM = Provider.of<DoctorDashboardViewModel>(
+                    cardContext,
+                    listen: false);
+
+                showDialog<void>(
+                  context: cardContext,
+                  barrierDismissible: false,
+                  useRootNavigator: true,
+                  builder: (_) => Dialog(
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                    child: const Padding(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 22,
+                            height: 22,
+                            child:
+                                CircularProgressIndicator(strokeWidth: 2.5),
+                          ),
+                          SizedBox(width: 16),
+                          Text('Cancelling appointment…'),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+
+                var success = false;
                 try {
-                  try {
-                    final vm = Provider.of<DoctorAppointmentsViewModel>(
-                        cardContext,
-                        listen: false);
-                    success = await vm.cancelAppointment(
-                        appointment.id, "Doctor unavailable");
-                    if (success) {
-                      try {
-                        Provider.of<DoctorDashboardViewModel>(cardContext,
-                                listen: false)
-                            .fetchData();
-                      } catch (_) {}
-                    }
-                  } catch (e) {
-                    final dashVM = Provider.of<DoctorDashboardViewModel>(
-                        cardContext,
-                        listen: false);
-                    final api = ApiServices();
-                    final response = await api.doctorCancelAppointment(
-                        appointment.id, "Doctor unavailable");
-                    if (response != null && response['success'] == true) {
-                      success = true;
-                      dashVM.fetchData();
-                    }
-                  }
+                  success =
+                      await apptVm.cancelAppointment(appointment.id, reason);
                 } catch (e) {
                   debugPrint("Error during cancellation: $e");
+                } finally {
+                  if (cardContext.mounted) {
+                    Navigator.of(cardContext, rootNavigator: true).pop();
+                  }
+                }
+
+                if (!cardContext.mounted) return;
+
+                if (success) {
+                  AppointmentSocketService.instance
+                      .emitAfterCancellation(appointment.id);
+                  dashVM.removeUpcomingAppointmentById(appointment.id);
+                  try {
+                    await dashVM.fetchData();
+                    final bannerBody = reason.length > 160
+                        ? '${reason.substring(0, 157)}...'
+                        : reason;
+                    await NotificationServices.app?.showLocalBanner(
+                      title: 'Appointment cancelled',
+                      body: bannerBody,
+                    );
+                  } catch (e) {
+                    debugPrint('Post-cancel refresh: $e');
+                  }
                 }
 
                 if (!cardContext.mounted) return;
                 if (success) {
-                  Utils.toastMessage(
-                    cardContext,
-                    "Appointment Cancelled Successfully!",
-                  );
+                  ScaffoldMessenger.of(cardContext).showSnackBar(const SnackBar(
+                      content: Text("Appointment cancelled successfully")));
                 } else {
-                  Utils.toastMessage(
-                    cardContext,
-                    "Failed to Cancel Appointment",
-                    isError: true,
-                  );
+                  ScaffoldMessenger.of(cardContext).showSnackBar(const SnackBar(
+                      content: Text("Failed to cancel appointment")));
                 }
               },
             ),

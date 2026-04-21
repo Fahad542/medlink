@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:medlink/core/theme/app_theme.dart';
 import 'package:medlink/views/Register/register_viewmodel.dart';
-import 'package:medlink/views/Patient App/home/home_viewmodel.dart';
+import 'package:medlink/views/Patient%20App/home/home_viewmodel.dart';
 import 'package:medlink/views/Patient%20App/emergency/emergency_viewmodel.dart';
 import 'package:medlink/views/Patient%20App/prescription/doctor_viewmodel.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
@@ -19,7 +19,6 @@ import 'package:medlink/views/doctor/doctor_appointments_view_model.dart';
 import 'package:medlink/views/doctor/Doctor%20patients/doctor_patients_view_model.dart';
 import 'package:medlink/views/doctor/Dashboard/doctor_dashboard_view_model.dart';
 import 'package:medlink/views/Patient App/prescriptions/prescription_view_model.dart';
-import 'package:medlink/views/services/settings_view_model.dart';
 import 'package:medlink/views/call/call_view_model.dart';
 // import 'package:medlink/views/home/home_view.dart'; // Removed direct access
 
@@ -39,8 +38,7 @@ import 'firebase_options.dart';
 import 'package:medlink/views/doctor/Doctor%20profile/doctor_personal_info_viewmodel.dart';
 
 @pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async
-{
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 }
 
@@ -58,6 +56,7 @@ void main() async {
 
     final notificationServices = NotificationServices();
     await notificationServices.setupLocalNotifications();
+    NotificationServices.registerAppInstance(notificationServices);
     await notificationServices.requestNotificationPermission();
     await notificationServices.configureForegroundPresentation();
     notificationServices.firebaseInit();
@@ -99,7 +98,6 @@ class MedLinkApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => DoctorViewModel()),
         ChangeNotifierProvider(create: (_) => AppointmentViewModel()),
         ChangeNotifierProvider(create: (_) => ProfileViewModel()),
-        ChangeNotifierProvider(create: (_) => SettingsViewModel()),
         ChangeNotifierProvider(
             create: (context) => DoctorPersonalInfoViewModel(
                 Provider.of<UserViewModel>(context, listen: false))),
@@ -108,10 +106,7 @@ class MedLinkApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => DoctorAppointmentsViewModel()),
         ChangeNotifierProvider(create: (_) => DoctorPatientsViewModel()),
         ChangeNotifierProvider(create: (_) => PrescriptionViewModel()),
-        ChangeNotifierProvider(
-            create: (context) => DoctorDashboardViewModel(
-                  Provider.of<UserViewModel>(context, listen: false),
-                )),
+        ChangeNotifierProvider(create: (_) => DoctorDashboardViewModel()),
         ChangeNotifierProvider(create: (_) => CallViewModel()),
         ChangeNotifierProvider.value(value: WaitingRoomSocketService.instance),
         ChangeNotifierProvider.value(value: CallSocketService.instance),

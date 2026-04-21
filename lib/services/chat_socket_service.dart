@@ -29,8 +29,9 @@ class ChatSocketService {
   Stream<Map<String, dynamic>> get typingStream => _typingController.stream;
   Stream<Map<String, dynamic>> get conversationReadStream =>
       _conversationReadController.stream;
+
   bool get isConnected => _socket?.connected == true;
- 
+
   void connect({required String url, required String token}) {
     // Ensure the namespace is /chat
     final chatUrl = url.endsWith('/chat') ? url : '$url/chat';
@@ -43,11 +44,11 @@ class ChatSocketService {
       _emitJoinUser();
       return;
     }
- 
+
     _disconnectSocket();
     _url = chatUrl;
     _token = token;
- 
+
     final socket = io.io(
       chatUrl,
       io.OptionBuilder()
@@ -84,6 +85,7 @@ class ChatSocketService {
       final m = _toMap(data);
       if (m != null) _newMessageController.add(m);
     });
+
     socket.on('chat:typing', (data) {
       final m = _toMap(data);
       if (m != null) _typingController.add(m);
@@ -97,6 +99,7 @@ class ChatSocketService {
       final m = _toMap(data);
       if (m != null) _typingController.add(m);
     });
+
     _socket = socket;
     socket.connect();
   }
@@ -153,19 +156,19 @@ class ChatSocketService {
     _lastAppointmentId = appointmentId;
     _emitJoinRoom(appointmentId);
   }
- 
+
   void joinSosRoom(String sosId) {
     if (_socket == null) return;
     _lastSosId = sosId;
     _emitJoinSos(sosId);
   }
- 
+
   void joinTripRoom(String tripId) {
     if (_socket == null) return;
     _lastTripId = tripId;
     _emitJoinTrip(tripId);
   }
- 
+
   void leaveRoom(String appointmentId) {
     if (_socket == null) return;
     final id = int.tryParse(appointmentId);
@@ -186,7 +189,7 @@ class ChatSocketService {
     _lastSosId = null;
     _lastTripId = null;
   }
- 
+
   void sendMessage({
     required String recipientId,
     required String messageType,
@@ -211,6 +214,7 @@ class ChatSocketService {
     debugPrint('[ChatSocketService] 📤 EMITTING sendMessage: $payload');
     _socket!.emit('sendMessage', payload);
   }
+
   void sendTyping({
     required String recipientId,
     required bool isTyping,
@@ -236,6 +240,7 @@ class ChatSocketService {
     // Backward compatibility for servers expecting namespaced event.
     _socket!.emit('chat:typing', payload);
   }
+
   void disconnect() {
     _joinedAppointmentId = null;
     _lastAppointmentId = null;
@@ -243,7 +248,7 @@ class ChatSocketService {
     _lastTripId = null;
     _disconnectSocket();
   }
- 
+
   void _disconnectSocket() {
     final s = _socket;
     _socket = null;
@@ -253,7 +258,7 @@ class ChatSocketService {
       s.close();
     }
   }
- 
+
   Map<String, dynamic>? _toMap(dynamic data) {
     if (data is Map) return Map<String, dynamic>.from(data);
     if (data is String) {
@@ -265,3 +270,4 @@ class ChatSocketService {
     return null;
   }
 }
+

@@ -79,9 +79,9 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
       }
     }
     
-    // Videos/Reels tab is index 3
+    // Videos/Reels tab is index 3 — always refetch so backend reel changes show up
     if (_tabController.index == 3) {
-      if (viewModel.healthVideos.isEmpty && !viewModel.isLoadingVideos) {
+      if (!viewModel.isLoadingVideos) {
         viewModel.fetchHealthVideos();
       }
     }
@@ -551,6 +551,20 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
                                   ),
                                 ],
                               ),
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  'Posted by ${article.postedByLabel}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    color: const Color(0xFF64748B),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -689,16 +703,9 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
                   subTitle: "Check back later",
                 )
               else
-                ...viewModel.quickInstructions.map(
-                  (instruction) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _buildInstructionCard(
-                      instruction.title,
-                      instruction.content,
-                      Icons.medical_services_rounded,
-                    ),
-                  ),
-                ),
+                ...viewModel.quickInstructions.map((instruction) =>
+                    _buildInstructionCard(instruction.title,
+                        instruction.content, Icons.medical_services_rounded)),
             ],
           ),
         );
@@ -945,7 +952,7 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
               return Padding(
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 100),
                 child: _ReelVideoCard(
-                  key: ValueKey(video.id),
+                  key: ValueKey('${video.id}|${video.videoUrl}'),
                   video: video,
                   isActive: isActive,
                 ),
@@ -976,6 +983,33 @@ class _ReelVideoCardState extends State<_ReelVideoCard> {
   VideoPlayerController? _controller;
   bool _loading = true;
   bool _hasError = false;
+
+  /// Avoid setState on every position tick — that breaks video texture on many devices
+  /// (audio plays, picture frozen). Only snapshot fields that affect layout/chrome.
+  bool _lastPlaying = false;
+  bool _lastBuffering = false;
+  Size _lastVideoSize = Size.zero;
+  bool _lastHadError = false;
+
+  void _maybeUpdateUiForControllerValue() {
+    final v = _controller?.value;
+    if (v == null || !mounted) return;
+    final playing = v.isPlaying;
+    final buffering = v.isBuffering;
+    final sz = v.size;
+    final err = v.hasError;
+    if (playing == _lastPlaying &&
+        buffering == _lastBuffering &&
+        sz == _lastVideoSize &&
+        err == _lastHadError) {
+      return;
+    }
+    _lastPlaying = playing;
+    _lastBuffering = buffering;
+    _lastVideoSize = sz;
+    _lastHadError = err;
+    setState(() {});
+  }
 
   @override
   void initState() {
@@ -1008,12 +1042,13 @@ class _ReelVideoCardState extends State<_ReelVideoCard> {
       final controller = VideoPlayerController.networkUrl(
         Uri.parse(widget.video.videoUrl),
         videoPlayerOptions: VideoPlayerOptions(
-          mixWithOthers: true,
+          mixWithOthers: false,
           allowBackgroundPlayback: false,
         ),
       );
       await controller.initialize();
-      controller.addListener(_onControllerUpdated);
+      // Listen only for coarse value changes — not position stream (see _maybeUpdateUiForControllerValue).
+      controller.addListener(_maybeUpdateUiForControllerValue);
       controller
         ..setLooping(true)
         ..setVolume(1.0);
@@ -1024,6 +1059,11 @@ class _ReelVideoCardState extends State<_ReelVideoCard> {
         await controller.pause();
       }
       if (mounted) {
+        final v = controller.value;
+        _lastPlaying = v.isPlaying;
+        _lastBuffering = v.isBuffering;
+        _lastVideoSize = v.size;
+        _lastHadError = v.hasError;
         setState(() {
           _loading = false;
           _hasError = false;
@@ -1090,11 +1130,6 @@ class _ReelVideoCardState extends State<_ReelVideoCard> {
     }
   }
 
-  void _onControllerUpdated() {
-    if (!mounted) return;
-    setState(() {});
-  }
-
   Future<void> _togglePlayPause() async {
     final c = _controller;
     if (c == null || !c.value.isInitialized) return;
@@ -1107,9 +1142,13 @@ class _ReelVideoCardState extends State<_ReelVideoCard> {
   }
 
   void _disposeController() {
-    _controller?.removeListener(_onControllerUpdated);
+    _controller?.removeListener(_maybeUpdateUiForControllerValue);
     _controller?.dispose();
     _controller = null;
+    _lastPlaying = false;
+    _lastBuffering = false;
+    _lastVideoSize = Size.zero;
+    _lastHadError = false;
   }
 
   @override
@@ -1128,12 +1167,24 @@ class _ReelVideoCardState extends State<_ReelVideoCard> {
         children: [
           Container(color: Colors.black),
           if (!_hasError && c != null && c.value.isInitialized)
-            FittedBox(
-              fit: BoxFit.cover,
-              child: SizedBox(
-                width: c.value.size.width,
-                height: c.value.size.height,
-                child: VideoPlayer(c),
+            Positioned.fill(
+              child: ClipRect(
+                child: ColoredBox(
+                  color: Colors.black,
+                  child: FittedBox(
+                    fit: BoxFit.cover,
+                    clipBehavior: Clip.hardEdge,
+                    child: SizedBox(
+                      width: c.value.size.width > 0
+                          ? c.value.size.width
+                          : 1,
+                      height: c.value.size.height > 0
+                          ? c.value.size.height
+                          : 1,
+                      child: VideoPlayer(c),
+                    ),
+                  ),
+                ),
               ),
             )
           else if ((widget.video.thumbnailUrl).isNotEmpty)
@@ -1248,21 +1299,27 @@ class _ReelVideoCardState extends State<_ReelVideoCard> {
                 color: Colors.white,
               ),
             ),
-          if (!_loading && !_hasError)
+          if (!_loading && !_hasError && c != null && c.value.isInitialized)
             Positioned.fill(
-              child: GestureDetector(
-                onTap: _togglePlayPause,
-                child: AnimatedOpacity(
-                  opacity: (c?.value.isPlaying ?? false) ? 0 : 1,
-                  duration: const Duration(milliseconds: 160),
-                  child: const Center(
-                    child: Icon(
-                      Icons.play_circle_fill_rounded,
-                      color: Colors.white70,
-                      size: 72,
+              child: ValueListenableBuilder<VideoPlayerValue>(
+                valueListenable: c,
+                builder: (context, value, __) {
+                  return GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onTap: _togglePlayPause,
+                    child: AnimatedOpacity(
+                      opacity: value.isPlaying ? 0 : 1,
+                      duration: const Duration(milliseconds: 160),
+                      child: const Center(
+                        child: Icon(
+                          Icons.play_circle_fill_rounded,
+                          color: Colors.white70,
+                          size: 72,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
             ),
           if (_hasError)

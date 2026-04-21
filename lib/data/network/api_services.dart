@@ -165,13 +165,134 @@ class ApiServices {
     }
   }
 
-  Future<dynamic> getBookedSlots(String doctorId, String date) async {
+  Future<dynamic> getBookedSlots(
+    String doctorId,
+    String date, {
+    String? excludeAppointmentId,
+  }) async {
+    try {
+      var url =
+          '${AppUrl.getBookedSlots}/$doctorId/booked-slots?date=$date';
+      if (excludeAppointmentId != null && excludeAppointmentId.isNotEmpty) {
+        url += '&excludeAppointmentId=${Uri.encodeQueryComponent(excludeAppointmentId)}';
+      }
+      return await _apiServices.getGetApiResponse(url);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Session length + active weekly availability rows (same shape as doctor list).
+  Future<dynamic> getPatientDoctorWeeklySchedule(String doctorId) async {
     try {
       return await _apiServices.getGetApiResponse(
-        '${AppUrl.getBookedSlots}/$doctorId/booked-slots?date=$date',
+        '${AppUrl.patientDoctorWeeklySchedule}/$doctorId/weekly-schedule',
       );
     } catch (e) {
       rethrow;
+    }
+  }
+
+  Future<dynamic> getPatientNotifications({int limit = 50}) async {
+    try {
+      return await _apiServices.getGetApiResponse(
+        '${AppUrl.patientNotifications}?limit=$limit',
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getDoctorNotifications({int limit = 50}) async {
+    try {
+      return await _apiServices.getGetApiResponse(
+        '${AppUrl.doctorNotifications}?limit=$limit',
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// POST — mark every in-app notification read (patient). Sets `isRead` on the server.
+  Future<dynamic> markAllPatientNotificationsRead() async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        AppUrl.patientNotificationsReadAll,
+        jsonEncode({}),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// POST — mark every in-app notification read (doctor).
+  Future<dynamic> markAllDoctorNotificationsRead() async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        AppUrl.doctorNotificationsReadAll,
+        jsonEncode({}),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// PATCH — one row: set `isRead: true` in DB for this notification (patient).
+  ///
+  /// **Backend contract:** `PATCH /patient/notifications/{id}/read`
+  /// - Auth: Bearer (same as other patient routes)
+  /// - Body: `{ "isRead": true }`
+  /// - Response: `{ "success": true, ... }` (or your standard envelope)
+  Future<dynamic> markPatientNotificationRead(String notificationId) async {
+    final id = notificationId.trim();
+    if (id.isEmpty) {
+      return <String, dynamic>{'success': false, 'message': 'Missing id'};
+    }
+    try {
+      final path = Uri.encodeComponent(id);
+      return await _apiServices.getPatchApiResponse(
+        '${AppUrl.patientNotifications}/$path/read',
+        {'isRead': true},
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// PATCH — set `isRead: true` for one doctor notification.
+  ///
+  /// **Backend contract:** `PATCH /doctor/notifications/{id}/read`
+  /// - Body: `{ "isRead": true }`
+  Future<dynamic> markDoctorNotificationRead(String notificationId) async {
+    final id = notificationId.trim();
+    if (id.isEmpty) {
+      return <String, dynamic>{'success': false, 'message': 'Missing id'};
+    }
+    try {
+      final path = Uri.encodeComponent(id);
+      return await _apiServices.getPatchApiResponse(
+        '${AppUrl.doctorNotifications}/$path/read',
+        {'isRead': true},
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Reads `settings.minimumDoctorConsultationFee` from GET `/common/organization-settings/:id`.
+  Future<double?> getOrganizationMinimumConsultationFee(int organizationId) async {
+    try {
+      final res = await _apiServices.getGetApiResponse(
+        AppUrl.organizationSettingsById(organizationId),
+      );
+      if (res is! Map || res['success'] != true) return null;
+      final settings = res['settings'];
+      if (settings is! Map) return null;
+      final v = settings['minimumDoctorConsultationFee'];
+      if (v == null) return null;
+      return double.tryParse(v.toString());
+    } catch (_) {
+      return null;
     }
   }
 
@@ -937,6 +1058,32 @@ class ApiServices {
     }
   }
 
+  Future<dynamic> patientRescheduleAppointment(
+    String appointmentId,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final url =
+          '${AppUrl.patientCancelAppointment}/$appointmentId/reschedule';
+      return await _apiServices.getPatchApiResponse(url, body);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> doctorRescheduleAppointment(
+    String appointmentId,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final url =
+          '${AppUrl.doctorAppointmentActions}/$appointmentId/reschedule';
+      return await _apiServices.getPatchApiResponse(url, body);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<dynamic> submitDoctorReview(
     String appointmentId, {
     required int rating,
@@ -1064,7 +1211,12 @@ class ApiServices {
 
   Future<dynamic> getPatientReels() async {
     try {
-      return await _apiServices.getGetApiResponse(AppUrl.patientReels);
+      // Bust HTTP/CDN caches so list changes from the API are always fresh
+      final u = Uri.parse(AppUrl.patientReels);
+      final q = Map<String, String>.from(u.queryParameters);
+      q['_t'] = DateTime.now().millisecondsSinceEpoch.toString();
+      final url = u.replace(queryParameters: q).toString();
+      return await _apiServices.getGetApiResponse(url);
     } catch (e) {
       rethrow;
     }

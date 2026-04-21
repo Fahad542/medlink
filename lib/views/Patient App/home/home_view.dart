@@ -1,13 +1,14 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:medlink/widgets/custom_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/Patient%20App/emergency/emergency_viewmodel.dart';
+import 'package:medlink/views/Patient%20App/emergency/destination_picker_view.dart';
 import 'package:medlink/widgets/sos_button.dart';
 import 'package:medlink/views/Patient%20App/Find%20a%20doctor/doctor_list_view.dart';
 import 'package:medlink/views/Patient App/consultation/chat_list_view.dart';
+import 'package:medlink/views/notifications/notifications_list_view.dart';
 import 'package:medlink/views/Patient App/prescription/prescription_view.dart';
 import 'package:medlink/views/Patient App/home/category_list_view.dart';
 import 'package:medlink/views/Patient App/profile/personal_info_view.dart';
@@ -17,11 +18,9 @@ import 'package:medlink/views/Patient App/health/health_hub_view.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
 import 'package:medlink/views/Patient%20App/home/home_viewmodel.dart';
 import 'package:medlink/models/appointment_model.dart';
-import 'package:medlink/widgets/appointment_list_shimmer.dart';
 import 'package:medlink/widgets/appointment_info_card.dart';
-import 'package:medlink/widgets/emergency_action_dialog.dart';
+import 'package:medlink/widgets/appointment_list_shimmer.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -65,6 +64,7 @@ class _HomeViewState extends State<HomeView> {
                 await Future.wait([
                   homeVM.fetchDoctorCategories(),
                   appointmentVM.loadUpcomingAppointments(),
+                  homeVM.fetchUnreadNotificationsCount(),
                 ]);
               },
               child: CustomScrollView(
@@ -150,75 +150,166 @@ class _HomeViewState extends State<HomeView> {
                             ),
                           ],
                         ),
-                        // Badged Notification Icon
-                        GestureDetector(
-                          onTap: () async {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const ChatListView()),
-                            );
-                            await homeVM.fetchUnreadMessagesCount();
-                          },
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(
-                                    10), // Increased padding
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary.withOpacity(0.1),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                      color: Colors.grey.withOpacity(0.1)),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.03),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: Image.asset(
-                                  'assets/msg.png',
-                                  width: 24,
-                                  height: 24,
-                                  color: const Color(0xFF1E293B), // Darker icon
-                                ),
-                              ),
-                              if (homeVM.unreadMessagesCount > 0)
-                                Positioned(
-                                  top: -2,
-                                  right: -2,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 5, vertical: 1),
-                                    constraints: const BoxConstraints(
-                                      minWidth: 16,
-                                      minHeight: 16,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.error,
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                          color: Colors.white, width: 1.5),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        homeVM.unreadMessagesCount > 99
-                                            ? '99+'
-                                            : '${homeVM.unreadMessagesCount}',
-                                        style: GoogleFonts.inter(
-                                          color: Colors.white,
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w700,
-                                        ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Tooltip(
+                              message: 'Notifications',
+                              child: GestureDetector(
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const NotificationsListView(
+                                        portal: NotificationPortal.patient,
                                       ),
                                     ),
-                                  ),
+                                  );
+                                  await homeVM.fetchUnreadNotificationsCount();
+                                },
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary.withOpacity(0.1),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                            color: Colors.grey.withOpacity(0.1)),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color:
+                                                Colors.black.withOpacity(0.03),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Icon(
+                                        Icons.notifications_outlined,
+                                        size: 24,
+                                        color: Color(0xFF1E293B),
+                                      ),
+                                    ),
+                                    if (homeVM.unreadNotificationsCount > 0)
+                                      Positioned(
+                                        top: -2,
+                                        right: -2,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 5, vertical: 1),
+                                          constraints: const BoxConstraints(
+                                            minWidth: 16,
+                                            minHeight: 16,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.error,
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                            border: Border.all(
+                                                color: Colors.white,
+                                                width: 1.5),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              homeVM.unreadNotificationsCount >
+                                                      99
+                                                  ? '99+'
+                                                  : '${homeVM.unreadNotificationsCount}',
+                                              style: GoogleFonts.inter(
+                                                color: Colors.white,
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
-                            ],
-                          ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Tooltip(
+                              message: 'Messages',
+                              child: GestureDetector(
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) =>
+                                            const ChatListView()),
+                                  );
+                                  await homeVM.fetchUnreadMessagesCount();
+                                },
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            AppColors.primary.withOpacity(0.1),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                            color:
+                                                Colors.grey.withOpacity(0.1)),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color:
+                                                Colors.black.withOpacity(0.03),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Image.asset(
+                                        'assets/msg.png',
+                                        width: 24,
+                                        height: 24,
+                                        color: const Color(0xFF1E293B),
+                                      ),
+                                    ),
+                                    if (homeVM.unreadMessagesCount > 0)
+                                      Positioned(
+                                        top: -2,
+                                        right: -2,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 5, vertical: 1),
+                                          constraints: const BoxConstraints(
+                                            minWidth: 16,
+                                            minHeight: 16,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.error,
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                            border: Border.all(
+                                                color: Colors.white,
+                                                width: 1.5),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              homeVM.unreadMessagesCount > 99
+                                                  ? '99+'
+                                                  : '${homeVM.unreadMessagesCount}',
+                                              style: GoogleFonts.inter(
+                                                color: Colors.white,
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -392,7 +483,8 @@ class _HomeViewState extends State<HomeView> {
                           ] else if (appointmentVM.appointments.any((a) =>
                               a.status == AppointmentStatus.upcoming ||
                               a.status == AppointmentStatus.pending ||
-                              a.status == AppointmentStatus.confirmed)) ...[
+                              a.status == AppointmentStatus.confirmed ||
+                              a.status == AppointmentStatus.rescheduled)) ...[
                             _buildSectionHeader(
                               "Upcoming Appointment",
                               actionLabel: "See all",
@@ -408,13 +500,16 @@ class _HomeViewState extends State<HomeView> {
                                 .where((a) =>
                                     a.status == AppointmentStatus.upcoming ||
                                     a.status == AppointmentStatus.pending ||
-                                    a.status == AppointmentStatus.confirmed)
+                                    a.status == AppointmentStatus.confirmed ||
+                                    a.status == AppointmentStatus.rescheduled)
                                 .take(1) // Limit to 1
                                 .map((appointment) => Padding(
                                       padding:
                                           const EdgeInsets.only(bottom: 12.0),
-                                      child:
-                                          _buildCompactAppointmentCard(appointment),
+                                      child: AppointmentInfoCard(
+                                        appointment: appointment,
+                                        showConfirmationActions: true,
+                                      ),
                                     )),
                             const SizedBox(height: 15),
                           ],
@@ -442,17 +537,11 @@ class _HomeViewState extends State<HomeView> {
 
   void _showSOSConfirmation(
       BuildContext context, EmergencyViewModel emergencyVM) {
-    showDialog(
-      context: context,
-      builder: (_) => EmergencyActionDialog(
-        title: "Activate SOS",
-        message: "Are you sure you want to trigger emergency SOS alert?",
-        actionText: "Activate",
-        actionColor: AppColors.error,
-        onConfirm: () {
-          Navigator.pop(context);
-          emergencyVM.triggerSos(context);
-        },
+    // Navigate to maps view to pick destination before triggering SOS
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const DestinationPickerView(),
       ),
     );
   }
@@ -553,113 +642,6 @@ class _HomeViewState extends State<HomeView> {
             ),
           ),
       ],
-    );
-  }
-
-  Widget _buildCompactAppointmentCard(AppointmentModel appointment) {
-    final doctor = appointment.doctor;
-    final doctorName = (doctor?.name.isNotEmpty == true)
-        ? doctor!.name
-        : "Unknown Doctor";
-    final specialty =
-        (doctor?.specialty.isNotEmpty == true) ? doctor!.specialty : "General";
-    final profileImage = doctor?.imageUrl ?? '';
-    final dateLabel =
-        DateFormat('MMM d, h:mm a').format(appointment.displayScheduledStart);
-    final dur = appointment.scheduledDurationLabel;
-    final dateLine =
-        dur != null ? '$dateLabel · $dur' : dateLabel;
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: const Color(0xFFE8EEF5),
-            backgroundImage:
-                profileImage.isNotEmpty ? NetworkImage(profileImage) : null,
-            child: profileImage.isEmpty
-                ? const Icon(Icons.person, color: Colors.grey)
-                : null,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  doctorName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF1F2937),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  specialty,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: const Color(0xFF71717A),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    const Icon(Icons.watch_later_outlined,
-                        size: 14, color: AppColors.primary),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        dateLine,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.primary,
-                          height: 1.2,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () {
-                AppointmentInfoCard(
-                  appointment: appointment,
-                  showConfirmationActions: true,
-                ).showAppointmentOptions(context);
-              },
-              borderRadius: BorderRadius.circular(24),
-              child: const Padding(
-                padding: EdgeInsets.all(12),
-                child: Icon(Icons.more_vert_rounded, color: Colors.grey),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -814,7 +796,7 @@ class _HomeViewState extends State<HomeView> {
             },
             borderRadius: BorderRadius.circular(16),
             child: Container(
-              width: 112,
+              width: 100,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -917,10 +899,8 @@ class _HomeViewState extends State<HomeView> {
                         MaterialPageRoute(
                             builder: (_) => const DoctorListView()));
                   } else if (banner.type == 'emergency') {
-                    _showSOSConfirmation(
-                      context,
-                      Provider.of<EmergencyViewModel>(context, listen: false),
-                    );
+                    Provider.of<EmergencyViewModel>(context, listen: false)
+                        .triggerSos(context);
                   } else if (banner.type == 'health') {
                     Navigator.push(
                         context,
@@ -1121,28 +1101,11 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildProfileAvatar(UserViewModel userVM) {
-    final profileImage = userVM.patient?.profileImage?.trim();
+    final profileImage = userVM.patient?.profileImage;
     final hasImage = profileImage != null && profileImage.isNotEmpty;
 
-    // Same placeholder as profile header when no photo uploaded.
-    Widget placeholderAvatar() {
-      return CircleAvatar(
-        radius: 26,
-        backgroundColor: Colors.white,
-        child: Icon(
-          Icons.person,
-          size: 31,
-          color: Colors.grey[600],
-        ),
-      );
-    }
-
-    if (!hasImage) {
-      return placeholderAvatar();
-    }
-
     // Local file (FileImage path)
-    if (!profileImage.startsWith('http')) {
+    if (hasImage && !profileImage.startsWith('http')) {
       return CircleAvatar(
         radius: 26,
         backgroundColor: Colors.white,
@@ -1150,12 +1113,37 @@ class _HomeViewState extends State<HomeView> {
       );
     }
 
-    return CustomNetworkImage(
-      imageUrl: profileImage,
-      width: 52,
-      height: 52,
-      fit: BoxFit.cover,
-      shape: BoxShape.circle,
+    // Network image — use Image.network with errorBuilder
+    final fallback = CircleAvatar(
+      radius: 26,
+      backgroundColor: Colors.grey.shade200,
+      child: Icon(Icons.person_rounded, color: Colors.grey.shade500, size: 28),
+    );
+
+    final imageUrl = hasImage
+        ? profileImage
+        : "https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=400&auto=format&fit=crop&q=60";
+
+    return ClipOval(
+      child: Image.network(
+        imageUrl,
+        width: 52,
+        height: 52,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => fallback,
+        loadingBuilder: (_, child, progress) {
+          if (progress == null) return child;
+          return CircleAvatar(
+            radius: 26,
+            backgroundColor: Colors.grey.shade200,
+            child: const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        },
+      ),
     );
   }
 }

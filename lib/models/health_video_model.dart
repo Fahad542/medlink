@@ -56,9 +56,9 @@ class HealthVideo {
       'videoUrl': videoUrl,
       'thumbnailUrl': thumbnailUrl,
       'category': category,
+      'createdAt': createdAt,
       'viewCount': viewCount,
       'likeCount': likeCount,
-      'createdAt': createdAt,
       'likedByMe': likedByMe,
     };
   }

@@ -13,6 +13,7 @@ import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/doctor/Dashboard/doctor_dashboard_view_model.dart';
 import 'package:medlink/views/doctor/Doctor%20patients/doctor_patients_view.dart';
 import 'package:medlink/views/Patient%20App/health/health_hub_view.dart';
+import 'package:medlink/views/notifications/notifications_list_view.dart';
 import 'package:medlink/widgets/custom_network_image.dart';
 import 'package:medlink/widgets/appointment_list_shimmer.dart';
 import 'package:medlink/views/doctor/past_appointments_view.dart';
@@ -24,12 +25,18 @@ class DoctorDashboardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-        return Consumer<DoctorDashboardViewModel>(
+    return Consumer<DoctorDashboardViewModel>(
       builder: (context, viewModel, child) {
           final userVM = Provider.of<UserViewModel>(context);
           final doctor = userVM.doctor;
+          final currentUserId = userVM.loginSession?.data?.user?.id ??
+              int.tryParse(userVM.doctor?.id ?? '');
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            viewModel.ensureChatRealtime();
+            final token = userVM.accessToken ?? '';
+            viewModel.ensureChatRealtime(
+              token: token,
+              currentUserId: currentUserId,
+            );
           });
 
           return Scaffold(
@@ -37,7 +44,7 @@ class DoctorDashboardView extends StatelessWidget {
             body: RefreshIndicator(
               onRefresh: () => viewModel.fetchData(),
               child: SingleChildScrollView(
-                physics: const ClampingScrollPhysics(),
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.only(bottom: 100),
                 child: Stack(
                   children: [
@@ -158,6 +165,87 @@ class DoctorDashboardView extends StatelessWidget {
                                 ),
                                 Row(
                                   children: [
+                                    Tooltip(
+                                      message: 'Notifications',
+                                      child: GestureDetector(
+                                        onTap: () async {
+                                          await Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  const NotificationsListView(
+                                                portal:
+                                                    NotificationPortal.doctor,
+                                              ),
+                                            ),
+                                          );
+                                          await viewModel
+                                              .fetchUnreadNotificationsCount();
+                                        },
+                                        child: Stack(
+                                          clipBehavior: Clip.none,
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white
+                                                    .withOpacity(0.2),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(
+                                                Icons.notifications_outlined,
+                                                color: Colors.white,
+                                                size: 20,
+                                              ),
+                                            ),
+                                            if (viewModel
+                                                    .unreadNotificationsCount >
+                                                0)
+                                              Positioned(
+                                                top: -2,
+                                                right: -2,
+                                                child: Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                    horizontal: 5,
+                                                    vertical: 1,
+                                                  ),
+                                                  constraints:
+                                                      const BoxConstraints(
+                                                    minWidth: 16,
+                                                    minHeight: 16,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.error,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            20),
+                                                    border: Border.all(
+                                                      color: Colors.white,
+                                                      width: 1.5,
+                                                    ),
+                                                  ),
+                                                  child: Center(
+                                                    child: Text(
+                                                      viewModel.unreadNotificationsCount >
+                                                              99
+                                                          ? '99+'
+                                                          : '${viewModel.unreadNotificationsCount}',
+                                                      style: GoogleFonts.inter(
+                                                        color: Colors.white,
+                                                        fontSize: 9,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
                                     // Messages — same pattern as patient home (`msg.png` + dot)
                                     Tooltip(
                                       message: 'Patient messages',
@@ -353,7 +441,7 @@ class DoctorDashboardView extends StatelessWidget {
                                     "Patients",
                                     "${viewModel.patientsCount}",
                                     Icons.people_alt_outlined,
-                                    AppColors.primary,
+                                    Colors.blue,
                                     () {},
                                   ),
                                 ),
@@ -363,7 +451,7 @@ class DoctorDashboardView extends StatelessWidget {
                                     "Appointments",
                                     "${viewModel.appointmentsCount}",
                                     Icons.calendar_today_outlined,
-                                    AppColors.secondary,
+                                    Colors.orange,
                                     () {},
                                   ),
                                 ),
@@ -493,7 +581,9 @@ class DoctorDashboardView extends StatelessWidget {
                                 );
                               }
 
-                              final items = viewModel.upcomingAppointments;
+                              final items = viewModel.upcomingAppointments
+                                  .where((a) => a.isDoctorUpcomingSlot)
+                                  .toList();
                               if (items.isEmpty) {
                                 return const SizedBox
                                     .shrink(); // Hide entire section if no appointments
@@ -603,6 +693,22 @@ class DoctorDashboardView extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Icon(icon, color: color, size: 20),
+                // Tiny trend indicator could go here
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    "+2.5%",
+                    style: GoogleFonts.inter(
+                        fontSize: 10,
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),

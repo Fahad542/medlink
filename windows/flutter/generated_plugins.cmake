@@ -6,7 +6,6 @@ list(APPEND FLUTTER_PLUGIN_LIST
   agora_rtc_engine
   file_selector_windows
   firebase_core
-  flutter_inappwebview_windows
   geolocator_windows
   iris_method_channel
   permission_handler_windows

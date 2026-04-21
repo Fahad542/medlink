@@ -16,8 +16,10 @@ class AppointmentScheduleRows extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fmt = DateFormat('MMM d, yyyy • h:mm a');
-    String fmtDt(DateTime? d) => d == null ? '—' : fmt.format(d);
+    final locale = Localizations.localeOf(context).toString();
+    final fmt = DateFormat('MMM d, yyyy • h:mm a', locale);
+    String fmtDt(DateTime? d) =>
+        d == null ? '—' : fmt.format(d.toLocal());
 
     Widget line(IconData icon, String label, String value) => Padding(
           padding: const EdgeInsets.only(top: 3),
@@ -58,20 +60,14 @@ class AppointmentScheduleRows extends StatelessWidget {
       children: [
         line(
           Icons.schedule_rounded,
-          'Scheduled start',
+          'Schedule start',
           fmtDt(appointment.displayScheduledStart),
         ),
         line(
           Icons.event_available_outlined,
-          'Scheduled end',
+          'Schedule end',
           fmtDt(appointment.scheduledEnd),
         ),
-        if (appointment.scheduledDurationLabel != null)
-          line(
-            Icons.timelapse_outlined,
-            'Duration',
-            appointment.scheduledDurationLabel!,
-          ),
         line(
           Icons.add_circle_outline_rounded,
           'Created at',

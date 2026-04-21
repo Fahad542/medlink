@@ -2,27 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/models/appointment_model.dart';
 import 'package:medlink/models/doctor_model.dart';
+import 'package:medlink/widgets/consultation_type_badge.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_payment_view.dart';
-import 'package:medlink/views/services/settings_view_model.dart';
 import 'package:medlink/views/main/main_screen.dart';
-import 'package:medlink/utils/utils.dart';
 
 class AppointmentDetailsView extends StatelessWidget {
   final DoctorModel doctor;
   final DateTime selectedDate;
   final String selectedTime;
+  final AppointmentType consultationType;
 
   const AppointmentDetailsView({
     super.key,
     required this.doctor,
     required this.selectedDate,
     required this.selectedTime,
+    required this.consultationType,
   });
 
   @override
@@ -103,6 +105,30 @@ class AppointmentDetailsView extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Consultation',
+                      style: GoogleFonts.inter(
+                          color: Colors.grey[500], fontSize: 12),
+                    ),
+                    const SizedBox(height: 8),
+                    ConsultationTypeBadge(type: consultationType),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
@@ -111,7 +137,7 @@ class AppointmentDetailsView extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                     child: _buildDetailCard(
-                        "Price", "${context.watch<SettingsViewModel>().currency} ${doctor.consultationFee.toInt()}")),
+                        "Price", "CFA ${doctor.consultationFee.toInt()}")),
               ],
             ),
 
@@ -192,10 +218,10 @@ class AppointmentDetailsView extends StatelessWidget {
                   final patientId = userViewModel.patient?.id;
 
                   if (patientId == null) {
-                    Utils.toastMessage(
-                      context,
-                      "User session not found. Please login again.",
-                      isError: true,
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text(
+                              "Error: User session not found. Please login again.")),
                     );
                     return;
                   }
@@ -215,6 +241,7 @@ class AppointmentDetailsView extends StatelessWidget {
                     date: selectedDate,
                     time: selectedTime,
                     patientId: patientId,
+                    consultationType: consultationType,
                   );
 
                   if (!context.mounted) return;
@@ -239,10 +266,10 @@ class AppointmentDetailsView extends StatelessWidget {
                       _showFinalSuccessDialog(context);
                     }
                   } else {
-                    Utils.toastMessage(
-                      context,
-                      result['message'] ?? "Failed to initiate payment.",
-                      isError: true,
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text(result['message'] ??
+                              "Failed to initiate payment.")),
                     );
                   }
                 }),
@@ -274,7 +301,7 @@ class AppointmentDetailsView extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               Text(
-                "Payment successful",
+                "Booking Confirmed!",
                 style: GoogleFonts.inter(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -283,7 +310,7 @@ class AppointmentDetailsView extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                "Your visit is booked. Open Appointments and tap Confirm visit to finalize with your doctor.",
+                "Your appointment has been successfully booked and paid for. You can track it in your appointments list.",
                 style: GoogleFonts.inter(
                     fontSize: 14, color: Colors.grey[600], height: 1.5),
                 textAlign: TextAlign.center,

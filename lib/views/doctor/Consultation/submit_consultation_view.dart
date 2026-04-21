@@ -4,6 +4,7 @@ import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/models/appointment_model.dart';
 import 'package:medlink/views/doctor/Consultation/submit_consultation_view_model.dart';
 import 'package:medlink/views/doctor/doctor_appointments_view_model.dart';
+import 'package:medlink/widgets/consultation_type_badge.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:provider/provider.dart';
@@ -176,6 +177,8 @@ class SubmitConsultationView extends StatelessWidget {
                   "Age: ${appointment.user?.age ?? '--'} • ${appointment.user?.gender ?? '--'}",
                   style:
                       GoogleFonts.inter(color: Colors.grey[600], fontSize: 13)),
+              const SizedBox(height: 8),
+              ConsultationTypeBadge(type: appointment.type),
             ],
           ),
         ],

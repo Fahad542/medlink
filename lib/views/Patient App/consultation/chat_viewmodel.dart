@@ -31,12 +31,6 @@ class ChatViewModel extends ChangeNotifier {
   bool _isPeerTyping = false;
   bool get isPeerTyping => _isPeerTyping;
 
-  static String? _stringIdOrNull(Object? v) {
-    if (v == null) return null;
-    final s = v.toString().trim();
-    return s.isEmpty ? null : s;
-  }
-
   ChatViewModel({
     required this.doctorId,
     required this.patientId,
@@ -55,6 +49,13 @@ class ChatViewModel extends ChangeNotifier {
   void setCurrentUserId(int? userId) {
     _currentUserId = userId;
   }
+
+  static String? _stringIdOrNull(Object? v) {
+    if (v == null) return null;
+    final s = v.toString().trim();
+    return s.isEmpty ? null : s;
+  }
+
   @override
   void dispose() {
     _newMsgSub?.cancel();
@@ -77,12 +78,12 @@ class ChatViewModel extends ChangeNotifier {
       if (sosId != null && sosId!.isNotEmpty) {
         response = await _apiServices.getSosChatMessageHistory(sosId!);
       } else if (tripId != null && tripId!.isNotEmpty) {
+        // Fallback to trip history if SOS is somehow missing
         response = await _apiServices.getTripChatMessageHistory(tripId!);
       } else {
         response =
             await _apiServices.getUnifiedChatHistory(doctorId, patientId);
       }
-
       List<dynamic> messagesList = [];
       if (response is List) {
         messagesList = List<dynamic>.from(response);
@@ -116,6 +117,7 @@ class ChatViewModel extends ChangeNotifier {
           }
         }
 
+        // If server did not send latestAppointmentId, infer from newest message.
         if ((appointmentId == null || appointmentId!.isEmpty) &&
             fetchedMessages.isNotEmpty &&
             fetchedMessages.any((m) => m.appointmentId != null)) {
@@ -361,8 +363,7 @@ class ChatViewModel extends ChangeNotifier {
   }
 
   /// Backend may emit `{ "message": { ... } }` or flat fields like the REST API.
-  static Map<String, dynamic> _unwrapSocketMessage(
-      Map<String, dynamic> payload) {
+  static Map<String, dynamic> _unwrapSocketMessage(Map<String, dynamic> payload) {
     if (payload['message'] is Map) {
       return Map<String, dynamic>.from(payload['message'] as Map);
     }
@@ -379,8 +380,8 @@ class ChatViewModel extends ChangeNotifier {
     return value?.toString() == userId;
   }
 
-  /// Unwraps `{ success, data }`. If the controller also nested
-  /// `{ success, data: { messages } }`, unwraps one more level.
+  /// Unwraps [ResponseInterceptor] shape `{ success, data }`. If the controller
+  /// also returned `{ success, data: { messages } }`, unwraps one more level.
   static Map<String, dynamic>? _normalizeApiDataEnvelope(dynamic response) {
     if (response is! Map) return null;
     final root = Map<String, dynamic>.from(response);
@@ -394,7 +395,7 @@ class ChatViewModel extends ChangeNotifier {
     return d;
   }
 
-  /// API may return `{ success, data }` or a raw message entity.
+  /// Nest may return `{ success, data }` or a raw message entity from Prisma.
   static Map<String, dynamic>? _parseSendMessageBody(dynamic response) {
     if (response is! Map) return null;
     final map = Map<String, dynamic>.from(response);

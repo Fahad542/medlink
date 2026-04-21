@@ -214,6 +214,7 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
           builder: (context) => VideoCallView(
             isDoctor: widget.isDoctor,
             appointmentId: widget.appointmentId,
+            otherPartyName: widget.callTargetName,
             initialMicOn: isMicOn,
             initialCameraOn: isCameraOn,
           ),
@@ -403,7 +404,7 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
                             builder: (context) => VideoCallView(
                               isDoctor: widget.isDoctor,
                               appointmentId: widget.appointmentId,
-                              // Pass the initial states
+                              otherPartyName: widget.callTargetName,
                               initialMicOn: isMicOn,
                               initialCameraOn: isCameraOn,
                             ),

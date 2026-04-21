@@ -3,66 +3,32 @@ import 'dart:async';
 import 'package:medlink/models/appointment_model.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/core/constants/app_url.dart';
+import 'package:medlink/utils/notification_payload_utils.dart';
 import 'package:medlink/services/chat_socket_service.dart';
-import 'package:medlink/views/services/session_view_model.dart';
-import 'package:medlink/utils/jwt_user_id.dart';
 
 class DoctorDashboardViewModel extends ChangeNotifier {
-  final UserViewModel _userViewModel;
   final ApiServices _apiServices = ApiServices();
   final ChatSocketService _chatSocket = ChatSocketService.instance;
   StreamSubscription<Map<String, dynamic>>? _chatSub;
   StreamSubscription<Map<String, dynamic>>? _chatReadSub;
   final Set<String> _seenSocketKeys = {};
-  Timer? _sessionRefreshDebounce;
-  Timer? _socketUnreadDebounce;
 
   bool _isOnline = true;
   String _earnings = "0";
   String _currency = "CFA";
   bool _isLoadingEarnings = false;
   bool _isLoadingAppointments = false;
-
+  
   int _patientsCount = 0;
   int _appointmentsCount = 0;
   int _unreadMessagesCount = 0;
+  int _unreadNotificationsCount = 0;
   List<AppointmentModel> _upcomingAppointments = [];
   int? _currentUserId;
   String? _chatToken;
 
-  DoctorDashboardViewModel(this._userViewModel) {
-    _userViewModel.addListener(_onUserSessionChanged);
+  DoctorDashboardViewModel() {
     fetchData();
-  }
-
-  void _onUserSessionChanged() {
-    _sessionRefreshDebounce?.cancel();
-    _sessionRefreshDebounce = Timer(const Duration(milliseconds: 400), () {
-      _sessionRefreshDebounce = null;
-      ensureChatRealtime();
-    });
-  }
-
-  int? get _myUserId =>
-      _userViewModel.loginSession?.data?.user?.id ??
-      int.tryParse(_userViewModel.doctor?.id ?? '') ??
-      readAuthUserIdFromJwt(_userViewModel.accessToken);
-
-  void _scheduleUnreadSyncFromSocket() {
-    _socketUnreadDebounce?.cancel();
-    _socketUnreadDebounce = Timer(const Duration(milliseconds: 450), () {
-      _socketUnreadDebounce = null;
-      unawaited(fetchUnreadMessagesCount());
-    });
-  }
-
-  static int? _participantId(Map<String, dynamic> msg, String camel, String snake) {
-    final a = msg[camel];
-    final b = msg[snake];
-    if (a is int) return a;
-    if (b is int) return b;
-    final s = a?.toString() ?? b?.toString() ?? '';
-    return int.tryParse(s);
   }
 
   bool get isOnline => _isOnline;
@@ -70,10 +36,11 @@ class DoctorDashboardViewModel extends ChangeNotifier {
   String get currency => _currency;
   bool get isLoadingEarnings => _isLoadingEarnings;
   bool get isLoadingAppointments => _isLoadingAppointments;
-
+  
   int get patientsCount => _patientsCount;
   int get appointmentsCount => _appointmentsCount;
   int get unreadMessagesCount => _unreadMessagesCount;
+  int get unreadNotificationsCount => _unreadNotificationsCount;
   List<AppointmentModel> get upcomingAppointments => _upcomingAppointments;
 
   Future<void> updateAvailability(bool value) async {
@@ -104,28 +71,42 @@ class DoctorDashboardViewModel extends ChangeNotifier {
       fetchUpcomingAppointments(),
       fetchAvailability(),
       fetchPatientsCount(),
+      fetchUnreadNotificationsCount(),
     ]);
   }
 
-  /// Keeps socket + unread badge in sync on any tab (call when session/token changes).
-  void ensureChatRealtime() {
-    final token = _userViewModel.accessToken ?? '';
+  void ensureChatRealtime({required String token, required int? currentUserId}) {
     if (token.isEmpty) return;
-
-    _currentUserId = _myUserId;
-    _chatSocket.connect(url: '${AppUrl.baseUrl}/chat', token: token);
-
-    final tokenChanged = _chatToken != token;
+    _currentUserId = currentUserId;
+    if (_chatSub != null && _chatToken == token) return;
     _chatToken = token;
-    if (tokenChanged || _chatSub == null) {
-      _chatSub?.cancel();
-      _chatReadSub?.cancel();
-      _chatSub = _chatSocket.newMessageStream.listen(_onChatSocketMessage);
-      _chatReadSub = _chatSocket.conversationReadStream.listen((_) {
-        unawaited(fetchUnreadMessagesCount());
-      });
+    _chatSocket.connect(url: '${AppUrl.baseUrl}/chat', token: token);
+    _chatSub?.cancel();
+    _chatReadSub?.cancel();
+    _chatSub = _chatSocket.newMessageStream.listen(_onChatSocketMessage);
+    _chatReadSub = _chatSocket.conversationReadStream.listen((_) {
+      unawaited(fetchUnreadMessagesCount());
+    });
+    fetchUnreadMessagesCount();
+    fetchUnreadNotificationsCount();
+  }
+
+  Future<void> fetchUnreadNotificationsCount() async {
+    try {
+      final response = await _apiServices.getDoctorNotifications(limit: 80);
+      if (response is! Map || response['success'] != true) return;
+      final data = response['data'];
+      if (data is! Map) return;
+      final n = unreadCountFromNotificationsPayload(
+        Map<String, dynamic>.from(data),
+      );
+      if (n != _unreadNotificationsCount) {
+        _unreadNotificationsCount = n;
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Doctor dashboard notifications badge error: $e');
     }
-    unawaited(fetchUnreadMessagesCount());
   }
 
   Future<void> fetchUnreadMessagesCount() async {
@@ -179,9 +160,8 @@ class DoctorDashboardViewModel extends ChangeNotifier {
     if (mid != null && mid > 0) {
       key = 'id:$mid';
     } else {
-      final sid = _participantId(msg, 'senderId', 'sender_id')?.toString() ?? '';
-      final rid =
-          _participantId(msg, 'recipientId', 'recipient_id')?.toString() ?? '';
+      final sid = msg['senderId']?.toString() ?? '';
+      final rid = msg['recipientId']?.toString() ?? '';
       final sa = msg['sentAt']?.toString() ?? '';
       final body = msg['body']?.toString() ?? '';
       if (sid.isEmpty || sa.isEmpty) return true;
@@ -195,7 +175,8 @@ class DoctorDashboardViewModel extends ChangeNotifier {
 
   void _onChatSocketMessage(Map<String, dynamic> payload) {
     try {
-      final myId = _currentUserId ?? _myUserId;
+      final myId = _currentUserId;
+      if (myId == null) return;
 
       var msg = _unwrapSocketMessage(payload);
       if (msg['id'] == null && payload['id'] != null) {
@@ -204,20 +185,15 @@ class DoctorDashboardViewModel extends ChangeNotifier {
       if (msg['sosId'] != null || msg['tripId'] != null) return;
       if (!_consumeSocketDedupe(msg)) return;
 
-      final senderId = _participantId(msg, 'senderId', 'sender_id');
-      final recipientId = _participantId(msg, 'recipientId', 'recipient_id');
-      if (senderId == null || recipientId == null) {
-        _scheduleUnreadSyncFromSocket();
-        return;
-      }
+      final senderId = int.tryParse(msg['senderId']?.toString() ?? '');
+      final recipientId = int.tryParse(msg['recipientId']?.toString() ?? '');
+      if (senderId == null || recipientId == null) return;
 
-      if (myId != null &&
-          recipientId == myId &&
-          senderId != myId) {
+      // Only increment when a patient sends message to current doctor.
+      if (recipientId == myId && senderId != myId) {
         _unreadMessagesCount += 1;
         notifyListeners();
       }
-      _scheduleUnreadSyncFromSocket();
     } catch (e) {
       debugPrint('Doctor dashboard chat socket error: $e');
     }
@@ -244,9 +220,8 @@ class DoctorDashboardViewModel extends ChangeNotifier {
 
     try {
       final now = DateTime.now();
-      final response =
-          await _apiServices.getDoctorMonthlyEarnings(now.year, now.month);
-
+      final response = await _apiServices.getDoctorMonthlyEarnings(now.year, now.month);
+      
       if (response != null && response['success'] == true) {
         final data = response['data'];
         if (data != null) {
@@ -270,8 +245,10 @@ class DoctorDashboardViewModel extends ChangeNotifier {
       final response = await _apiServices.getDoctorUpcomingAppointments();
       if (response != null && response['success'] == true) {
         final List<dynamic> data = response['data'];
-        _upcomingAppointments =
-            data.map((json) => AppointmentModel.fromJson(json)).toList();
+        _upcomingAppointments = data
+            .map((json) => AppointmentModel.fromJson(json))
+            .where((a) => a.isDoctorUpcomingSlot)
+            .toList();
         AppointmentModel.sortByCreatedAtDescending(_upcomingAppointments);
         _appointmentsCount = _upcomingAppointments.length;
       }
@@ -279,6 +256,16 @@ class DoctorDashboardViewModel extends ChangeNotifier {
       debugPrint("Error fetching upcoming appointments: $e");
     } finally {
       _isLoadingAppointments = false;
+      notifyListeners();
+    }
+  }
+
+  /// Immediate UI update after cancel (before refetch completes).
+  void removeUpcomingAppointmentById(String id) {
+    final before = _upcomingAppointments.length;
+    _upcomingAppointments.removeWhere((a) => a.id == id);
+    if (_upcomingAppointments.length != before) {
+      _appointmentsCount = _upcomingAppointments.length;
       notifyListeners();
     }
   }
@@ -299,9 +286,6 @@ class DoctorDashboardViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
-    _userViewModel.removeListener(_onUserSessionChanged);
-    _sessionRefreshDebounce?.cancel();
-    _socketUnreadDebounce?.cancel();
     _chatSub?.cancel();
     _chatReadSub?.cancel();
     super.dispose();

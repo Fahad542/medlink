@@ -14,7 +14,6 @@ import 'package:provider/provider.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/models/doctor_model.dart';
 import 'package:medlink/views/doctor/Doctor%20profile/doctor_personal_info_viewmodel.dart';
-import 'package:medlink/views/services/settings_view_model.dart';
 
 class DoctorSettingsProfileView extends StatefulWidget {
   const DoctorSettingsProfileView({super.key});
@@ -54,12 +53,11 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF2F3F7),
       body: SingleChildScrollView(
-        physics: const ClampingScrollPhysics(),
         child: Column(
           children: [
             _buildHeader(doctor),
             Transform.translate(
-              offset: const Offset(0, -52),
+              offset: const Offset(0, -40),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Column(
@@ -93,7 +91,7 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
                                 child: _StatItem(
                                   label: "Experience",
                                   value: stats.experienceYears.toString(),
-                                  unit: "",
+                                  unit: "Yrs",
                                 ),
                               ),
                               _VerticalDivider(),
@@ -101,7 +99,7 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
                                 child: _StatItem(
                                   label: "Patients",
                                   value: _formatCount(stats.patientsCount),
-                                  unit: "",
+                                  unit: "Lives",
                                 ),
                               ),
                               _VerticalDivider(),
@@ -139,7 +137,7 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
                         Padding(
                           padding: const EdgeInsets.only(left: 12, bottom: 8),
                           child: Text(
-                            "ACCOUNT SETTINGS",
+                            "DOCTOR SETTINGS",
                             style: GoogleFonts.inter(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
@@ -214,83 +212,35 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
                       ],
                     ),
                     const SizedBox(height: 30),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        "ACCOUNT ACTIONS",
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF94A3B8),
-                          letterSpacing: 1.2,
-                        ),
-                      ),
+                    _buildActionButton(
+                      text: "Log Out",
+                      icon: Icons.logout_rounded,
+                      color: Colors.red,
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => LogoutConfirmationDialog(
+                            onLogout: () {
+                              userVM.logout();
+                              Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => const LoginView()),
+                                (route) => false,
+                              );
+                            },
+                          ),
+                        );
+                      },
                     ),
-                    const SizedBox(height: 12),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.02),
-                            blurRadius: 10,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          _buildPremiumTile(
-                            context,
-                            icon: Icons.logout_rounded,
-                            color: AppColors.primary,
-                            title: "Log Out",
-                            subtitle: "Sign out of your account",
-                            onTap: () {
-                              showDialog(
-                                context: context,
-                                builder: (context) => LogoutConfirmationDialog(
-                                  onConfirm: () {
-                                    userVM.logout();
-                                    Navigator.pushAndRemoveUntil(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (context) =>
-                                              const LoginView()),
-                                      (route) => false,
-                                    );
-                                  },
-                                ),
-                              );
-                            },
-                          ),
-                          _buildDivider(),
-                          _buildPremiumTile(
-                            context,
-                            icon: Icons.person_remove_rounded,
-                            color: AppColors.primary,
-                            title: "Delete Account",
-                            subtitle: "Permanently remove account",
-                            onTap: () {
-                              showDialog(
-                                context: context,
-                                builder: (context) => LogoutConfirmationDialog(
-                                  title: "Delete Account",
-                                  message:
-                                      "Are you sure you want to delete your account?",
-                                  confirmText: "Delete",
-                                  confirmColor: AppColors.primary,
-                                  onConfirm: () {
-                                    Navigator.pop(context);
-                                    DeleteAccountSheet.show(context);
-                                  },
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
+                    const SizedBox(height: 16),
+                    _buildActionButton(
+                      text: "Delete Account",
+                      icon: Icons.person_remove_rounded,
+                      color: AppColors.error,
+                      onTap: () {
+                        DeleteAccountSheet.show(context);
+                      },
                     ),
                     const SizedBox(height: 100),
                   ],
@@ -303,7 +253,11 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
     );
   }
 
-  void _showAvailabilityBottomSheet(BuildContext context) {
+  Future<void> _showAvailabilityBottomSheet(BuildContext context) async {
+    final personalInfoVMPre =
+        Provider.of<DoctorPersonalInfoViewModel>(context, listen: false);
+    await personalInfoVMPre.refreshConsultationFeeRulesFromBackend();
+
     final userVM = Provider.of<UserViewModel>(context, listen: false);
     final doctor = userVM.doctor;
 
@@ -356,7 +310,7 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
                   child: ListView(
                     padding: const EdgeInsets.all(20),
                     children: [
-                      _buildFeeCard(feeController, context),
+                      _buildFeeCard(feeController),
                       const SizedBox(height: 24),
                       _buildSectionHeader("Active Days"),
                       const SizedBox(height: 12),
@@ -386,10 +340,12 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
                       CustomButton(
                         text: "Save Changes",
                         onPressed: () async {
+                          final feeRaw =
+                              feeController.text.trim().replaceAll(',', '');
+                          final feeVal = double.tryParse(feeRaw);
                           await personalInfoVM.updateAvailability(
                             selectedDays: selectedDays,
-                            consultationFee:
-                                double.tryParse(feeController.text) ?? 50.0,
+                            consultationFee: feeVal ?? 0,
                             sessionDuration: duration,
                             morningStart: startTime,
                             morningEnd: endTime,
@@ -450,7 +406,7 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
     );
   }
 
-  Widget _buildFeeCard(TextEditingController controller, BuildContext context) {
+  Widget _buildFeeCard(TextEditingController controller) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -466,9 +422,9 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
           const SizedBox(height: 12),
           Row(
             children: [
-              Text(context.watch<SettingsViewModel>().currency,
+              Text("\$",
                   style: GoogleFonts.inter(
-                      fontSize: 20,
+                      fontSize: 22,
                       fontWeight: FontWeight.bold,
                       color: AppColors.primary)),
               const SizedBox(width: 8),
@@ -623,102 +579,90 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
             fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey[800]));
   }
 
+  Widget _buildActionButton(
+      {required String text,
+      required IconData icon,
+      required Color color,
+      required VoidCallback onTap}) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(16)),
+      child: TextButton(
+        onPressed: onTap,
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          backgroundColor: Colors.white,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(width: 8),
+            Text(text,
+                style: GoogleFonts.inter(
+                    color: color, fontWeight: FontWeight.w500, fontSize: 15)),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildHeader(DoctorModel? doctor) {
     return Container(
-      height: 300,
+      height: 260,
       width: double.infinity,
       decoration: const BoxDecoration(
         color: AppColors.primary,
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
       ),
-      child: ClipRRect(
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(30)),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.primary, AppColors.primary],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
+      child: Stack(
+        children: [
+          Positioned(
+            top: -100,
+            right: -50,
+            child: CircleAvatar(
+                radius: 130, backgroundColor: Colors.white.withOpacity(0.08)),
+          ),
+          Align(
+            alignment: Alignment.center,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircleAvatar(
+                  radius: 45,
+                  backgroundColor: Colors.white,
+                  backgroundImage: (doctor?.imageUrl.isNotEmpty ?? false)
+                      ? NetworkImage(doctor!.imageUrl)
+                      : null,
+                  child: (doctor?.imageUrl.isEmpty ?? true)
+                      ? const Icon(Icons.person, size: 50, color: Colors.grey)
+                      : null,
                 ),
-              ),
-            ),
-            Positioned(
-              top: -100,
-              right: -50,
-              child: CircleAvatar(
-                  radius: 130, backgroundColor: Colors.white.withOpacity(0.08)),
-            ),
-            Positioned(
-              bottom: -50,
-              left: -50,
-              child: CircleAvatar(
-                radius: 100,
-                backgroundColor: Colors.white.withOpacity(0.05),
-              ),
-            ),
-            Align(
-              alignment: Alignment.center,
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 8, top: 12),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                            color: Colors.white.withOpacity(0.6), width: 1.5),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          )
-                        ],
-                      ),
-                      child: CircleAvatar(
-                        radius: 42,
-                        backgroundColor: Colors.white,
-                        backgroundImage: (doctor?.imageUrl.isNotEmpty ?? false)
-                            ? NetworkImage(doctor!.imageUrl)
-                            : null,
-                        child: (doctor?.imageUrl.isEmpty ?? true)
-                            ? const Icon(Icons.person, size: 50, color: Colors.grey)
-                            : null,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(doctor?.name ?? "Doctor Name",
-                        style: GoogleFonts.inter(
-                            fontSize: 21,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white)),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white.withOpacity(0.1)),
-                      ),
-                      child: Text(doctor?.specialty ?? "Specialist",
-                          style: GoogleFonts.inter(
-                              fontSize: 13,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w500)),
-                    ),
-                    const SizedBox(height: 4),
-                  ],
+                const SizedBox(height: 12),
+                Text(doctor?.name ?? "Doctor Name",
+                    style: GoogleFonts.inter(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white)),
+                const SizedBox(height: 6),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                  decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(16)),
+                  child: Text(doctor?.specialty ?? "Specialist",
+                      style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w500)),
                 ),
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -729,45 +673,24 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
       required String title,
       required String subtitle,
       required VoidCallback onTap}) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12)),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        style: GoogleFonts.inter(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF1E293B))),
-                    const SizedBox(height: 2),
-                    Text(subtitle,
-                        style:
-                            GoogleFonts.inter(fontSize: 11, color: Colors.grey[500])),
-                  ],
-                ),
-              ),
-              Icon(Icons.arrow_forward_ios_rounded,
-                  size: 14, color: Colors.grey[300]),
-            ],
-          ),
-        ),
+    return ListTile(
+      onTap: onTap,
+      leading: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12)),
+        child: Icon(icon, color: color, size: 20),
       ),
+      title: Text(title,
+          style: GoogleFonts.inter(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF1E293B))),
+      subtitle: Text(subtitle,
+          style: GoogleFonts.inter(fontSize: 11, color: Colors.grey[500])),
+      trailing:
+          const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
     );
   }
 
@@ -780,36 +703,35 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        Text(value,
+            style: GoogleFonts.inter(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary)),
+        const SizedBox(height: 2),
         Row(
           mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(label,
                 style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
                     color: Colors.grey[500])),
             if (hasUnit) const SizedBox(width: 2),
             if (hasUnit)
               Text(unit,
                   style: GoogleFonts.inter(
-                      fontSize: 10,
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: AppColors.primary)),
           ],
         ),
-        const SizedBox(height: 6),
-        Text(value,
-            style: GoogleFonts.inter(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.black)),
       ],
     );
   }
 
   Widget _VerticalDivider() =>
-      Container(height: 48, width: 1, color: Colors.grey[200]);
+      Container(height: 42, width: 1, color: Colors.grey[200]);
 
   Future<_DoctorStats> _loadDoctorStats() async {
     final api = ApiServices();

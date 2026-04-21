@@ -8,9 +8,10 @@ import 'package:medlink/widgets/custom_button.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:medlink/views/main/main_screen.dart';
-import 'package:medlink/views/services/settings_view_model.dart';
 import 'package:provider/provider.dart';
-import 'package:medlink/utils/utils.dart';
+import 'package:medlink/services/appointment_socket_service.dart';
+import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
+import 'package:medlink/views/services/session_view_model.dart';
 
 class AppointmentPaymentView extends StatefulWidget {
   final DoctorModel doctor;
@@ -82,6 +83,19 @@ class _AppointmentPaymentViewState extends State<AppointmentPaymentView> {
 
       if (confirmResponse != null && confirmResponse['success'] == true) {
         if (mounted) {
+          final patientId = Provider.of<UserViewModel>(context, listen: false)
+              .patient
+              ?.id
+              .toString();
+          AppointmentSocketService.instance.emitAfterBookingCreated(
+            appointmentId: widget.appointmentId,
+            doctorId: widget.doctor.id,
+            patientId: patientId,
+          );
+          try {
+            Provider.of<AppointmentViewModel>(context, listen: false)
+                .loadUpcomingAppointments();
+          } catch (_) {}
           setState(() =>
               _isProcessing = false); // Stop loading before success dialog
           _showSuccessDialog();
@@ -99,24 +113,17 @@ class _AppointmentPaymentViewState extends State<AppointmentPaymentView> {
           debugPrint("User cancelled payment sheet");
           return;
         }
-
-        // Specific handling for -1005 (Network connection lost)
-        final String errorMsg = e.error.localizedMessage ?? "Unknown payment error";
-        final bool isNetworkError = errorMsg.contains('-1005') || 
-                                    errorMsg.toLowerCase().contains('connection was lost');
-
         if (mounted) {
-          Utils.toastMessage(
-            context,
-            isNetworkError
-                ? "Network connection lost. Please check your internet and try again."
-                : "Payment failed: $errorMsg",
-            isError: true,
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text("Payment failed: ${e.error.localizedMessage}")),
           );
         }
       } else {
         if (mounted) {
-          Utils.toastError(context, e);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Error: $e")),
+          );
         }
       }
     }
@@ -149,7 +156,7 @@ class _AppointmentPaymentViewState extends State<AppointmentPaymentView> {
             ),
             const SizedBox(height: 8),
             Text(
-              "Your payment was successful. Open Appointments and tap Confirm visit to finalize your booking with Dr. ${widget.doctor.name}.",
+              "Your appointment with Dr. ${widget.doctor.name} has been confirmed.",
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(color: Colors.grey[600]),
             ),
@@ -214,7 +221,7 @@ class _AppointmentPaymentViewState extends State<AppointmentPaymentView> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    "${context.watch<SettingsViewModel>().currency} ${widget.doctor.consultationFee}",
+                    "CFA ${widget.doctor.consultationFee}",
                     style: GoogleFonts.inter(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,

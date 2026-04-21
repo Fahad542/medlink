@@ -152,6 +152,7 @@ class AppointmentViewModel extends ChangeNotifier {
     required String time,
     required String patientId,
     String description = "General Consultation",
+    AppointmentType consultationType = AppointmentType.inPerson,
   }) async {
     DateTime? parsedStartTime;
     try {
@@ -160,16 +161,29 @@ class AppointmentViewModel extends ChangeNotifier {
       parsedStartTime = DateFormat("HH:mm").parse(time);
     }
 
-    String formattedStartTime = DateFormat("HH:mm").format(parsedStartTime);
-    DateTime parsedEndTime = parsedStartTime.add(Duration(minutes: doctor.sessionDuration));
-    String formattedEndTime = DateFormat("HH:mm").format(parsedEndTime);
+    // User-selected wall time on the chosen calendar day (device timezone).
+    final localStart = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      parsedStartTime.hour,
+      parsedStartTime.minute,
+    );
+    final localEnd =
+        localStart.add(Duration(minutes: doctor.sessionDuration));
+
+    // Backend uses Date.UTC(date, startTime) — it expects UTC components, not local.
+    // Convert so My Appointments shows the same clock time the user picked.
+    final utcStart = localStart.toUtc();
+    final utcEnd = localEnd.toUtc();
 
     final appointmentData = {
       "doctorId": doctor.id,
-      "date": DateFormat('yyyy-MM-dd').format(date),
-      "startTime": formattedStartTime,
-      "endTime": formattedEndTime,
+      "date": DateFormat('yyyy-MM-dd').format(utcStart),
+      "startTime": DateFormat('HH:mm').format(utcStart),
+      "endTime": DateFormat('HH:mm').format(utcEnd),
       "description": description.isEmpty ? "General Consultation" : description,
+      "consultKind": consultationType.consultKindValue,
     };
 
     try {
@@ -203,24 +217,36 @@ class AppointmentViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> fetchBookedSlots(String doctorId, String date) async {
+  Future<void> fetchBookedSlots(
+    String doctorId,
+    String date, {
+    String? excludeAppointmentId,
+  }) async {
     _isLoadingBookedSlots = true;
     _bookedSlots.clear();
     _bookedRanges.clear();
     notifyListeners();
 
     try {
-      final response = await _apiService.getBookedSlots(doctorId, date);
+      final response = await _apiService.getBookedSlots(
+        doctorId,
+        date,
+        excludeAppointmentId: excludeAppointmentId,
+      );
       if (response != null && response['success'] == true) {
         final List<dynamic> data = response['data'];
+        // Same instants as API; use device-local wall time for labels and overlap checks.
         _bookedRanges = data.map((json) {
-          final start = DateTime.parse(json['scheduledStart']).toUtc();
-          final end = DateTime.parse(json['scheduledEnd']).toUtc();
+          final start =
+              DateTime.parse(json['scheduledStart'].toString()).toLocal();
+          final end = json['scheduledEnd'] != null
+              ? DateTime.parse(json['scheduledEnd'].toString()).toLocal()
+              : start;
           return DateTimeRange(start: start, end: end);
         }).toList();
 
         _bookedSlots = _bookedRanges.map((range) {
-          return DateFormat("hh:mm a").format(range.start);
+          return DateFormat('hh:mm a').format(range.start);
         }).toList();
         
         debugPrint("[AppointmentViewModel] Total booked ranges for $date: ${_bookedRanges.length}");

@@ -1,7 +1,10 @@
 import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:medlink/widgets/custom_network_image.dart';
+import 'package:flutter/services.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
@@ -11,7 +14,9 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:medlink/views/Patient App/prescriptions/prescription_view_model.dart';
 import 'package:medlink/widgets/prescription_list_shimmer.dart';
-import 'package:medlink/utils/utils.dart';
+import 'package:medlink/utils/prescription_export.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class PrescriptionView extends StatefulWidget {
   const PrescriptionView({super.key});
@@ -21,6 +26,9 @@ class PrescriptionView extends StatefulWidget {
 }
 
 class _PrescriptionViewState extends State<PrescriptionView> {
+  static const MethodChannel _androidDownloadsChannel =
+      MethodChannel('com.medlink/downloads');
+
   @override
   void initState() {
     super.initState();
@@ -218,12 +226,30 @@ class _PrescriptionViewState extends State<PrescriptionView> {
 
     if (photoUrl.isEmpty) return fallback;
 
-    return CustomNetworkImage(
-      imageUrl: photoUrl,
-      width: 46,
-      height: 46,
-      fit: BoxFit.cover,
-      borderRadius: 14,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: Image.network(
+        photoUrl,
+        width: 46,
+        height: 46,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => fallback,
+        loadingBuilder: (_, child, progress) {
+          if (progress == null) return child;
+          return Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(14)),
+            child: Center(
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -303,7 +329,167 @@ class _PrescriptionViewState extends State<PrescriptionView> {
 
     if (success) {
       Navigator.of(ctx).pop(); // close bottom sheet
-      Utils.toastMessage(ctx, "Report uploaded successfully ✓");
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        const SnackBar(content: Text("Report uploaded successfully ✓"), backgroundColor: Color(0xFF00897B)),
+      );
+    }
+  }
+
+  String _prescriptionPdfBaseName(Map<String, dynamic> detail) {
+    final rawId = detail['appointmentId']?.toString() ??
+        detail['id']?.toString() ??
+        '${DateTime.now().millisecondsSinceEpoch}';
+    final safeId = rawId.replaceAll(RegExp(r'[^\w\-]'), '_');
+    return 'medlink_prescription_$safeId';
+  }
+
+  /// Android: MediaStore [Download]/Medlink (visible in Files app). Null if unavailable.
+  Future<String?> _savePdfToAndroidPublicDownloads(Uint8List bytes, String fileName) async {
+    if (!Platform.isAndroid) return null;
+    try {
+      final path = await _androidDownloadsChannel.invokeMethod<String>(
+        'savePdfToDownloads',
+        <String, Object?>{
+          'fileName': fileName,
+          'bytes': bytes,
+        },
+      );
+      return path;
+    } on PlatformException catch (e, st) {
+      debugPrint('Android Downloads save failed: ${e.code} ${e.message}');
+      debugPrint('$st');
+      return null;
+    } on MissingPluginException catch (e, st) {
+      debugPrint('Downloads channel missing (full reinstall required): $e');
+      debugPrint('$st');
+      return null;
+    }
+  }
+
+  /// Writes PDF into app storage as a last resort (no system picker).
+  Future<File> _writePrescriptionPdfToAppDocuments(Uint8List bytes, String baseName) async {
+    final root = await getApplicationDocumentsDirectory();
+    final folder = Directory('${root.path}/Medlink/Prescriptions');
+    if (!await folder.exists()) {
+      await folder.create(recursive: true);
+    }
+    final file = File('${folder.path}/$baseName.pdf');
+    await file.writeAsBytes(bytes);
+    return file;
+  }
+
+  /// 1) Android: public Downloads/Medlink via MediaStore. 2) System save dialog. 3) App folder.
+  Future<void> _savePrescriptionPdfLocally(BuildContext sheetContext, Map<String, dynamic> detail) async {
+    showDialog<void>(
+      context: sheetContext,
+      barrierDismissible: false,
+      useRootNavigator: true,
+      builder: (_) => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+    );
+    var loaderDismissed = false;
+    try {
+      final bytes = await buildPrescriptionPdfBytes(detail);
+      final baseName = _prescriptionPdfBaseName(detail);
+      final pdfFileName = '$baseName.pdf';
+      if (!sheetContext.mounted) return;
+      Navigator.of(sheetContext, rootNavigator: true).pop();
+      loaderDismissed = true;
+
+      late final String message;
+
+      final androidPath = await _savePdfToAndroidPublicDownloads(bytes, pdfFileName);
+      if (androidPath != null && androidPath.isNotEmpty) {
+        message =
+            'Saved to Download > Medlink (visible in Files app)\n$androidPath';
+      } else {
+        try {
+          final pickerPath = await FilePicker.saveFile(
+            dialogTitle: 'Save prescription',
+            fileName: pdfFileName,
+            type: FileType.custom,
+            allowedExtensions: const ['pdf'],
+            bytes: bytes,
+          );
+          if (pickerPath != null && pickerPath.isNotEmpty) {
+            message = 'Prescription saved\n$pickerPath';
+          } else {
+            if (!sheetContext.mounted) return;
+            ScaffoldMessenger.of(sheetContext).showSnackBar(
+              const SnackBar(content: Text('Save cancelled'), backgroundColor: Colors.black87),
+            );
+            return;
+          }
+        } catch (e) {
+          if (Platform.isAndroid) {
+            final file = await _writePrescriptionPdfToAppDocuments(bytes, baseName);
+            message =
+                'Saved a backup copy here:\n${file.path}\nFor Download folder: fully close and reopen the app after install, then try Download again. Or use Share > Save to Files.';
+          } else {
+            final file = await _writePrescriptionPdfToAppDocuments(bytes, baseName);
+            message =
+                'Saved on this device\n${file.path}\nTip: Use Share to send the PDF to email, Drive, or WhatsApp.';
+          }
+        }
+      }
+
+      if (!sheetContext.mounted) return;
+
+      ScaffoldMessenger.of(sheetContext).showSnackBar(
+        SnackBar(
+          content: Text(message, style: const TextStyle(fontSize: 12)),
+          backgroundColor: const Color(0xFF00897B),
+          duration: const Duration(seconds: 6),
+        ),
+      );
+    } catch (e) {
+      if (sheetContext.mounted && !loaderDismissed) {
+        Navigator.of(sheetContext, rootNavigator: true).pop();
+      }
+      if (sheetContext.mounted) {
+        ScaffoldMessenger.of(sheetContext).showSnackBar(
+          SnackBar(content: Text('Could not save PDF: $e'), backgroundColor: Colors.red.shade700),
+        );
+      }
+    }
+  }
+
+  /// Opens the system share sheet with the prescription PDF attached.
+  Future<void> _sharePrescriptionPdf(BuildContext sheetContext, Map<String, dynamic> detail) async {
+    showDialog<void>(
+      context: sheetContext,
+      barrierDismissible: false,
+      useRootNavigator: true,
+      builder: (_) => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+    );
+    var loaderDismissed = false;
+    try {
+      final bytes = await buildPrescriptionPdfBytes(detail);
+      final dir = await getTemporaryDirectory();
+      final baseName = _prescriptionPdfBaseName(detail);
+      final file = File('${dir.path}/$baseName.pdf');
+      await file.writeAsBytes(bytes);
+      if (sheetContext.mounted) {
+        Navigator.of(sheetContext, rootNavigator: true).pop();
+        loaderDismissed = true;
+      }
+      if (!sheetContext.mounted) return;
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile(file.path, mimeType: 'application/pdf'),
+          ],
+          subject: 'Medlink E-Prescription',
+        ),
+      );
+    } catch (e) {
+      if (sheetContext.mounted && !loaderDismissed) {
+        Navigator.of(sheetContext, rootNavigator: true).pop();
+      }
+      if (sheetContext.mounted) {
+        ScaffoldMessenger.of(sheetContext).showSnackBar(
+          SnackBar(content: Text('Could not share PDF: $e'), backgroundColor: Colors.red.shade700),
+        );
+      }
     }
   }
 
@@ -689,12 +875,14 @@ class _PrescriptionViewState extends State<PrescriptionView> {
                     _ActionCircleButton(
                       icon: Icons.download_rounded,
                       label: "Download",
-                      onTap: () {
-                        Utils.toastMessage(ctx, "Downloading PDF...");
-                      },
+                      onTap: () => _savePrescriptionPdfLocally(ctx, detail),
                     ),
                     const SizedBox(width: 32),
-                    _ActionCircleButton(icon: Icons.share_outlined, label: "Share", onTap: () {}),
+                    _ActionCircleButton(
+                      icon: Icons.share_outlined,
+                      label: "Share",
+                      onTap: () => _sharePrescriptionPdf(ctx, detail),
+                    ),
                   ],
                 ),
               ),

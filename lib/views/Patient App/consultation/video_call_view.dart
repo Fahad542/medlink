@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/services/waiting_room_socket_service.dart';
+import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/widgets/prescription_bottom_sheet.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -12,6 +13,8 @@ import 'package:provider/provider.dart';
 class VideoCallView extends StatefulWidget {
   final bool isDoctor;
   final String? appointmentId;
+  /// Name of the other person in the call (e.g. doctor name for patient, patient name for doctor).
+  final String? otherPartyName;
   final bool initialMicOn;
   final bool initialCameraOn;
 
@@ -19,6 +22,7 @@ class VideoCallView extends StatefulWidget {
     super.key,
     this.isDoctor = false,
     this.appointmentId,
+    this.otherPartyName,
     this.initialMicOn = true,
     this.initialCameraOn = true,
   });
@@ -46,14 +50,19 @@ class _VideoCallViewState extends State<VideoCallView> {
   int _seconds = 0;
   Timer? _timer;
 
+  String? _statusMessage;
+
+  /// Display name for the remote party (passed in + refined from socket).
+  String? _remotePartyName;
+
   @override
   void initState() {
     super.initState();
     isMicOn = widget.initialMicOn;
     isCameraOn = widget.initialCameraOn;
+    _remotePartyName = widget.otherPartyName;
     _initAgora();
     _initSocket();
-    // Timer will start only when remote user joins
   }
 
   void _initSocket() {
@@ -74,15 +83,41 @@ class _VideoCallViewState extends State<VideoCallView> {
            if (data['status'] == 'LEFT') {
              _statusMessage = null;
            } else {
-             final name = data['fullName'] ?? (widget.isDoctor ? 'Patient' : 'Doctor');
-             _statusMessage = "$name is ready!";
+             final name = data['fullName']?.toString();
+             if (name != null && name.isNotEmpty) {
+               _remotePartyName = name;
+             }
+             _statusMessage = "${_resolvedRemoteName()} is ready!";
            }
          });
        }
     });
   }
 
-  String? _statusMessage;
+  String _localParticipantName(UserViewModel vm) {
+    final role = vm.role ?? '';
+    if (role == 'patient') {
+      return vm.patient?.name ??
+          vm.loginSession?.data?.user?.fullName ??
+          'You';
+    }
+    if (role == 'doctor') {
+      return vm.doctor?.name ??
+          vm.loginSession?.data?.user?.fullName ??
+          'You';
+    }
+    return vm.loginSession?.data?.user?.fullName ?? 'You';
+  }
+
+  String _remoteParticipantLabel() {
+    return widget.isDoctor ? 'Patient' : 'Doctor';
+  }
+
+  String _resolvedRemoteName() {
+    return (_remotePartyName?.trim().isNotEmpty ?? false)
+        ? _remotePartyName!
+        : _remoteParticipantLabel();
+  }
 
   void _startTimer() {
     _timer?.cancel(); // Cancel any existing timer
@@ -306,62 +341,146 @@ class _VideoCallViewState extends State<VideoCallView> {
       );
     }
 
+    final userVM = Provider.of<UserViewModel>(context, listen: false);
+    final localName = _localParticipantName(userVM);
+
     return Scaffold(
       backgroundColor: Colors.black, // Immersive background
       body: Stack(
         children: [
           // 1. Remote Video (Main Feed)
           Center(
-            child: _remoteVideo(),
+            child: _remoteVideo(localName),
           ),
 
-          // 2. Overlay: Top Info Bar
+          // 2. Overlay: timer + both participants (always visible during call test)
           Positioned(
-            top: 50,
-            left: 20,
+            top: 48,
+            left: 12,
+            right: 12,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.black45,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.circle,
-                      color: Colors.red, size: 12), // Recording dot status
-                  const SizedBox(width: 8),
-                  Text(_formattedTime,
-                      style: GoogleFonts.inter(
-                          color: Colors.white, fontWeight: FontWeight.bold)),
-                ],
-              ),
-            ),
-          ),
-
-          // 3. Local Video (PIP)
-          Positioned(
-            bottom: 140, // Above control bar
-            right: 20,
-            child: Container(
-              width: 100,
-              height: 150,
-              decoration: BoxDecoration(
-                color: Colors.grey[900],
+                color: Colors.black54,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white38),
-                boxShadow: const [
-                  BoxShadow(
-                      color: Colors.black45,
-                      blurRadius: 10,
-                      offset: Offset(0, 4))
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.circle, color: Colors.redAccent, size: 10),
+                      const SizedBox(width: 8),
+                      Text(
+                        _formattedTime,
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        _remoteUid != null ? 'Connected' : 'Connecting',
+                        style: GoogleFonts.inter(
+                          color: _remoteUid != null ? Colors.greenAccent : Colors.white54,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  _participantLine(
+                    icon: Icons.person_pin_circle_outlined,
+                    role: 'You (${widget.isDoctor ? 'Doctor' : 'Patient'})',
+                    name: localName,
+                  ),
+                  const SizedBox(height: 6),
+                  _participantLine(
+                    icon: Icons.person_outline,
+                    role: _remoteParticipantLabel(),
+                    name: _resolvedRemoteName(),
+                  ),
                 ],
               ),
-              clipBehavior: Clip.antiAlias,
-              child: _localVideo(),
             ),
           ),
 
-          // 4. Bottom Control Bar
+          // 3. Remote label on main feed when video is active
+          if (_remoteUid != null && !_remoteVideoMuted)
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 210,
+              child: IgnorePointer(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.black45,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${_remoteParticipantLabel()}: ${_resolvedRemoteName()}',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          // 4. Local Video (PIP) + label
+          Positioned(
+            bottom: 140,
+            right: 16,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Container(
+                  width: 108,
+                  height: 152,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[900],
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white38),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black45,
+                        blurRadius: 10,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: _localVideo(),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  constraints: const BoxConstraints(maxWidth: 140),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    'You: $localName',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(color: Colors.white, fontSize: 11),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // 5. Bottom Control Bar
           Positioned(
             bottom: 30,
             left: 20,
@@ -448,7 +567,7 @@ class _VideoCallViewState extends State<VideoCallView> {
     }
   }
 
-  Widget _remoteVideo() {
+  Widget _remoteVideo(String localName) {
     if (_remoteUid != null) {
       if (_remoteVideoMuted) {
         return Container(
@@ -462,6 +581,11 @@ class _VideoCallViewState extends State<VideoCallView> {
                 Text(
                   "Camera is off",
                   style: GoogleFonts.inter(color: Colors.white54, fontSize: 16),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${_remoteParticipantLabel()}: ${_resolvedRemoteName()}',
+                  style: GoogleFonts.inter(color: Colors.white38, fontSize: 13),
                 ),
               ],
             ),
@@ -479,22 +603,72 @@ class _VideoCallViewState extends State<VideoCallView> {
       return Container(
         color: Colors.grey[900],
         child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.person, size: 100, color: Colors.white24),
-              const SizedBox(height: 16),
-              Text(
-                _statusMessage ?? (widget.isDoctor
-                    ? "Waiting for patient..."
-                    : "Waiting for doctor..."),
-                style: GoogleFonts.inter(color: Colors.white54, fontSize: 16),
-              ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.person, size: 100, color: Colors.white24),
+                const SizedBox(height: 16),
+                Text(
+                  _statusMessage ??
+                      'Waiting for ${_resolvedRemoteName()}...',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(color: Colors.white54, fontSize: 16),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'You: $localName',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(color: Colors.white38, fontSize: 13),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${_remoteParticipantLabel()}: ${_resolvedRemoteName()}',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(color: AppColors.primary, fontSize: 13),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
+  }
+
+  Widget _participantLine({
+    required IconData icon,
+    required String role,
+    required String name,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: AppColors.primary, size: 18),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                role,
+                style: GoogleFonts.inter(color: Colors.white54, fontSize: 10),
+              ),
+              Text(
+                name,
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildControlBtn(

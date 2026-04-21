@@ -15,8 +15,6 @@ import 'package:medlink/views/call/call_screen.dart';
 import 'package:medlink/services/appointment_socket_service.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
 import 'package:medlink/core/constants/app_url.dart';
-import 'package:medlink/utils/utils.dart';
-import 'package:medlink/core/constants/sos_constants.dart';
 import 'dart:async';
 
 class MainScreen extends StatefulWidget {
@@ -28,7 +26,7 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _pulseController;
   StreamSubscription? _incomingCallSub;
   StreamSubscription? _callEndedSub;
@@ -39,6 +37,7 @@ class _MainScreenState extends State<MainScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _selectedIndex = widget.initialIndex;
     _pulseController = AnimationController(
       vsync: this,
@@ -50,8 +49,7 @@ class _MainScreenState extends State<MainScreen>
       final emergencyVM =
           Provider.of<EmergencyViewModel>(context, listen: false);
       final userVM = Provider.of<UserViewModel>(context, listen: false);
-      final appointmentVM =
-          Provider.of<AppointmentViewModel>(context, listen: false);
+      final appointmentVM = Provider.of<AppointmentViewModel>(context, listen: false);
 
       emergencyVM.checkActiveSos();
       final token = userVM.accessToken;
@@ -67,20 +65,34 @@ class _MainScreenState extends State<MainScreen>
         _emergencyToastSub?.cancel();
         _emergencyToastSub = emergencyVM.toastStream.listen((t) {
           if (!mounted) return;
-          Utils.toastMessage(context, t.message, isError: t.isError);
+          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+            SnackBar(
+              content: Text(t.message),
+              backgroundColor: t.backgroundColor,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
         });
 
         // Initial load
         appointmentVM.loadUpcomingAppointments();
 
         // Connect to Appointment Socket
-        final appointmentSocket =
-            Provider.of<AppointmentSocketService>(context, listen: false);
-        appointmentSocket.connect(url: AppUrl.baseUrl, token: token);
+        final appointmentSocket = Provider.of<AppointmentSocketService>(context, listen: false);
+        appointmentSocket.connect(
+          url: AppUrl.baseUrl,
+          token: token,
+          userId: patientIdStr,
+          role: 'patient',
+        );
         _appointmentSub = appointmentSocket.appointmentUpdateStream.listen((_) {
-          debugPrint('[MainScreen] Appointment update received! Refreshing...');
+          if (!mounted) return;
+          debugPrint('[MainScreen] Appointment socket — refreshing list');
           appointmentVM.loadUpcomingAppointments();
         });
+
+        // Start Call Polling as backup
+        Provider.of<CallViewModel>(context, listen: false).startPolling(context);
 
         // Connect to dedicated Call Socket
         final callSocket =
@@ -104,6 +116,25 @@ class _MainScreenState extends State<MainScreen>
     });
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    final userVM = Provider.of<UserViewModel>(context, listen: false);
+    final token = userVM.accessToken;
+    final patientIdStr = (userVM.patient?.id ?? '').trim();
+    if (token == null || token.isEmpty || patientIdStr.isEmpty) return;
+    try {
+      Provider.of<AppointmentSocketService>(context, listen: false).connect(
+        url: AppUrl.baseUrl,
+        token: token,
+        userId: patientIdStr,
+        role: 'patient',
+      );
+      Provider.of<AppointmentViewModel>(context, listen: false)
+          .loadUpcomingAppointments();
+    } catch (_) {}
+  }
+
   void _handleSocketIncomingCall(Map<String, dynamic> data) {
     if (!mounted) return;
     if (CallViewModel.isIncomingCallActive) {
@@ -115,6 +146,7 @@ class _MainScreenState extends State<MainScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pulseController.dispose();
     _incomingCallSub?.cancel();
     _callEndedSub?.cancel();
@@ -174,16 +206,6 @@ class _MainScreenState extends State<MainScreen>
                 children: [
                   GestureDetector(
                     onTap: () {
-                      if (emergencyVM.sosStatus == 'EXPIRED') {
-                        Utils.toastMessage(
-                          context,
-                          emergencyVM.canRetrySearch
-                              ? 'Tap Try again to search for a driver.'
-                              : (emergencyVM.noDriverFoundMessage ??
-                                  SosConstants.noAmbulanceDriverMessage),
-                        );
-                        return;
-                      }
                       if (emergencyVM.assignedAmbulance != null) {
                         Navigator.push(
                           context,
@@ -193,13 +215,17 @@ class _MainScreenState extends State<MainScreen>
                           ),
                         );
                       } else {
-                        Utils.toastMessage(
-                          context,
-                          "Finding Driver... Please wait.",
+                        // User requested not traversing to trip details when finding driver.
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Finding Driver... Please wait."),
+                            duration: Duration(seconds: 1),
+                          )
                         );
                       }
                     },
                     child: Container(
+                      // height: 100, // Removed fixed height
                       padding: const EdgeInsets.symmetric(
                           horizontal: 24, vertical: 20),
                       decoration: BoxDecoration(
@@ -219,153 +245,104 @@ class _MainScreenState extends State<MainScreen>
                           ),
                         ],
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        mainAxisSize: MainAxisSize.min,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      emergencyVM.sosEtaText,
-                                      style: GoogleFonts.inter(
-                                        fontWeight: FontWeight.w900,
-                                        fontSize: 22,
-                                        color: const Color(0xFF1E293B),
-                                        height: 1.1,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      emergencyVM.sosTitle,
-                                      style: GoogleFonts.inter(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                        color: const Color(0xFF0F172A),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      emergencyVM.sosStatus == 'EXPIRED'
-                                          ? (emergencyVM.canRetrySearch
-                                              ? 'Tap Try again below to search again.'
-                                              : 'This search window has ended.')
-                                          : (emergencyVM.assignedAmbulance !=
-                                                  null
-                                              ? 'Tap to track live location'
-                                              : 'Finding a nearby ambulance…'),
-                                      style: GoogleFonts.inter(
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 11,
-                                        color: const Color(0xFF94A3B8),
-                                      ),
-                                    ),
-                                  ],
+                          // LEFT: Text Info
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                // Time Headline
+                                Text(
+                                  emergencyVM.sosEtaText,
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 22, // Big & Bold
+                                    color: const Color(0xFF1E293B),
+                                    height: 1.1,
+                                  ),
                                 ),
-                              ),
-                              Builder(builder: (context) {
-                                final expired =
-                                    emergencyVM.sosStatus == 'EXPIRED';
-                                final frac =
-                                    emergencyVM.searchWindowProgressFraction;
-                                final ringValue = expired
-                                    ? 0.0
-                                    : (frac != null
-                                        ? (1.0 - frac).clamp(0.0, 1.0)
-                                        : null);
-                                final ringColor = expired
-                                    ? const Color(0xFF94A3B8)
-                                    : const Color(0xFFEF4444);
-                                return SizedBox(
+                                const SizedBox(height: 4),
+                                // Status Title
+                                Text(
+                                  emergencyVM.sosTitle,
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: const Color(0xFF0F172A),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                // Subtitle / Hint
+                                Text(
+                                  "Tap to track live location",
+                                  style: GoogleFonts.inter(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 11,
+                                    color: const Color(0xFF94A3B8),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // RIGHT: Circular Graphic (Progress Ring + Icon)
+                          SizedBox(
+                            width: 60,
+                            height: 60,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                // Background Circle
+                                Container(
                                   width: 60,
                                   height: 60,
-                                  child: Stack(
-                                    alignment: Alignment.center,
-                                    children: [
-                                      Container(
-                                        width: 60,
-                                        height: 60,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: expired
-                                              ? const Color(0xFFF1F5F9)
-                                              : const Color(0xFFFEF2F2),
-                                        ),
-                                      ),
-                                      Transform.rotate(
-                                        angle: -1.5,
-                                        child: SizedBox(
-                                          width: 50,
-                                          height: 50,
-                                          child: CircularProgressIndicator(
-                                            value: ringValue,
-                                            strokeWidth: 6,
-                                            backgroundColor: Colors.transparent,
-                                            valueColor:
-                                                AlwaysStoppedAnimation<Color>(
-                                                    ringColor),
-                                            strokeCap: StrokeCap.round,
-                                          ),
-                                        ),
-                                      ),
-                                      AnimatedBuilder(
-                                        animation: _pulseController,
-                                        builder: (context, child) {
-                                          return Transform.scale(
-                                            scale: 0.9 +
-                                                (_pulseController.value *
-                                                    0.1),
-                                            child: Image.asset(
-                                              "assets/ambulance_marker.png",
-                                              width: 28,
-                                              height: 28,
-                                              errorBuilder: (c, e, s) =>
-                                                  Icon(
-                                                Icons.medical_services_rounded,
-                                                color: ringColor,
-                                                size: 24,
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }),
-                            ],
-                          ),
-                          if (emergencyVM.sosStatus == 'EXPIRED' &&
-                              emergencyVM.canRetrySearch) ...[
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              width: double.infinity,
-                              child: FilledButton(
-                                onPressed: () =>
-                                    emergencyVM.retrySosSearch(context),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: const Color(0xFFEF4444),
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Color(0xFFFEF2F2), // Very Light Red
                                   ),
                                 ),
-                                child: Text(
-                                  'Try again',
-                                  style: GoogleFonts.inter(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 14,
+                                // Spinning/Static Partial Ring
+                                Transform.rotate(
+                                  angle:
+                                      -1.5, // Rotate to start from top/right roughly
+                                  child: SizedBox(
+                                    width: 50,
+                                    height: 50,
+                                    child: CircularProgressIndicator(
+                                      value: 0.75, // 75% circle like image
+                                      strokeWidth: 6,
+                                      backgroundColor: Colors.transparent,
+                                      valueColor:
+                                          const AlwaysStoppedAnimation<Color>(
+                                              Color(0xFFEF4444)), // Red
+                                      strokeCap: StrokeCap.round,
+                                    ),
                                   ),
                                 ),
-                              ),
+                                // Center Icon
+                                AnimatedBuilder(
+                                  animation: _pulseController,
+                                  builder: (context, child) {
+                                    return Transform.scale(
+                                      scale:
+                                          0.9 + (_pulseController.value * 0.1),
+                                      child: Image.asset(
+                                          "assets/ambulance_marker.png",
+                                          width: 28,
+                                          height: 28,
+                                          errorBuilder: (c, e, s) => const Icon(
+                                              Icons.medical_services_rounded,
+                                              color: Color(0xFFEF4444),
+                                              size: 24)),
+                                    );
+                                  },
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ],
                       ),
                     ),
