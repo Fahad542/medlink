@@ -25,6 +25,13 @@ class Utils {
     return raw;
   }
 
+  /// Error toast using [apiErrorMessage] when [error] is not already a [String].
+  static void toastError(BuildContext context, Object error) {
+    final message =
+        error is String ? error : apiErrorMessage(error);
+    toastMessage(context, message, isError: true);
+  }
+
   /// Full-width banner on the **root** overlay, **below the status bar** (not bottom SnackBar).
   static void toastMessage(BuildContext context, String message,
       {bool isError = false}) {

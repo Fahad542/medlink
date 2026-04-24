@@ -21,6 +21,30 @@ class ApiServices {
     }
   }
 
+  /// Validates stored JWT with [POST /auth/check-login](AppUrl.checkLogin). No `Authorization` header (public route).
+  Future<dynamic> checkLogin(String accessToken) async {
+    try {
+      return await _apiServices.getPostApiResponseNoAuth(
+        AppUrl.checkLogin,
+        jsonEncode({'access_token': accessToken}),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Saves device FCM token for the logged-in user (patient, doctor, driver). Uses Bearer from session.
+  Future<dynamic> updateFcmToken(String fcmToken) async {
+    try {
+      return await _apiServices.getPatchApiResponse(
+        AppUrl.updateFcmToken,
+        {'fcmToken': fcmToken},
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   // --- Auth & Patient Methods ---
 
   /// Patient registration Step 1: send OTP to phone. Body: {"phone": "+..."}
@@ -1395,6 +1419,30 @@ class ApiServices {
       return await _apiServices.getPatchApiResponse(
           "${AppUrl.doctorAppointmentActions}/$id/cancel",
           {"cancelReason": reason});
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Doctor approves a pending patient booking (adds to calendar; no payout until patient completes visit).
+  Future<dynamic> approveAppointment(String id) async {
+    try {
+      return await _apiServices.getPatchApiResponse(
+        "${AppUrl.doctorAppointmentActions}/$id/approve",
+        {},
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Doctor rejects a pending booking; patient is notified. Body matches cancel reason shape on backend.
+  Future<dynamic> rejectDoctorBooking(String id, {String? cancelReason}) async {
+    try {
+      return await _apiServices.getPatchApiResponse(
+        "${AppUrl.doctorAppointmentActions}/$id/reject",
+        {if (cancelReason != null && cancelReason.isNotEmpty) "cancelReason": cancelReason},
+      );
     } catch (e) {
       rethrow;
     }

@@ -277,13 +277,137 @@ class _MainScreenState extends State<MainScreen>
                                 const SizedBox(height: 2),
                                 // Subtitle / Hint
                                 Text(
-                                  "Tap to track live location",
+                                  emergencyVM.canRetrySearch
+                                      ? "No driver available right now"
+                                      : "Tap to track live location",
                                   style: GoogleFonts.inter(
                                     fontWeight: FontWeight.w500,
                                     fontSize: 11,
                                     color: const Color(0xFF94A3B8),
                                   ),
                                 ),
+                                if (!emergencyVM.canRetrySearch &&
+                                    emergencyVM.sosStatus == 'OPEN' &&
+                                    emergencyVM.assignedAmbulance == null) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${emergencyVM.driversViewingCount} drivers are currently viewing your SOS',
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 10.5,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                  if (emergencyVM.driversViewingProfiles.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 6),
+                                      child: SizedBox(
+                                        height: 28,
+                                        child: ListView.separated(
+                                          scrollDirection: Axis.horizontal,
+                                          itemCount: emergencyVM
+                                              .driversViewingProfiles.length,
+                                          separatorBuilder: (_, __) =>
+                                              const SizedBox(width: 6),
+                                          itemBuilder: (context, idx) {
+                                            final d = emergencyVM
+                                                .driversViewingProfiles[idx];
+                                            final name = (d['fullName']?.toString().trim().isNotEmpty ?? false)
+                                                ? d['fullName'].toString().trim()
+                                                : 'D';
+                                            final photo =
+                                                d['profilePhotoUrl']?.toString() ??
+                                                    '';
+                                            final initial = name[0]
+                                                .toUpperCase();
+                                            return Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(horizontal: 6),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFF0FDFA),
+                                                borderRadius:
+                                                    BorderRadius.circular(14),
+                                                border: Border.all(
+                                                  color: AppColors.primary
+                                                      .withValues(alpha: 0.18),
+                                                ),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  CircleAvatar(
+                                                    radius: 10,
+                                                    backgroundColor:
+                                                        Colors.white,
+                                                    backgroundImage: photo.isNotEmpty
+                                                        ? NetworkImage(
+                                                            AppUrl.getFullUrl(photo),
+                                                          )
+                                                        : null,
+                                                    child: photo.isEmpty
+                                                        ? Text(
+                                                            initial,
+                                                            style: GoogleFonts.inter(
+                                                              fontSize: 9,
+                                                              fontWeight:
+                                                                  FontWeight.w700,
+                                                              color: AppColors
+                                                                  .primary,
+                                                            ),
+                                                          )
+                                                        : null,
+                                                  ),
+                                                  const SizedBox(width: 5),
+                                                  Text(
+                                                    name,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: 10,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: AppColors.primary,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                                if (emergencyVM.canRetrySearch) ...[
+                                  const SizedBox(height: 8),
+                                  SizedBox(
+                                    height: 30,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () async {
+                                        await emergencyVM.retrySosSearch(context);
+                                      },
+                                      icon: const Icon(Icons.refresh_rounded,
+                                          size: 15),
+                                      label: Text(
+                                        "Refind Driver",
+                                        style: GoogleFonts.inter(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.primary,
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(14),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -312,7 +436,15 @@ class _MainScreenState extends State<MainScreen>
                                     width: 50,
                                     height: 50,
                                     child: CircularProgressIndicator(
-                                      value: 0.75, // 75% circle like image
+                                      value: emergencyVM.canRetrySearch
+                                          ? 0.0
+                                          : (() {
+                                              final frac = emergencyVM
+                                                  .searchWindowProgressFraction;
+                                              if (frac == null) return 0.75;
+                                              return (1 - frac)
+                                                  .clamp(0.0, 1.0);
+                                            })(),
                                       strokeWidth: 6,
                                       backgroundColor: Colors.transparent,
                                       valueColor:

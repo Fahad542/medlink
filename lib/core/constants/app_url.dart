@@ -18,6 +18,8 @@ class AppUrl {
   static const String deleteAccountVerifyOtp =
       '${baseUrl}/auth/account/delete/verify-otp';
   static const String socialLogin = '${baseUrl}/auth/social-login';
+  /// POST JSON `{ "access_token": "<jwt>" }` — validates session for patient / doctor / driver.
+  static const String checkLogin = '${baseUrl}/auth/check-login';
 
   static const String getChatMessages =
       '${baseUrl}/chat/user'; // /{recipientId}/messages
@@ -193,4 +195,10 @@ class AppUrl {
 
   static String organizationSettingsById(int organizationId) =>
       '$baseUrl/common/organization-settings/$organizationId';
+
+  /// App-wide settings (e.g. default currency) — `GET` returns `{ success, settings: { currency, ... } }`.
+  static const String systemSettings = '${baseUrl}/common/system-settings';
+
+  /// `PATCH` body `{ "fcmToken": "..." }` — requires Bearer (patient / doctor / driver).
+  static const String updateFcmToken = '${baseUrl}/common/fcm-token';
 }

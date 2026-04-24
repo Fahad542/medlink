@@ -9,6 +9,8 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:medlink/widgets/appointment_list_shimmer.dart';
 import 'package:medlink/widgets/appointment_info_card.dart';
+import 'package:medlink/widgets/patient_cancelled_appointment_detail_sheet.dart';
+import 'package:medlink/utils/trip_fare_format.dart';
 
 class AppointmentListView extends StatefulWidget {
   const AppointmentListView({super.key});
@@ -219,100 +221,158 @@ class _AppointmentListViewState extends State<AppointmentListView>
     final dateLine =
         dur != null ? '$dateLabel · $dur' : dateLabel;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    final String? reasonPreview = showCancelBadge &&
+            appointment.cancelReason != null &&
+            appointment.cancelReason!.trim().isNotEmpty
+        ? appointment.cancelReason!.trim()
+        : null;
+    final String? feeLine = showCancelBadge && appointment.feeAmount != null
+        ? TripFareFormat.formatCfa(
+            appointment.feeAmount!,
+            currencyHint: appointment.currency,
+          )
+        : null;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => showPatientAppointmentDetail(context, appointment),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: const Color(0xFFE8EEF5),
-            backgroundImage:
-                profileImage.isNotEmpty ? NetworkImage(profileImage) : null,
-            child: profileImage.isEmpty
-                ? const Icon(Icons.person, color: Colors.grey)
-                : null,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  doctorName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF1F2937),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  specialty,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: const Color(0xFF71717A),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Row(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: const Color(0xFFE8EEF5),
+                backgroundImage: profileImage.isNotEmpty
+                    ? NetworkImage(profileImage)
+                    : null,
+                child: profileImage.isEmpty
+                    ? const Icon(Icons.person, color: Colors.grey)
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.watch_later_outlined,
-                        size: 14, color: AppColors.primary),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        dateLine,
+                    Text(
+                      doctorName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1F2937),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      specialty,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF71717A),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(Icons.watch_later_outlined,
+                            size: 14, color: AppColors.primary),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            dateLine,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.primary,
+                              height: 1.2,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (showCancelBadge) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Canceled by: ${appointment.patientCancelledByLabel()}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
-                          fontSize: 11.5,
+                          fontSize: 12,
                           fontWeight: FontWeight.w500,
-                          color: AppColors.primary,
-                          height: 1.2,
+                          color: const Color(0xFF71717A),
                         ),
                       ),
-                    ),
+                      if (reasonPreview != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          reasonPreview,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: const Color(0xFF52525B),
+                            height: 1.25,
+                          ),
+                        ),
+                      ],
+                      if (feeLine != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          feeLine,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ],
                   ],
                 ),
-              ],
-            ),
+              ),
+              if (showCancelBadge)
+                _appointmentListStatusBadge(
+                  label: 'Canceled',
+                  foreground: AppColors.error,
+                  background: AppColors.error.withValues(alpha: 0.12),
+                )
+              else if (showCompletedBadge)
+                _appointmentListStatusBadge(
+                  label: 'Completed',
+                  foreground: AppColors.success,
+                  background: AppColors.success.withValues(alpha: 0.14),
+                )
+              else
+                IconButton(
+                  onPressed: () => AppointmentInfoCard(
+                    appointment: appointment,
+                    showConfirmationActions: true,
+                  ).showAppointmentOptions(context),
+                  icon: const Icon(Icons.more_vert_rounded, color: Colors.grey),
+                ),
+            ],
           ),
-          if (showCancelBadge)
-            _appointmentListStatusBadge(
-              label: 'Canceled',
-              foreground: AppColors.error,
-              background: AppColors.error.withValues(alpha: 0.12),
-            )
-          else if (showCompletedBadge)
-            _appointmentListStatusBadge(
-              label: 'Completed',
-              foreground: AppColors.success,
-              background: AppColors.success.withValues(alpha: 0.14),
-            )
-          else
-            IconButton(
-              onPressed: () => AppointmentInfoCard(
-                appointment: appointment,
-                showConfirmationActions: true,
-              ).showAppointmentOptions(context),
-              icon: const Icon(Icons.more_vert_rounded, color: Colors.grey),
-            ),
-        ],
+        ),
       ),
     );
   }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -6,6 +7,7 @@ import 'package:medlink/models/doctor_model.dart';
 import 'package:medlink/models/user_login_model.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/data/network/api_services.dart';
+import 'package:medlink/services/google_maps_service.dart';
 import 'package:medlink/utils/utils.dart';
 
 class DoctorPersonalInfoViewModel extends ChangeNotifier {
@@ -32,6 +34,11 @@ class DoctorPersonalInfoViewModel extends ChangeNotifier {
   final TextEditingController bioController = TextEditingController();
   final TextEditingController clinicNameController = TextEditingController();
   final TextEditingController clinicAddressController = TextEditingController();
+
+  Timer? _addressDebounce;
+  final List<Map<String, dynamic>> _addressSuggestions = [];
+  List<Map<String, dynamic>> get addressSuggestions =>
+      List.unmodifiable(_addressSuggestions);
 
   DoctorPersonalInfoViewModel(this._userViewModel) {
     _initializeFields();
@@ -307,5 +314,47 @@ class DoctorPersonalInfoViewModel extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  void onAddressChanged(String query) {
+    if (_addressDebounce?.isActive ?? false) _addressDebounce!.cancel();
+    _addressDebounce = Timer(const Duration(milliseconds: 500), () async {
+      if (query.trim().length > 2) {
+        final raw = await GoogleMapsService.searchPlaces(query);
+        _addressSuggestions.clear();
+        for (final p in raw) {
+          if (p is Map) {
+            final m = Map<String, dynamic>.from(p);
+            final desc = m['description']?.toString();
+            if (desc != null && desc.isNotEmpty) {
+              _addressSuggestions.add(m);
+            }
+          }
+        }
+      } else {
+        _addressSuggestions.clear();
+      }
+      notifyListeners();
+    });
+  }
+
+  void selectAddress(String description) {
+    clinicAddressController.text = description;
+    _addressSuggestions.clear();
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _addressDebounce?.cancel();
+    nameController.dispose();
+    emailController.dispose();
+    phoneController.dispose();
+    specializationController.dispose();
+    experienceController.dispose();
+    bioController.dispose();
+    clinicNameController.dispose();
+    clinicAddressController.dispose();
+    super.dispose();
   }
 }

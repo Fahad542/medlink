@@ -27,6 +27,7 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:medlink/services/notification_services.dart';
+import 'package:medlink/services/fcm_token_backend_sync.dart';
 import 'package:medlink/services/waiting_room_socket_service.dart';
 import 'package:medlink/services/call_socket_service.dart';
 import 'package:medlink/services/appointment_socket_service.dart';
@@ -61,14 +62,11 @@ void main() async {
     await notificationServices.configureForegroundPresentation();
     notificationServices.firebaseInit();
     notificationServices.listenForTokenWhenReady((token) {
-      if (kDebugMode) {
-        debugPrint('FCM token (ready/refresh): $token');
-      }
+      NotificationServices.logFcmTokenToConsole(token, source: 'onTokenRefresh');
+      FcmTokenBackendSync.trySyncToBackend(token);
     });
-    final token = await notificationServices.getDeviceToken();
-    if (kDebugMode && token != null) {
-      debugPrint('Device Token: $token');
-    }
+    final fcm = await notificationServices.getDeviceToken();
+    await FcmTokenBackendSync.trySyncToBackend(fcm);
   } catch (e) {
     debugPrint("Firebase initialization failed: $e");
   }

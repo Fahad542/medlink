@@ -45,6 +45,8 @@ class EmergencyViewModel extends ChangeNotifier {
   DateTime? _searchWindowEndsAt;
   String? _noDriverFoundMessage;
   bool _canRetrySearch = false;
+  int _driversViewingCount = 0;
+  List<Map<String, dynamic>> _driversViewingProfiles = [];
 
   /// Trip id (string) for `trip:locationUpdated` / `joinTrip` — supports int ids and UUIDs.
   String? _trackedTripIdKey;
@@ -71,6 +73,8 @@ class EmergencyViewModel extends ChangeNotifier {
   DateTime? get searchWindowEndsAt => _searchWindowEndsAt;
   String? get noDriverFoundMessage => _noDriverFoundMessage;
   bool get canRetrySearch => _canRetrySearch;
+  int get driversViewingCount => _driversViewingCount;
+  List<Map<String, dynamic>> get driversViewingProfiles => _driversViewingProfiles;
 
   /// Progress 0→1 while OPEN and unassigned; null when not applicable.
   double? get searchWindowProgressFraction {
@@ -148,6 +152,26 @@ class EmergencyViewModel extends ChangeNotifier {
       _canRetrySearch = cr.toString() == 'true';
     } else {
       _canRetrySearch = st == 'EXPIRED';
+    }
+
+    final dvc = m['driversViewingCount'];
+    if (dvc is int) {
+      _driversViewingCount = dvc < 0 ? 0 : dvc;
+    } else if (dvc != null) {
+      final parsed = int.tryParse(dvc.toString());
+      _driversViewingCount = (parsed ?? 0).clamp(0, 1000000);
+    } else if (st == 'EXPIRED') {
+      _driversViewingCount = 0;
+    }
+
+    final listRaw = m['driversViewingProfiles'];
+    if (listRaw is List) {
+      _driversViewingProfiles = listRaw
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    } else if (st == 'EXPIRED') {
+      _driversViewingProfiles = [];
     }
   }
 
@@ -811,6 +835,8 @@ class EmergencyViewModel extends ChangeNotifier {
     _searchWindowEndsAt = null;
     _noDriverFoundMessage = null;
     _canRetrySearch = false;
+    _driversViewingCount = 0;
+    _driversViewingProfiles = [];
     _searchWindowMinutes = 2;
     _stopSearchUiTicker();
     _socket.clearJoinedRooms();

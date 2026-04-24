@@ -70,8 +70,33 @@ class AppointmentModel {
   final PrescriptionModel? prescription;
   final bool isPaid;
 
+  /// From API: `PENDING` | `APPROVED` | `REJECTED` (nullable for older clients).
+  final String? doctorApproval;
+
+  /// Consultation fee snapshot on the appointment (from API `feeAmount`).
+  final double? feeAmount;
+  final String? currency;
+  final String? cancelReason;
+  final String? cancelledById;
+
   /// Effective slot start for display and sorting (scheduledStart from API, else parsed dateTime).
   DateTime get displayScheduledStart => (scheduledStart ?? dateTime).toLocal();
+
+  /// User-facing duration (e.g. "45 min") when both ends of the slot exist.
+  String? get scheduledDurationLabel {
+    final start = scheduledStart;
+    final end = scheduledEnd;
+    if (start == null || end == null) return null;
+    var mins = end.difference(start).inMinutes;
+    if (mins <= 0) return null;
+    if (mins >= 60) {
+      final h = mins ~/ 60;
+      final m = mins % 60;
+      if (m == 0) return '${h}h';
+      return '${h}h ${m}m';
+    }
+    return '$mins min';
+  }
 
   AppointmentModel({
     required this.id,
@@ -89,7 +114,18 @@ class AppointmentModel {
     this.vitals,
     this.prescription,
     this.isPaid = false,
+    this.doctorApproval,
+    this.feeAmount,
+    this.currency,
+    this.cancelReason,
+    this.cancelledById,
   });
+
+  static double? _parseAmount(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString().trim());
+  }
 
   static DateTime? _parseDate(dynamic v) {
     if (v == null) return null;
@@ -193,7 +229,24 @@ class AppointmentModel {
           ? PrescriptionModel.fromJson(json['prescription'])
           : null,
       isPaid: json['isPaid'] ?? false,
+      doctorApproval: json['doctorApproval']?.toString() ??
+          json['doctor_approval']?.toString(),
+      feeAmount: _parseAmount(json['feeAmount'] ?? json['fee_amount']),
+      currency: json['currency']?.toString(),
+      cancelReason: json['cancelReason']?.toString() ??
+          json['cancel_reason']?.toString(),
+      cancelledById: json['cancelledById']?.toString() ??
+          json['cancelled_by_id']?.toString(),
     );
+  }
+
+  /// Patient list: "You" vs "Doctor" vs unknown (uses [userId] / [doctorId] vs [cancelledById]).
+  String patientCancelledByLabel() {
+    final cid = cancelledById;
+    if (cid == null || cid.isEmpty) return 'Unknown';
+    if (cid == userId) return 'You';
+    if (cid == doctorId) return 'Doctor';
+    return 'Unknown';
   }
 
   static AppointmentType _parseConsultKind(Map<String, dynamic> json) {

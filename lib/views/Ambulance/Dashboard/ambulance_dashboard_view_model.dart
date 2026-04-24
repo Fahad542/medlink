@@ -226,8 +226,11 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
   Map<String, dynamic> _mapEmergencyRequest(Map<String, dynamic> m) {
     final addrRaw = m['addressText']?.toString().trim();
     final hasAddr = addrRaw != null && addrRaw.isNotEmpty;
+    final address = hasAddr ? addrRaw : null;
     final lat = _toDouble(m['lat']);
     final lng = _toDouble(m['lng']);
+    final destinationLat = _toDouble(m['destinationLat'] ?? m['dropoffLat']);
+    final destinationLng = _toDouble(m['destinationLng'] ?? m['dropoffLng']);
     return {
       'id': m['id'].toString(),
       'createdAt': m['createdAt'],
@@ -239,8 +242,10 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
       'hasAddressFromApi': hasAddr,
       'distance': '—',
       'location': hasAddr
-          ? addrRaw!
+          ? address
           : (lat != null && lng != null ? 'Loading address...' : 'Location unavailable'),
+      'destinationLat': destinationLat,
+      'destinationLng': destinationLng,
       'incident': m['emergencyType'] ?? 'Emergency',
       'time': _formatTime(
         (m['searchWindowStartedAt'] ?? m['createdAt'])?.toString(),
@@ -251,8 +256,13 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
   Map<String, dynamic> _mapSosPayload(Map<String, dynamic> payload) {
     final addrRaw = payload['addressText']?.toString().trim();
     final hasAddr = addrRaw != null && addrRaw.isNotEmpty;
+    final address = hasAddr ? addrRaw : null;
     final lat = _toDouble(payload['lat']);
     final lng = _toDouble(payload['lng']);
+    final destinationLat =
+        _toDouble(payload['destinationLat'] ?? payload['dropoffLat']);
+    final destinationLng =
+        _toDouble(payload['destinationLng'] ?? payload['dropoffLng']);
     final patient = payload['patient'] is Map
         ? Map<String, dynamic>.from(payload['patient'] as Map)
         : <String, dynamic>{};
@@ -268,8 +278,10 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
       'hasAddressFromApi': hasAddr,
       'distance': '—',
       'location': hasAddr
-          ? addrRaw!
+          ? address
           : (lat != null && lng != null ? 'Loading address...' : 'Location unavailable'),
+      'destinationLat': destinationLat,
+      'destinationLng': destinationLng,
       'incident': payload['emergencyType'] ?? 'Emergency',
       'time': _formatTime(
         (payload['searchWindowStartedAt'] ?? payload['createdAt'])

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -6,6 +7,9 @@ import 'package:medlink/models/doctor_model.dart';
 import 'package:medlink/models/ambulance_model.dart';
 import 'package:medlink/models/user_login_model.dart';
 import 'package:medlink/utils/jwt_user_id.dart';
+import 'package:medlink/data/network/api_services.dart';
+import 'package:medlink/data/app_exceptions.dart';
+import 'package:medlink/services/fcm_token_backend_sync.dart';
 
 UserLoginModel _mergeSessionUserIdFromJwt(UserLoginModel session) {
   final user = session.data?.user;
@@ -105,6 +109,79 @@ class UserViewModel with ChangeNotifier {
     }
   }
 
+  /// Calls [ApiServices.checkLogin]. On 401 / bad token: [logout]. On network errors: keeps local session.
+  /// Returns `true` if the session may be used (valid or could not be verified offline).
+  Future<bool> validateSessionWithServer() async {
+    final token = _accessToken;
+    if (token == null || token.isEmpty) return false;
+
+    try {
+      final res = await ApiServices().checkLogin(token);
+      if (res is! Map || res['success'] != true) {
+        await logout();
+        return false;
+      }
+      final data = res['data'];
+      if (data is! Map) {
+        await logout();
+        return false;
+      }
+      final u = data['user'];
+      if (u is Map<String, dynamic>) {
+        await _mergeCheckLoginUserIntoSession(u);
+      } else if (u is Map) {
+        await _mergeCheckLoginUserIntoSession(Map<String, dynamic>.from(u));
+      }
+      unawaited(FcmTokenBackendSync.trySyncToBackend());
+      return true;
+    } on UnauthorizedException {
+      await logout();
+      return false;
+    } on BadRequestException {
+      await logout();
+      return false;
+    } catch (e) {
+      debugPrint('validateSessionWithServer: $e');
+      return true;
+    }
+  }
+
+  Future<void> _mergeCheckLoginUserIntoSession(
+      Map<String, dynamic> serverUser) async {
+    if (_loginSession?.data == null) return;
+    final prev = _loginSession!.data!.user;
+    if (prev == null) return;
+    final base = prev.toJson();
+    for (final key in [
+      'id',
+      'role',
+      'fullName',
+      'email',
+      'phone',
+      'isActive',
+      'isVerified',
+      'profilePhotoUrl',
+      'createdAt',
+      'updatedAt',
+    ]) {
+      if (serverUser.containsKey(key) && serverUser[key] != null) {
+        base[key] = serverUser[key];
+      }
+    }
+    if (serverUser['organizationId'] != null) {
+      base['organizationId'] = serverUser['organizationId'];
+    }
+    await saveUserLoginSession(
+      UserLoginModel(
+        success: _loginSession!.success,
+        data: Data(
+          accessToken: _loginSession!.data!.accessToken,
+          user: User.fromJson(base),
+        ),
+      ),
+    );
+  }
+
   Future<void> saveUserLoginSession(UserLoginModel sessionModel) async {
     final SharedPreferences sp = await SharedPreferences.getInstance();
 
@@ -127,6 +204,7 @@ class UserViewModel with ChangeNotifier {
     await sp.setString('user_session_v2', jsonEncode(patched.toJson()));
     printFullSession('saveUserLoginSession', _loginSession);
     notifyListeners();
+    unawaited(FcmTokenBackendSync.trySyncToBackend());
   }
 
   Future<void> saveUser(dynamic user, String role,
@@ -166,6 +244,7 @@ class UserViewModel with ChangeNotifier {
     await sp.setString('user_session_v2', jsonEncode(loginModel.toJson()));
     printFullSession('saveUser', _loginSession);
     notifyListeners();
+    unawaited(FcmTokenBackendSync.trySyncToBackend());
   }
 
   void updatePatient(UserModel updatedPatient) {

@@ -97,13 +97,26 @@ class NotificationServices {
     }
   }
 
+  /// Prints the FCM registration token to the console (debug only; full string, not truncated).
+  static void logFcmTokenToConsole(String? token, {String source = 'getToken'}) {
+    if (!kDebugMode) return;
+    // ignore: avoid_print
+    print('══════════ FCM DEVICE TOKEN ($source) ══════════');
+    // ignore: avoid_print
+    print(token ?? '<null — Firebase not ready, permission, or error>');
+    // ignore: avoid_print
+    print('══════════ end FCM token ══════════');
+  }
+
   Future<String?> getDeviceToken() async {
     try {
       await _waitForApnsTokenIfNeeded();
-      return await messaging.getToken();
+      final token = await messaging.getToken();
+      logFcmTokenToConsole(token, source: 'getDeviceToken');
+      return token;
     } catch (e, stack) {
       if (kDebugMode) {
-        debugPrint('getDeviceToken: $e');
+        logFcmTokenToConsole(null, source: 'getDeviceToken error: $e');
         debugPrint('$stack');
       }
       return null;

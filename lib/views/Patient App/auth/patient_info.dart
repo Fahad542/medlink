@@ -229,16 +229,18 @@ class Step4Info extends StatelessWidget {
                       icon: Icons.monitor_weight_rounded,
                       controller: authVM.weightController,
                       keyboardType: TextInputType.number,
+                      suffix: "kg",
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: _buildAnimatedTextField(
-                      label: "Height (ft)",
+                      label: "Height (feet)",
                       hint: "Height",
                       icon: Icons.height_rounded,
                       controller: authVM.heightController,
                       keyboardType: TextInputType.number,
+                      suffix: "feet",
                     ),
                   ),
                 ],
@@ -379,6 +381,7 @@ class Step4Info extends StatelessWidget {
     required IconData icon,
     required TextEditingController controller,
     TextInputType? keyboardType,
+    String? suffix,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -410,6 +413,12 @@ class Step4Info extends StatelessWidget {
               fillColor: Colors.white,
               hintText: hint,
               hintStyle: GoogleFonts.inter(color: Colors.grey[500], fontWeight: FontWeight.w400, fontSize: 13),
+              suffixText: suffix,
+              suffixStyle: GoogleFonts.inter(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
               prefixIcon: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Container(

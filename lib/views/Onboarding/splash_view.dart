@@ -37,6 +37,9 @@ class _SplashViewState extends State<SplashView> with SingleTickerProviderStateM
     _controller.forward().then((_) async {
       final userVM = Provider.of<UserViewModel>(context, listen: false);
       await userVM.loadUser();
+      if (userVM.accessToken != null && userVM.accessToken!.isNotEmpty) {
+        await userVM.validateSessionWithServer();
+      }
 
       if (mounted) {
         // Standardize role to lowercase for comparison

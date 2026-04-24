@@ -715,6 +715,25 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                             fontSize: 13,
                                             fontWeight: FontWeight.w500),
                                       ),
+                                      if (ambulance.phoneNumber.trim().isNotEmpty) ...[
+                                        const SizedBox(height: 3),
+                                        Row(
+                                          children: [
+                                            Icon(Icons.phone_outlined,
+                                                size: 13,
+                                                color: Colors.grey[500]),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              ambulance.phoneNumber.trim(),
+                                              style: TextStyle(
+                                                color: Colors.grey[700],
+                                                fontSize: 12.5,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                       const SizedBox(height: 4),
                                       Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -771,8 +790,8 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                         MaterialPageRoute(
                                           builder: (context) => ChatView(
                                             recipientName:
-                                                widget.ambulance.driverName,
-                                            doctorId: widget.ambulance.id,
+                                                ambulance.driverName,
+                                            doctorId: ambulance.id,
                                             patientId: currentUserId,
                                             sosId: sosId,
                                             tripId: tripId,
@@ -801,16 +820,15 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                   child: ElevatedButton.icon(
                                     onPressed: () {
                                       final driverId =
-                                          int.tryParse(widget.ambulance.id);
+                                          int.tryParse(ambulance.id);
                                       if (driverId != null) {
                                         Provider.of<CallViewModel>(context,
                                                 listen: false)
                                             .initiateCall(
                                                 context,
                                                 driverId,
-                                                widget.ambulance.driverName,
-                                                widget
-                                                    .ambulance.profilePhotoUrl);
+                                                ambulance.driverName,
+                                                ambulance.profilePhotoUrl);
                                       } else {
                                         Utils.toastMessage(
                                           context,

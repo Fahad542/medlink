@@ -147,13 +147,13 @@ class DoctorAppointmentCard extends StatefulWidget {
 }
 
 class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
-  bool _confirmBusy = false;
+  bool _actionBusy = false;
 
   AppointmentModel get appointment => widget.appointment;
 
-  Future<void> _confirmAppointment(BuildContext context) async {
-    if (_confirmBusy) return;
-    setState(() => _confirmBusy = true);
+  Future<void> _approveBooking(BuildContext context) async {
+    if (_actionBusy) return;
+    setState(() => _actionBusy = true);
     try {
       final vm =
           Provider.of<DoctorAppointmentsViewModel>(context, listen: false);
@@ -164,13 +164,47 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
             .fetchData();
       } catch (_) {}
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(ok
-            ? 'Appointment confirmed'
-            : 'Could not confirm. Try again.'),
+        content: Text(
+            ok ? 'Booking approved' : 'Could not approve. Try again.'),
         backgroundColor: ok ? Colors.green.shade700 : Colors.red.shade700,
       ));
     } finally {
-      if (mounted) setState(() => _confirmBusy = false);
+      if (mounted) setState(() => _actionBusy = false);
+    }
+  }
+
+  Future<void> _rejectBooking(BuildContext context) async {
+    if (_actionBusy) return;
+    final reason = await showAppointmentCancelReasonDialog(
+      context,
+      title: 'Reject this booking?',
+      subtitle:
+          'The patient will be notified. Please give a short reason (at least 3 characters).',
+    );
+    if (!context.mounted || reason == null) return;
+    setState(() => _actionBusy = true);
+    try {
+      final vm =
+          Provider.of<DoctorAppointmentsViewModel>(context, listen: false);
+      final dashVM = Provider.of<DoctorDashboardViewModel>(context, listen: false);
+      final ok = await vm.rejectPatientBooking(appointment.id, reason: reason);
+      if (!context.mounted) return;
+      if (ok) {
+        try {
+          AppointmentSocketService.instance
+              .emitAfterCancellation(appointment.id);
+          dashVM.removeUpcomingAppointmentById(appointment.id);
+          await dashVM.fetchData();
+        } catch (_) {}
+      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+            ok ? 'Booking rejected' : 'Could not reject. Try again.'),
+        backgroundColor: ok ? Colors.orange.shade800 : Colors.red.shade700,
+      ));
+    } finally {
+      if (mounted) setState(() => _actionBusy = false);
     }
   }
 
@@ -279,7 +313,8 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
                 } else if (appointment.status == AppointmentStatus.pending) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                     content: Text(
-                        'Confirm this appointment first using the button below.'),
+                        'Approve or reject this booking using the actions below.',
+                    ),
                   ));
                 } else if (appointment.status == AppointmentStatus.confirmed ||
                     appointment.status == AppointmentStatus.upcoming ||
@@ -392,40 +427,68 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
             const SizedBox(height: 10),
             const Divider(height: 1),
             const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _confirmBusy ? null : () => _confirmAppointment(context),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _actionBusy
+                        ? null
+                        : () => _approveBooking(context),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: _actionBusy
+                        ? const SizedBox(
+                            height: 22,
+                            width: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            'Approve',
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
                   ),
                 ),
-                child: _confirmBusy
-                    ? const SizedBox(
-                        height: 22,
-                        width: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : Text(
-                        'Confirm appointment',
-                        style: GoogleFonts.inter(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _actionBusy
+                        ? null
+                        : () => _rejectBooking(context),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red.shade800,
+                      side: BorderSide(color: Colors.red.shade300),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-              ),
+                    ),
+                    child: Text(
+                      'Reject',
+                      style: GoogleFonts.inter(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Text(
-                'Patient has paid or booked this slot. Confirm to add it to your earnings.',
+                'Approving only confirms the visit on your schedule. Your fee is credited when the patient marks the visit complete.',
                 style: GoogleFonts.inter(
                   fontSize: 11,
                   color: Colors.grey[600],
@@ -542,17 +605,29 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
               ),
             ),
             const SizedBox(height: 24),
-            if (appointment.status == AppointmentStatus.pending)
+            if (appointment.status == AppointmentStatus.pending) ...[
               _appointmentBottomSheetActionItem(
                 iconData: Icons.check_circle_outline_rounded,
-                title: "Confirm appointment",
-                subtitle: "Accept visit and add fee to your earnings",
-                color: Colors.green.shade700,
+                title: "Approve",
+                subtitle:
+                    "Confirm the visit on your schedule; payout when patient completes the visit",
+                color: AppColors.primary,
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  _confirmAppointment(cardContext);
+                  _approveBooking(cardContext);
                 },
               ),
+              _appointmentBottomSheetActionItem(
+                iconData: Icons.cancel_outlined,
+                title: "Reject",
+                subtitle: "Decline this booking; patient is notified",
+                color: Colors.red,
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _rejectBooking(cardContext);
+                },
+              ),
+            ],
             _appointmentBottomSheetActionItem(
               iconData: Icons.chat_bubble_outline_rounded,
               assetPath: "assets/Icons/chat.png",
@@ -620,7 +695,8 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
                 );
               },
             ),
-            if (AppointmentModel.doctorCanCancel(appointment.status))
+            if (AppointmentModel.doctorCanCancel(appointment.status) &&
+                appointment.status != AppointmentStatus.pending)
               _appointmentBottomSheetActionItem(
               iconData: Icons.cancel_outlined,
               title: "Cancel Appointment",

@@ -220,7 +220,7 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
                         showDialog(
                           context: context,
                           builder: (context) => LogoutConfirmationDialog(
-                            onLogout: () {
+                            onConfirm: () {
                               userVM.logout();
                               Navigator.pushAndRemoveUntil(
                                 context,

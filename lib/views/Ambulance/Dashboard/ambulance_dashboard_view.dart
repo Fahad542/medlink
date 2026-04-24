@@ -4,12 +4,13 @@ import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/views/Ambulance/Dashboard/ambulance_dashboard_view_model.dart';
 import 'package:medlink/views/Ambulance/Ambulance%20main/ambulance_main_view_model.dart';
 import 'package:medlink/widgets/custom_button.dart';
-import 'package:medlink/widgets/emergency_action_dialog.dart';
 import 'package:medlink/views/Ambulance/Mission/ambulance_mission_view.dart'
     as medlink_app;
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:medlink/services/google_maps_service.dart';
 
 import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/utils/utils.dart';
@@ -21,15 +22,430 @@ class AmbulanceDashboardView extends StatefulWidget {
   State<AmbulanceDashboardView> createState() => _AmbulanceDashboardViewState();
 }
 
-class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView> {
+class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _scanRippleController;
+  static double? _toDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString());
+  }
+
+  static String _coordLabel(double? lat, double? lng) {
+    if (lat == null || lng == null) return 'Not available';
+    return '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}';
+  }
+
+  static LatLngBounds _boundsForPoints(List<LatLng> points) {
+    var minLat = points.first.latitude;
+    var maxLat = points.first.latitude;
+    var minLng = points.first.longitude;
+    var maxLng = points.first.longitude;
+    for (final p in points.skip(1)) {
+      if (p.latitude < minLat) minLat = p.latitude;
+      if (p.latitude > maxLat) maxLat = p.latitude;
+      if (p.longitude < minLng) minLng = p.longitude;
+      if (p.longitude > maxLng) maxLng = p.longitude;
+    }
+    return LatLngBounds(
+      southwest: LatLng(minLat, minLng),
+      northeast: LatLng(maxLat, maxLng),
+    );
+  }
+
+  Future<void> _openRequestMapDecisionSheet(
+    BuildContext context,
+    AmbulanceDashboardViewModel viewModel,
+    Map<String, dynamic> request,
+  ) async {
+    final pickupLat = _toDouble(request['lat']);
+    final pickupLng = _toDouble(request['lng']);
+    final dropLat = _toDouble(request['destinationLat']);
+    final dropLng = _toDouble(request['destinationLng']);
+    final pickup = (pickupLat != null && pickupLng != null)
+        ? LatLng(pickupLat, pickupLng)
+        : null;
+    final drop = (dropLat != null && dropLng != null)
+        ? LatLng(dropLat, dropLng)
+        : null;
+    final points = <LatLng>[
+      if (pickup != null) pickup,
+      if (drop != null) drop,
+    ];
+    final hasMapPoints = points.isNotEmpty;
+    final markers = <Marker>{
+      if (pickup != null)
+        Marker(
+          markerId: const MarkerId('pickup'),
+          position: pickup,
+          infoWindow: const InfoWindow(title: 'Pickup'),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+        ),
+      if (drop != null)
+        Marker(
+          markerId: const MarkerId('drop'),
+          position: drop,
+          infoWindow: const InfoWindow(title: 'Drop-off'),
+          icon:
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+        ),
+    };
+    List<LatLng> routePoints = [];
+    String? routeDurationText;
+    if (pickup != null && drop != null) {
+      try {
+        final route = await GoogleMapsService.getRouteCoordinates(
+          pickup,
+          drop,
+        );
+        if (route != null && route['points'] is List<LatLng>) {
+          routePoints = List<LatLng>.from(route['points'] as List<LatLng>);
+          routeDurationText = route['durationText']?.toString();
+        }
+      } catch (_) {}
+    }
+    if (!mounted || !context.mounted) return;
+    final effectiveLinePoints =
+        routePoints.length >= 2 ? routePoints : (pickup != null && drop != null ? [pickup, drop] : <LatLng>[]);
+    final polylines = <Polyline>{
+      if (effectiveLinePoints.length >= 2)
+        Polyline(
+          polylineId: const PolylineId('pickup_drop_line'),
+          points: effectiveLinePoints,
+          color: AppColors.primary,
+          width: 5,
+          geodesic: true,
+          startCap: Cap.roundCap,
+          endCap: Cap.roundCap,
+        ),
+    };
+
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (pageContext) {
+          var processing = false;
+          return StatefulBuilder(
+            builder: (ctx, setStateSheet) {
+              Future<void> handleAccept() async {
+                if (processing) return;
+                setStateSheet(() => processing = true);
+                final mainVm = Provider.of<AmbulanceMainViewModel>(
+                  context,
+                  listen: false,
+                );
+                try {
+                  if (mainVm.hasActiveTrip) {
+                    if (context.mounted) {
+                      Utils.toastMessage(
+                        context,
+                        'You already have an active trip. Complete it before accepting another request.',
+                        isError: true,
+                      );
+                    }
+                    return;
+                  }
+                  final success = await viewModel.acceptRequest(request['id']);
+                  if (success && context.mounted) {
+                    Navigator.pop(context);
+                    await mainVm.checkActiveTrip(startPolling: false);
+                    if (!context.mounted) return;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            const medlink_app.AmbulanceMissionView(),
+                      ),
+                    );
+                  } else if (!success && context.mounted) {
+                    Utils.toastMessage(
+                      context,
+                      "Failed to accept request. It may have been taken.",
+                      isError: true,
+                    );
+                  }
+                } finally {
+                  if (ctx.mounted) setStateSheet(() => processing = false);
+                }
+              }
+
+              Future<void> handleDecline() async {
+                if (processing) return;
+                setStateSheet(() => processing = true);
+                try {
+                  await viewModel.declineRequest(request['id']);
+                  if (context.mounted) Navigator.pop(context);
+                } finally {
+                  if (ctx.mounted) setStateSheet(() => processing = false);
+                }
+              }
+
+              return Scaffold(
+                appBar: AppBar(
+                  title: const Text('Route Preview'),
+                  backgroundColor: Colors.white,
+                ),
+                body: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                    child: Column(
+                      children: [
+                        Row(
+                      children: [
+                        const Icon(Icons.map_outlined, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Check route before decision',
+                            style: GoogleFonts.inter(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        if (routeDurationText != null &&
+                            routeDurationText.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              routeDurationText,
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    if (pickup != null && drop != null) ...[
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Showing shortest road route',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                        const SizedBox(height: 10),
+                        Expanded(
+                          child: hasMapPoints
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: GoogleMap(
+                            initialCameraPosition: CameraPosition(
+                              target: pickup ?? drop ?? const LatLng(0, 0),
+                              zoom: 14,
+                            ),
+                            markers: markers,
+                            polylines: polylines,
+                            myLocationEnabled: true,
+                            myLocationButtonEnabled: true,
+                            zoomControlsEnabled: true,
+                            zoomGesturesEnabled: true,
+                            scrollGesturesEnabled: true,
+                            rotateGesturesEnabled: true,
+                            tiltGesturesEnabled: true,
+                            onMapCreated: (c) async {
+                              await Future<void>.delayed(
+                                  const Duration(milliseconds: 120));
+                              if (points.length == 1) {
+                                c.animateCamera(
+                                  CameraUpdate.newLatLngZoom(points.first, 15),
+                                );
+                              } else if (points.length > 1) {
+                                c.animateCamera(
+                                  CameraUpdate.newLatLngBounds(
+                                    _boundsForPoints(points),
+                                    64,
+                                  ),
+                                );
+                              }
+                            },
+                                  ),
+                                )
+                              : Container(
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[100],
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: Text(
+                                    'Map coordinates unavailable',
+                                    style: GoogleFonts.inter(color: Colors.grey[700]),
+                                  ),
+                                ),
+                        ),
+                        const SizedBox(height: 10),
+                        _routeInfoTile(
+                      icon: Icons.place_outlined,
+                      iconColor: Colors.red,
+                      title: 'Pickup',
+                      subtitle:
+                          request['location']?.toString() ?? 'Location unavailable',
+                      coord: _coordLabel(pickupLat, pickupLng),
+                    ),
+                        const SizedBox(height: 8),
+                        _routeInfoTile(
+                      icon: Icons.flag_outlined,
+                      iconColor: Colors.blue,
+                      title: 'Drop-off',
+                      subtitle: (drop != null)
+                          ? 'Selected on map by patient'
+                          : 'Drop location not shared',
+                      coord: _coordLabel(dropLat, dropLng),
+                    ),
+                        const SizedBox(height: 12),
+                        Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: processing ? null : handleDecline,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.grey[200],
+                              foregroundColor: Colors.grey[800],
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              'Decline',
+                              style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: processing ? null : handleAccept,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.success,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: processing
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Text(
+                                    'Accept',
+                                    style: GoogleFonts.inter(
+                                        fontWeight: FontWeight.w700),
+                                  ),
+                          ),
+                        ),
+                      ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _routeInfoTile({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String subtitle,
+    required String coord,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.withOpacity(0.15)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 19, color: iconColor),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  coord,
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
+    _scanRippleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
     // Re-fetch profile when this view is initialized
     // But since we use Provider(create:...), the ViewModel init calls it.
     // However, if we navigate back to this tab in a persistent BottomNav,
     // initState might not run again if the widget is kept alive.
     // For standard navigation, it works.
+  }
+
+  @override
+  void dispose() {
+    _scanRippleController.dispose();
+    super.dispose();
   }
 
   @override
@@ -465,6 +881,32 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView> {
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            height: 34,
+            child: OutlinedButton.icon(
+              onPressed: () =>
+                  _openRequestMapDecisionSheet(context, viewModel, request),
+              icon: const Icon(Icons.map_outlined, size: 16),
+              label: Text(
+                "View pickup & drop on map",
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: BorderSide(
+                  color: AppColors.primary.withOpacity(0.35),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+          ),
           const SizedBox(height: 12), // Reduced spacing
           Row(
             children: [
@@ -485,22 +927,8 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (context) => EmergencyActionDialog(
-                          title: "Decline Request",
-                          message:
-                              "Are you sure you want to decline this emergency request? This action cannot be undone.",
-                          actionText: "Decline",
-                          actionColor: Colors.grey[700]!,
-                          onConfirm: () {
-                            viewModel.declineRequest(request['id']);
-                            Navigator.pop(context); // Close dialog
-                          },
-                        ),
-                      );
-                    },
+                    onPressed: () =>
+                        _openRequestMapDecisionSheet(context, viewModel, request),
                     child: const Text("Decline"),
                   ),
                 ),
@@ -513,58 +941,8 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView> {
                   height: 32, // Compact height
                   fontSize: 12, // Compact text
                   verticalPadding: 0,
-                  onPressed: () {
-                    final mainVm = Provider.of<AmbulanceMainViewModel>(
-                      context,
-                      listen: false,
-                    );
-                    showDialog(
-                      context: context,
-                      useRootNavigator: false,
-                      builder: (context) => EmergencyActionDialog(
-                        title: "Accept Request",
-                        message:
-                            "Are you sure you want to accept this emergency request? Verify your readiness before proceeding.",
-                        actionText: "Accept",
-                        actionColor: AppColors.success,
-                        onConfirm: () async {
-                          // Close dialog first to avoid blocking UI or multiple clicks
-                          Navigator.pop(context);
-
-                          if (mainVm.hasActiveTrip) {
-                            Utils.toastMessage(
-                              context,
-                              'You already have an active trip. Complete it before accepting another request.',
-                              isError: true,
-                            );
-                            return;
-                          }
-
-                          // Show loading indicator or handle state if needed
-                          final success =
-                              await viewModel.acceptRequest(request['id']);
-
-                          if (success && context.mounted) {
-                            await mainVm.checkActiveTrip(startPolling: false);
-                            if (!context.mounted) return;
-                            // Proceed to mission view
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) =>
-                                      const medlink_app.AmbulanceMissionView()),
-                            );
-                          } else if (!success && context.mounted) {
-                            Utils.toastMessage(
-                              context,
-                              "Failed to accept request. It may have been taken.",
-                              isError: true,
-                            );
-                          }
-                        },
-                      ),
-                    );
-                  },
+                  onPressed: () =>
+                      _openRequestMapDecisionSheet(context, viewModel, request),
                 ),
               ),
             ],
@@ -583,9 +961,9 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView> {
           Stack(
             alignment: Alignment.center,
             children: [
-              _buildRipple(200, 0.1),
-              _buildRipple(150, 0.15),
-              _buildRipple(100, 0.2),
+              _buildRipple(220, 0.30, 0.00),
+              _buildRipple(175, 0.42, 0.24),
+              _buildRipple(130, 0.55, 0.48),
               Container(
                 width: 80,
                 height: 80,
@@ -594,9 +972,9 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView> {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withOpacity(0.3),
-                      blurRadius: 20,
-                      spreadRadius: 5,
+                      color: AppColors.primary.withOpacity(0.42),
+                      blurRadius: 26,
+                      spreadRadius: 8,
                     ),
                   ],
                 ),
@@ -626,15 +1004,30 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView> {
     );
   }
 
-  Widget _buildRipple(double size, double opacity) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(
-          color: AppColors.primary.withOpacity(opacity),
-          width: 1.5,
+  Widget _buildRipple(double size, double opacity, double phase) {
+    return AnimatedBuilder(
+      animation: _scanRippleController,
+      builder: (context, child) {
+        final t = (_scanRippleController.value + phase) % 1.0;
+        final scale = 0.55 + (0.75 * t);
+        final visibleOpacity = (1.0 - t) * opacity;
+        return Opacity(
+          opacity: visibleOpacity.clamp(0.0, 1.0),
+          child: Transform.scale(
+            scale: scale,
+            child: child,
+          ),
+        );
+      },
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: AppColors.primary.withOpacity(opacity),
+            width: 2.4,
+          ),
         ),
       ),
     );

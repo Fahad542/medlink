@@ -19,6 +19,8 @@ import 'package:medlink/widgets/appointment_cancel_reason_dialog.dart';
 import 'package:medlink/services/notification_services.dart';
 import 'package:medlink/services/appointment_socket_service.dart';
 import 'package:medlink/views/Patient App/home/home_viewmodel.dart';
+import 'package:medlink/widgets/patient_cancelled_appointment_detail_sheet.dart';
+import 'package:medlink/utils/trip_fare_format.dart';
 
 class AppointmentInfoCard extends StatelessWidget {
   final AppointmentModel appointment;
@@ -30,7 +32,7 @@ class AppointmentInfoCard extends StatelessWidget {
     this.showConfirmationActions = false,
   });
 
-  void _showAppointmentOptions(BuildContext context) {
+  void showAppointmentOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -1233,7 +1235,9 @@ class AppointmentInfoCard extends StatelessWidget {
     }
 
     return GestureDetector(
-      onTap: isCancelled ? null : () => _showAppointmentOptions(context),
+      onTap: isCancelled
+          ? () => showPatientCancelledAppointmentDetail(context, appointment)
+          : () => showAppointmentOptions(context),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(12),
@@ -1299,6 +1303,45 @@ class AppointmentInfoCard extends StatelessWidget {
                       const SizedBox(height: 6),
                       ConsultationTypeBadge(
                           type: appointment.type, compact: true),
+                      if (isCancelled) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'Canceled by: ${appointment.patientCancelledByLabel()}',
+                          style: TextStyle(
+                            color: Colors.grey[700],
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        if (appointment.cancelReason != null &&
+                            appointment.cancelReason!.trim().isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            appointment.cancelReason!.trim(),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.grey[800],
+                              fontSize: 12,
+                              height: 1.25,
+                            ),
+                          ),
+                        ],
+                        if (appointment.feeAmount != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            TripFareFormat.formatCfa(
+                              appointment.feeAmount!,
+                              currencyHint: appointment.currency,
+                            ),
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ],
                     ],
                   ),
                 ),
@@ -1323,7 +1366,7 @@ class AppointmentInfoCard extends StatelessWidget {
                   )
                 else
                   GestureDetector(
-                    onTap: () => _showAppointmentOptions(context),
+                    onTap: () => showAppointmentOptions(context),
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
