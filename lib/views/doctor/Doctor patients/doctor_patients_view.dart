@@ -3,7 +3,6 @@ import 'package:medlink/core/constants/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/models/user_model.dart';
 import 'package:medlink/views/Patient App/consultation/chat_view.dart';
-import 'package:medlink/views/Patient App/consultation/waiting_room_view.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 // import 'package:medlink/views/doctor/Patient%20Dashboard/patient_dashboard_view.dart';
 
@@ -348,14 +347,6 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView>
                         ],
                       ),
                     ),
-                    InkWell(
-                      onTap: () => _showPatientOptions(context, patient),
-                      borderRadius: BorderRadius.circular(12),
-                      child: const Padding(
-                        padding: EdgeInsets.all(8.0),
-                        child: Icon(Icons.more_vert, color: Colors.grey),
-                      ),
-                    ),
                   ],
                 ),
               ],
@@ -445,7 +436,7 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView>
                             color: Colors.white,
                             shape: BoxShape.circle,
                           ),
-                          child: Image.asset("assets/Icons/chat.png",
+                          child: Image.asset("assets/Icons/chat-icon.png",
                               width: 16, height: 16, color: AppColors.primary),
                         ),
                         const SizedBox(width: 16),
@@ -464,70 +455,6 @@ class _DoctorPatientsViewState extends State<DoctorPatientsView>
                               const SizedBox(height: 2),
                               Text(
                                 "Start a chat conversation",
-                                style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Icon(Icons.arrow_forward_ios_rounded,
-                            size: 16, color: Colors.grey[400]),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                InkWell(
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => WaitingRoomView(
-                                callTargetName: patient.name,
-                                isDoctor: true,
-                                appointmentId: patient.lastAppointmentId,
-                              )),
-                    );
-                  },
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(16),
-                      border:
-                          Border.all(color: AppColors.primary.withOpacity(0.1)),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Image.asset("assets/Icons/video.png",
-                              width: 22, height: 22, color: AppColors.primary),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Start Video Call",
-                                style: GoogleFonts.inter(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                "Connect via video call",
                                 style: GoogleFonts.inter(
                                   fontSize: 13,
                                   color: Colors.grey[600],

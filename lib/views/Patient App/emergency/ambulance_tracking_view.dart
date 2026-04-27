@@ -12,7 +12,6 @@ import 'package:medlink/views/Patient App/emergency/emergency_viewmodel.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:medlink/services/google_maps_service.dart';
-import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/utils/utils.dart';
 import 'package:medlink/utils/gps_coord.dart';
 import 'package:medlink/utils/trip_driver_location.dart';
@@ -36,7 +35,6 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
   final Completer<GoogleMapController> _mapController = Completer();
   bool hasInitialFit = false;
   bool _isNavigatingBack = false;
-  bool _reviewPromptShown = false;
 
   List<LatLng> _routePoints = [];
   List<LatLng> _pickupToDestinationLeg = [];
@@ -375,13 +373,7 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
         _isNavigatingBack = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
-            final tripId = emergencyVM.lastCompletedTripId;
-            if (!_reviewPromptShown && tripId != null && tripId.isNotEmpty) {
-              _reviewPromptShown = true;
-              _showDriverReviewBottomSheet(context, tripId);
-            } else {
-              Navigator.of(context).pop();
-            }
+            Navigator.of(context).pop();
           }
         });
       }
@@ -799,7 +791,7 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                         ),
                                       );
                                     },
-                                    icon: Image.asset("assets/Icons/chat.png",
+                                    icon: Image.asset("assets/Icons/chat-icon.png",
                                         width: 22, height: 22),
                                     label: const Text("Message"),
                                     style: TextButton.styleFrom(
@@ -1006,118 +998,6 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
     );
   }
 
-  void _showDriverReviewBottomSheet(BuildContext context, String tripId) {
-    final api = ApiServices();
-    final emergencyVM = Provider.of<EmergencyViewModel>(context, listen: false);
-    final commentController = TextEditingController();
-    int rating = 0;
-    showModalBottomSheet(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      isScrollControlled: true,
-      builder: (ctx) {
-        bool submitting = false;
-        return StatefulBuilder(
-          builder: (ctx, setState) => WillPopScope(
-            onWillPop: () async => false,
-            child: Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 16,
-                bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Rate your driver",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: List.generate(
-                      5,
-                      (index) => IconButton(
-                        onPressed: () => setState(() => rating = index + 1),
-                        icon: Icon(
-                          index < rating ? Icons.star : Icons.star_border,
-                          color: Colors.amber,
-                        ),
-                      ),
-                    ),
-                  ),
-                  TextField(
-                    controller: commentController,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      hintText: "Write optional feedback",
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: submitting
-                          ? null
-                          : () async {
-                              if (rating <= 0) {
-                                Utils.toastMessage(
-                                  context,
-                                  "Please select a star rating first",
-                                  isError: true,
-                                );
-                                return;
-                              }
-                              setState(() => submitting = true);
-                              bool ok = false;
-                              try {
-                                final res = await api.submitDriverReview(
-                                  tripId,
-                                  rating: rating,
-                                  comment: commentController.text.trim(),
-                                );
-                                ok = res != null && res['success'] == true;
-                              } catch (_) {}
-
-                              if (!context.mounted) return;
-                              if (ok) {
-                                emergencyVM.clearCompletedTripReviewPrompt();
-                                Navigator.pop(ctx);
-                                Navigator.of(context).pop();
-                                Utils.toastMessage(
-                                  context,
-                                  "Thanks for reviewing your driver",
-                                );
-                              } else {
-                                setState(() => submitting = false);
-                                Utils.toastMessage(
-                                  context,
-                                  "Unable to submit review",
-                                  isError: true,
-                                );
-                              }
-                            },
-                      child: submitting
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text("Submit Review"),
-                    ),
-                  )
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 }
 
 class _RoutePainter extends CustomPainter {

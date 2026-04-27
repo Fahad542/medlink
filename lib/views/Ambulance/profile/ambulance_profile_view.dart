@@ -9,7 +9,6 @@ import 'package:medlink/widgets/delete_account_sheet.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:medlink/widgets/custom_network_image.dart';
-import 'package:medlink/views/Ambulance/profile/ambulance_reviews_view.dart';
 
 class AmbulanceProfileView extends StatelessWidget {
   const AmbulanceProfileView({super.key});
@@ -320,23 +319,6 @@ class AmbulanceProfileView extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const AmbulanceReviewsView(),
-                        ),
-                      );
-                    },
-                    child: _buildStatItem(
-                      viewModel.rating.isNotEmpty ? viewModel.rating : "0.0",
-                      "Rating",
-                      Icons.star_rounded,
-                      Colors.amber,
-                    ),
-                  ),
-                  _buildVerticalDivider(),
                   _buildStatItem(
                     viewModel.totalTrips.isNotEmpty ? viewModel.totalTrips : "0",
                     "Trips",

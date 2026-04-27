@@ -500,7 +500,7 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
                                         ),
                                         child: IconButton(
                                           icon: Image.asset(
-                                            'assets/Icons/chat.png',
+                                            'assets/Icons/chat-icon.png',
                                             height: 20,
                                             color: Colors.green,
                                           ),

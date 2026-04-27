@@ -5,6 +5,7 @@ import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/utils/utils.dart';
+import 'package:shimmer/shimmer.dart';
 
 class PayoutSettingsView extends StatefulWidget {
   const PayoutSettingsView({super.key});
@@ -128,7 +129,7 @@ class _PayoutSettingsViewState extends State<PayoutSettingsView> {
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: const CustomAppBar(title: "Payout Settings"),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? _buildFormShimmer()
           : _buildBankForm(),
     );
   }
@@ -178,9 +179,9 @@ class _PayoutSettingsViewState extends State<PayoutSettingsView> {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.grey.withOpacity(0.06),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
               ),
             ],
           ),
@@ -188,21 +189,103 @@ class _PayoutSettingsViewState extends State<PayoutSettingsView> {
             controller: controller,
             keyboardType: isNumber ? TextInputType.number : TextInputType.text,
             style: GoogleFonts.inter(
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w400,
               fontSize: 15,
-              color: AppColors.textPrimary,
+              color: Colors.black87,
             ),
+            cursorColor: AppColors.primary,
             decoration: InputDecoration(
+              filled: true,
+              fillColor: Colors.white,
               hintText: hint,
               hintStyle: GoogleFonts.inter(
                 color: Colors.grey[400],
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
               ),
-              prefixIcon: Icon(icon, color: Colors.grey[400], size: 20),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              prefixIcon: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: AppColors.primary, size: 18),
+                ),
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
             ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFormShimmer() {
+    return SingleChildScrollView(
+      physics: const ClampingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+      child: Shimmer.fromColors(
+        baseColor: Colors.grey[300]!,
+        highlightColor: Colors.grey[100]!,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildFieldShimmer(),
+            const SizedBox(height: 20),
+            _buildFieldShimmer(),
+            const SizedBox(height: 20),
+            _buildFieldShimmer(),
+            const SizedBox(height: 20),
+            _buildFieldShimmer(),
+            const SizedBox(height: 48),
+            Container(
+              width: double.infinity,
+              height: 56,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFieldShimmer() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          height: 14,
+          width: 140,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(6),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          height: 62,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
       ],

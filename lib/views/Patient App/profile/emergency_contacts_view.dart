@@ -383,22 +383,22 @@ class _EmergencyContactsViewState extends State<EmergencyContactsView> {
           3,
           (index) => Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: Shimmer.fromColors(
-              baseColor: Colors.grey[200]!,
-              highlightColor: Colors.grey[50]!,
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                ),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Shimmer.fromColors(
+                baseColor: Colors.grey[200]!,
+                highlightColor: Colors.grey[50]!,
                 child: Row(
                   children: [
                     Container(
                       width: 44,
                       height: 44,
                       decoration: const BoxDecoration(
-                        color: Colors.white,
+                        color: Color(0xFFF1F5F9),
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -411,7 +411,7 @@ class _EmergencyContactsViewState extends State<EmergencyContactsView> {
                             height: 14,
                             width: 120,
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
@@ -420,7 +420,7 @@ class _EmergencyContactsViewState extends State<EmergencyContactsView> {
                             height: 12,
                             width: 100,
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
@@ -429,7 +429,7 @@ class _EmergencyContactsViewState extends State<EmergencyContactsView> {
                             height: 10,
                             width: 70,
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
@@ -440,7 +440,7 @@ class _EmergencyContactsViewState extends State<EmergencyContactsView> {
                       width: 34,
                       height: 34,
                       decoration: const BoxDecoration(
-                        color: Colors.white,
+                        color: Color(0xFFF1F5F9),
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -449,7 +449,7 @@ class _EmergencyContactsViewState extends State<EmergencyContactsView> {
                       width: 28,
                       height: 28,
                       decoration: const BoxDecoration(
-                        color: Colors.white,
+                        color: Color(0xFFF1F5F9),
                         shape: BoxShape.circle,
                       ),
                     ),

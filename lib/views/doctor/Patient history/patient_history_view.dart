@@ -34,7 +34,7 @@ class PatientHistoryView extends StatelessWidget {
               title: patientName,
               automaticallyImplyLeading: showBackButton,
               actions: [
-                  _buildAppBarAction(assetPath: "assets/Icons/chat.png", onTap: () {}),
+                  _buildAppBarAction(assetPath: "assets/Icons/chat-icon.png", onTap: () {}),
                   const SizedBox(width: 8),
                   _buildAppBarAction(assetPath: "assets/Icons/video.png", onTap: () {}),
                   const SizedBox(width: 8),

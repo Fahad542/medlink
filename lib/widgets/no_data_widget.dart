@@ -17,21 +17,19 @@ class NoDataWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+      child:  Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Flexible(
-                child: Image.asset(
+               Image.asset(
                   'assets/no_data.png',
                   height: imageHeight,
                   fit: BoxFit.contain,
                 ),
-              ),
+
               const SizedBox(height: 24),
               Text(
                 title,
@@ -56,7 +54,7 @@ class NoDataWidget extends StatelessWidget {
             ],
           ),
         ),
-      ),
+
     );
   }
 }

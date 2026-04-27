@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/views/doctor/payout_settings_view.dart';
+import 'package:intl/intl.dart';
 
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
@@ -20,15 +21,15 @@ class DoctorEarningsView extends StatelessWidget {
         builder: (context, viewModel, child) {
           return Scaffold(
             backgroundColor: const Color(0xFFF8FAFC),
-            body: SingleChildScrollView(
-              child: Column(
-                children: [
-                  _buildPremiumHeader(context, viewModel),
-                  const SizedBox(height: 24),
-                  _buildBody(context, viewModel),
-                ],
-              ),
+            body: Column(
+              children: [
+                _buildPremiumHeader(context, viewModel),
+                Expanded(
+                  child: _buildBody(context, viewModel),
+                ),
+              ],
             ),
+            bottomNavigationBar: _buildPayoutAndWithdrawActions(context, viewModel),
           );
         },
       ),
@@ -83,9 +84,9 @@ class DoctorEarningsView extends StatelessWidget {
                   Text(
                     "Total Balance",
                     style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
+                      color: Colors.white70,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
@@ -109,20 +110,11 @@ class DoctorEarningsView extends StatelessWidget {
                     viewModel.formatCurrency(viewModel.totalBalance),
                     style: GoogleFonts.inter(
                       color: Colors.white,
-                      fontSize: 26,
+                      fontSize: 32,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
             const SizedBox(height: 20),
-            
-            // Stat Cards
-            Row(
-              children: [
-                _buildStatCard("Today", viewModel.isLoading ? "..." : viewModel.formatCurrency(viewModel.todayEarning), Icons.today_rounded),
-                const SizedBox(width: 12),
-                _buildStatCard("This Week", viewModel.isLoading ? "..." : viewModel.formatCurrency(viewModel.thisWeekEarning), Icons.calendar_view_week_rounded),
-              ],
-            ),
           ],
         ),
       ),
@@ -184,141 +176,372 @@ class DoctorEarningsView extends StatelessWidget {
   }
 
   Widget _buildBody(BuildContext context, DoctorEarningsViewModel viewModel) {
+    final (startDateLabel, endDateLabel) = _deriveDateRange(viewModel);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Transform.translate(
+            offset: const Offset(0, -20),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 18,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _dateKpiItem(
+                      context,
+                      "Start Date",
+                      startDateLabel,
+                      onTap: () => _openCalendarPicker(context),
+                    ),
+                  ),
+                  Container(width: 1, height: 36, color: Colors.grey[200]),
+                  Expanded(
+                    child: _dateKpiItem(
+                      context,
+                      "End Date",
+                      endDateLabel,
+                      onTap: () => _openCalendarPicker(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
               Text(
                 "Recent Transactions",
                 style: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.textPrimary,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text("This Month", style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.bold)),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.grey),
-                  ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-
-          SizedBox(
-            height: 350,
-            child: viewModel.isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : viewModel.recentTransactions.isEmpty
-                  ? const NoDataWidget(
-                      title: "No Transactions",
-                      subTitle: "You have no recent transactions yet.",
-                      imageHeight: 120, // Smaller image to fit the 350 height box
-                    )
-                  : ListView.builder(
-                      padding: EdgeInsets.zero,
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: viewModel.recentTransactions.length,
-                      itemBuilder: (context, index) {
-                        return _buildTransactionItem(viewModel.recentTransactions[index], viewModel);
-                      },
-                    ),
-          ),
-          
-          const SizedBox(height: 32),
-          
-           Text(
-            "Payout Settings",
-            style: GoogleFonts.inter(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                await viewModel.fetchBalance();
+                await viewModel.fetchPayoutAccount();
+              },
+              color: AppColors.primary,
+              child: viewModel.isLoading
+                  ? _buildTransactionListShimmer()
+                  : viewModel.recentTransactions.isEmpty
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(
+                            parent: ClampingScrollPhysics(),
+                          ),
+                          children: const [
+                            SizedBox(height: 24),
+                            NoDataWidget(
+                              title: "No Transactions",
+                              subTitle: "You have no recent transactions yet.",
+                              imageHeight: 120,
+                            ),
+                          ],
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          physics: const ClampingScrollPhysics(),
+                          itemCount: viewModel.recentTransactions.length,
+                          itemBuilder: (context, index) {
+                            return _buildTransactionItem(
+                                viewModel.recentTransactions[index], viewModel);
+                          },
+                        ),
             ),
           ),
-          const SizedBox(height: 16),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                 BoxShadow(
-                  color: Colors.black.withOpacity(0.02),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTransactionListShimmer() {
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 16),
+      physics: const ClampingScrollPhysics(),
+      itemCount: 6,
+      itemBuilder: (context, index) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Shimmer.fromColors(
+            baseColor: Colors.grey[300]!,
+            highlightColor: Colors.grey[100]!,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        height: 9,
+                        width: 95,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        height: 14,
+                        width: 125,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        height: 10,
+                        width: 145,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Container(
+                      height: 10,
+                      width: 70,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      height: 14,
+                      width: 90,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              leading: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.account_balance_rounded, color: AppColors.primary),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _dateKpiItem(
+    BuildContext context,
+    String label,
+    String value, {
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                color: Colors.grey[500],
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
               ),
-              title: Text("Bank Account", style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15)),
-              subtitle: Text(
-                viewModel.maskedPayoutCard != null
-                    ? "Card ${viewModel.maskedPayoutCard}"
-                    : "No payout card saved",
-                style: GoogleFonts.inter(color: Colors.grey[500], fontSize: 13),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: GoogleFonts.inter(
+                color: AppColors.textPrimary,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
               ),
-              trailing: Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade200),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openCalendarPicker(BuildContext context) async {
+    await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 3650)),
+    );
+  }
+
+  (String, String) _deriveDateRange(DoctorEarningsViewModel viewModel) {
+    DateTime? minDate;
+    DateTime? maxDate;
+    for (final tx in viewModel.recentTransactions) {
+      if (tx is! Map) continue;
+      final m = Map<String, dynamic>.from(tx);
+      final raw = m['date'] ?? m['createdAt'] ?? m['created_at'];
+      DateTime? dt;
+      if (raw is String) dt = DateTime.tryParse(raw);
+      if (raw is Map && raw['\$date'] != null) {
+        dt = DateTime.tryParse(raw['\$date'].toString());
+      }
+      if (dt == null) continue;
+      if (minDate == null || dt.isBefore(minDate)) minDate = dt;
+      if (maxDate == null || dt.isAfter(maxDate)) maxDate = dt;
+    }
+    if (minDate == null || maxDate == null) return ("N/A", "N/A");
+    final fmt = DateFormat('MMM d, yyyy');
+    return (fmt.format(minDate.toLocal()), fmt.format(maxDate.toLocal()));
+  }
+
+  Widget _buildPayoutAndWithdrawActions(
+      BuildContext context, DoctorEarningsViewModel viewModel) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 14,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Payout Settings",
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.02),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ListTile(
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.account_balance_rounded,
+                      color: AppColors.primary, size: 20),
                 ),
-                child: IconButton(
-                  icon: const Icon(Icons.edit_outlined, size: 18, color: Colors.grey),
-                  onPressed: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const PayoutSettingsView()),
-                    );
-                    if (!context.mounted) return;
-                    await viewModel.fetchPayoutAccount();
-                  },
+                title: Text("Bank Account",
+                    style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w600, fontSize: 14)),
+                subtitle: Text(
+                  viewModel.maskedPayoutCard != null
+                      ? "Card ${viewModel.maskedPayoutCard}"
+                      : "No payout card saved",
+                  style: GoogleFonts.inter(color: Colors.grey[500], fontSize: 12),
+                ),
+                trailing: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: IconButton(
+                    icon:
+                        const Icon(Icons.edit_outlined, size: 18, color: Colors.grey),
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const PayoutSettingsView()),
+                      );
+                      if (!context.mounted) return;
+                      await viewModel.fetchPayoutAccount();
+                    },
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 40),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => _onRequestWithdrawal(context, viewModel),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => _onRequestWithdrawal(context, viewModel),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text(
+                  "Request Withdrawal",
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
-              icon: const Icon(Icons.account_balance_wallet_outlined),
-              label: const Text("Request Withdrawal"),
             ),
-          ),
-          const SizedBox(height: 16),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -364,6 +587,7 @@ class DoctorEarningsView extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: const Color(0xFFF8FAFC),
       builder: (ctx) {
         bool submitting = false;
         return StatefulBuilder(
@@ -377,14 +601,13 @@ class DoctorEarningsView extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                _buildPayoutStyleField(
+                  label: "Amount",
+                  hint: "Enter withdrawal amount",
                   controller: amountController,
+                  icon: Icons.payments_outlined,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: "Amount",
-                    hintText: "Enter withdrawal amount",
-                  ),
                 ),
                 if (viewModel.availableToWithdraw > 0 &&
                     viewModel.availableToWithdraw < viewModel.totalBalance)
@@ -392,16 +615,20 @@ class DoctorEarningsView extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
                       'Pending requests: you can request up to ${viewModel.formatCurrency(viewModel.availableToWithdraw)} until they are approved.',
-                      style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[700]),
+                      style: GoogleFonts.inter(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.grey[600],
+                      ),
                     ),
                   ),
                 const SizedBox(height: 10),
-                TextField(
+                _buildPayoutStyleField(
+                  label: "Note (optional)",
+                  hint: "Add a short note",
                   controller: noteController,
+                  icon: Icons.sticky_note_2_outlined,
                   maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: "Note (optional)",
-                  ),
                 ),
                 const SizedBox(height: 14),
                 SizedBox(
@@ -444,7 +671,13 @@ class DoctorEarningsView extends StatelessWidget {
                             width: 18,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text("Submit Request"),
+                        : Text(
+                            "Submit Request",
+                            style: GoogleFonts.inter(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                   ),
                 )
               ],
@@ -455,6 +688,89 @@ class DoctorEarningsView extends StatelessWidget {
     );
   }
 
+  Widget _buildPayoutStyleField({
+    required String label,
+    required String hint,
+    required TextEditingController controller,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+    int maxLines = 1,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: TextField(
+            controller: controller,
+            keyboardType: keyboardType,
+            maxLines: maxLines,
+            style: GoogleFonts.inter(
+              fontWeight: FontWeight.w400,
+              fontSize: 15,
+              color: Colors.black87,
+            ),
+            cursorColor: AppColors.primary,
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: Colors.white,
+              hintText: hint,
+              hintStyle: GoogleFonts.inter(
+                color: Colors.grey[400],
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+              ),
+              prefixIcon: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: AppColors.primary, size: 18),
+                ),
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildTransactionItem(dynamic transaction, DoctorEarningsViewModel viewModel) {
     if (transaction is! Map) return const SizedBox.shrink();
     final m = Map<String, dynamic>.from(transaction);
@@ -462,14 +778,14 @@ class DoctorEarningsView extends StatelessWidget {
     double amount = (m['amount'] is num)
         ? (m['amount'] as num).toDouble()
         : double.tryParse(m['amount']?.toString() ?? '') ?? 0.0;
-    String user = viewModel.transactionUserDisplayName(m);
     String dateStr = (m['date'] ?? m['createdAt'] ?? m['created_at'])?.toString() ?? '';
     String title = (m['title'] ?? m['type'] ?? m['description'] ?? 'Consultation')
         .toString();
+    final formattedDate = dateStr.isNotEmpty ? viewModel.formatDate(dateStr) : '—';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -482,9 +798,10 @@ class DoctorEarningsView extends StatelessWidget {
         ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: isCredit ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
               shape: BoxShape.circle,
@@ -492,48 +809,49 @@ class DoctorEarningsView extends StatelessWidget {
             child: Icon(
               isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
               color: isCredit ? Colors.green : Colors.red,
-              size: 20,
+              size: 18,
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  formattedDate,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    color: AppColors.textPrimary,
+                    color: Colors.grey[500],
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  dateStr.isNotEmpty
-                      ? "$user • ${viewModel.formatDate(dateStr)}"
-                      : user,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  title,
                   style: GoogleFonts.inter(
-                    color: Colors.grey[500],
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: AppColors.textPrimary,
                   ),
                 ),
               ],
             ),
           ),
           Flexible(
-            child: Text(
-              "${isCredit ? '+' : '-'}${viewModel.formatCurrency(amount)}",
-              textAlign: TextAlign.end,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.inter(
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-                color: isCredit ? Colors.green : Colors.red,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                "${isCredit ? '+' : '-'}${viewModel.formatCurrency(amount)}",
+                textAlign: TextAlign.end,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  color: isCredit ? Colors.green : Colors.red,
+                ),
               ),
             ),
           ),

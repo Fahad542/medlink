@@ -13,25 +13,19 @@ class AppUrl {
   static const String verifyOtp = '${baseUrl}/auth/verify-otp';
   static const String forgotPassword = '${baseUrl}/auth/password/forgot';
   static const String resetPassword = '${baseUrl}/auth/password/reset';
-  static const String deleteAccountSendOtp =
-      '${baseUrl}/auth/account/delete/send-otp';
-  static const String deleteAccountVerifyOtp =
-      '${baseUrl}/auth/account/delete/verify-otp';
+  static const String deleteAccountSendOtp = '${baseUrl}/auth/account/delete/send-otp';
+  static const String deleteAccountVerifyOtp = '${baseUrl}/auth/account/delete/verify-otp';
   static const String socialLogin = '${baseUrl}/auth/social-login';
   /// POST JSON `{ "access_token": "<jwt>" }` — validates session for patient / doctor / driver.
   static const String checkLogin = '${baseUrl}/auth/check-login';
 
-  static const String getChatMessages =
-      '${baseUrl}/chat/user'; // /{recipientId}/messages
-  static const String sendChatMessage =
-      '${baseUrl}/chat/user'; // /{recipientId}/messages
+  static const String getChatMessages = '${baseUrl}/chat/user'; // /{recipientId}/messages
+  static const String sendChatMessage = '${baseUrl}/chat/user'; // /{recipientId}/messages
   static const String sendSosChat = '${baseUrl}/chat/sos'; // /{sosId}/send
   static const String getAppointments = '${baseUrl}/appointments/patient';
-  static const String getSosChatMessages =
-      '${baseUrl}/chat/sos'; // /{sosId}/messages
+  static const String getSosChatMessages = '${baseUrl}/chat/sos'; // /{sosId}/messages
   static const String sendTripChat = '${baseUrl}/chat/trip'; // /{tripId}/send
-  static const String getTripChatMessages =
-      '${baseUrl}/chat/trip'; // /{tripId}/messages
+  static const String getTripChatMessages = '${baseUrl}/chat/trip'; // /{tripId}/messages
   static const String register = '${baseUrl}/auth/register';
   static const String registerStep1 = '$register/step1';
   static const String registerStep2 = '$register/step2';

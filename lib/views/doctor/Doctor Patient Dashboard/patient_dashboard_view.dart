@@ -3,7 +3,6 @@ import 'package:medlink/core/constants/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/models/user_model.dart';
 import 'package:medlink/views/Patient App/consultation/chat_view.dart';
-import 'package:medlink/views/Patient App/consultation/waiting_room_view.dart';
 import 'package:medlink/views/doctor/Doctor%20Patient%20Dashboard/appointment_detail_view.dart';
 import 'package:medlink/views/doctor/past_appointments_view.dart';
 import 'package:medlink/views/doctor/past_appointments_view_model.dart';
@@ -157,7 +156,7 @@ class PatientDashboardView extends StatelessWidget {
                                                         ),
                                                       ),
                                                       const SizedBox(width: 8),
-                                                      _buildHeaderAction("assets/Icons/chat.png", () {
+                                                      _buildHeaderAction("assets/Icons/chatting.png", () {
                                                         final userVM = Provider.of<UserViewModel>(context, listen: false);
                                                         final uId = userVM.loginSession?.data?.user?.id?.toString();
                                                         final dId = userVM.doctor?.id;
@@ -173,18 +172,7 @@ class PatientDashboardView extends StatelessWidget {
                                                                       doctorId: currentUserId.toString(),
                                                                       patientId: patient.id.toString(),
                                                                                               )));
-                                                      }, iconSize: 16, bgColor: Colors.white.withOpacity(0.15)),
-                                                      const SizedBox(width: 8),
-                                                      _buildHeaderAction("assets/Icons/video.png",
-                                                          () => Navigator.push(
-                                                              context,
-                                                              MaterialPageRoute(
-                                                                  builder: (_) => WaitingRoomView(
-                                                                      callTargetName: patient.name,
-                                                                      isDoctor: true,
-                                                                      appointmentId: patient.lastAppointmentId))),
-                                                          iconSize: 18,
-                                                          bgColor: Colors.white.withOpacity(0.15)),
+                                                      }, iconSize: 40, bgColor: Colors.white.withOpacity(0.15)),
                                                     ],
                                                   ),
                                                   const SizedBox(height: 4),
@@ -647,113 +635,122 @@ class PatientDashboardView extends StatelessWidget {
   Widget _buildVisitCard(
       String title, String subtitle, String time, bool highlight, Color color,
       {String? iconAsset, VoidCallback? onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 4)),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
-              child: iconAsset != null
-                  ? Image.asset(iconAsset, width: 20, height: 20, color: color)
-                  : Icon(
-                      highlight
-                          ? Icons.check_circle_rounded
-                          : Icons.history_edu_rounded,
-                      color: color,
-                      size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold,
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: color.withValues(alpha: 0.12),
+                child: iconAsset != null
+                    ? Image.asset(iconAsset, width: 22, height: 22, color: color)
+                    : Icon(
+                        highlight
+                            ? Icons.check_circle_rounded
+                            : Icons.history_edu_rounded,
+                        color: color,
+                        size: 22,
+                      ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      time,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w600,
                               fontSize: 15,
-                              color: AppColors.textPrimary),
-                          overflow: TextOverflow.ellipsis,
+                              color: const Color(0xFF1F2937),
+                            ),
+                          ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 12.5,
+                        color: Colors.grey[600],
                       ),
-                      Text(time,
-                          style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey[500],
-                              fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          subtitle,
-                          style:
-                              TextStyle(fontSize: 12, color: Colors.grey[600]),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const Row(
-                        children: [
-                          Text("See Details",
-                              style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 11)),
-                          SizedBox(width: 2),
-                          Icon(Icons.arrow_forward_ios_rounded,
-                              size: 9, color: AppColors.primary),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+              const SizedBox(width: 8),
+              Align(
+                alignment: Alignment.center,
+                child: Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 12,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildHeaderAction(String assetPath, VoidCallback onTap,
-      {double iconSize = 16.0, Color? bgColor}) {
+  Widget _buildHeaderAction(String? assetPath, VoidCallback onTap,
+      {double iconSize = 16.0, Color? bgColor, IconData? iconData}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(30),
       child: Container(
-        padding: const EdgeInsets.all(8),
+        padding: EdgeInsets.zero,
         decoration: BoxDecoration(
           color: bgColor ?? Colors.white.withOpacity(0.2),
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+          border: Border.all(color: Colors.white.withOpacity(0.25), width: 0.6),
         ),
-        child: Image.asset(assetPath,
-            width: iconSize, height: iconSize, color: Colors.white),
+        child: iconData != null
+            ? Icon(iconData, size: iconSize, color: Colors.white)
+            : ColorFiltered(
+                colorFilter:
+                    const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                child: Image.asset(
+                  assetPath!,
+                  width: iconSize,
+                  height: iconSize,
+                ),
+              ),
       ),
     );
   }

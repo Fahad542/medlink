@@ -23,7 +23,6 @@ class AmbulanceProfileViewModel extends ChangeNotifier {
   String _profilePhotoUrl = '';
 
   // Dashboard stats
-  String _rating = '0.0';
   String _totalTrips = '0';
   String _experience = '0 Yrs';
 
@@ -37,7 +36,6 @@ class AmbulanceProfileViewModel extends ChangeNotifier {
   bool get isActive => _isActive;
   bool get isAvailable => _isAvailable;
 
-  String get rating => _rating;
   String get totalTrips => _totalTrips;
   String get experience => _experience;
 
@@ -83,26 +81,12 @@ class AmbulanceProfileViewModel extends ChangeNotifier {
 
   Future<void> fetchDriverDashboard() async {
     try {
-      final responses = await Future.wait([
-        _apiServices.getDriverDashboard(),
-        _apiServices.getDriverReviews(),
-      ]);
-
-      final dashboardResponse = responses[0];
-      final reviewsResponse = responses[1];
+      final dashboardResponse = await _apiServices.getDriverDashboard();
 
       if (dashboardResponse != null && dashboardResponse['success'] == true) {
         final data = dashboardResponse['data'];
         if (data is Map) {
           _totalTrips = data['totalTrips']?.toString() ?? '0';
-        }
-      }
-
-      if (reviewsResponse != null && reviewsResponse['success'] == true) {
-        final data = reviewsResponse['data'];
-        if (data is Map) {
-          final avg = data['averageRating'];
-          _rating = avg != null ? avg.toString() : '0.0';
         }
       }
     } catch (e) {

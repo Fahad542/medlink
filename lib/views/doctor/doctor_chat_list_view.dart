@@ -391,7 +391,12 @@ class _DoctorChatListViewState extends State<DoctorChatListView> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.message_outlined, size: 64, color: Colors.grey[300]),
+          Image.asset(
+            "assets/Icons/chat-icon.png",
+            width: 64,
+            height: 64,
+            color: Colors.grey[300],
+          ),
           const SizedBox(height: 16),
           Text(
             "No messages yet",

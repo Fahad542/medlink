@@ -8,12 +8,15 @@ import 'package:flutter/services.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
+import 'package:medlink/widgets/custom_network_image.dart';
 import 'package:medlink/widgets/no_data_widget.dart';
+import 'package:medlink/widgets/custom_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:medlink/views/Patient App/prescriptions/prescription_view_model.dart';
-import 'package:medlink/widgets/prescription_list_shimmer.dart';
+import 'package:medlink/widgets/appointment_list_shimmer.dart';
 import 'package:medlink/utils/prescription_export.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -46,7 +49,7 @@ class _PrescriptionViewState extends State<PrescriptionView> {
       body: Consumer<PrescriptionViewModel>(
         builder: (context, vm, _) {
           if (vm.isLoading && vm.prescriptions.isEmpty) {
-            return const PrescriptionListShimmer(itemCount: 4);
+            return const AppointmentListShimmer(itemCount: 4);
           }
 
           if (vm.prescriptions.isEmpty) {
@@ -77,127 +80,135 @@ class _PrescriptionViewState extends State<PrescriptionView> {
 
   Widget _buildPrescriptionCard(BuildContext context, dynamic p) {
     final doctor = p['doctor'] as Map? ?? {};
-    final diagnosis = p['diagnosis'] ?? 'N/A';
+    final diagnosis = p['diagnosis']?.toString() ?? 'N/A';
     final testsPending = (p['testsPending'] ?? 0) as int;
-    final createdAt = p['createdAt'] != null ? DateTime.tryParse(p['createdAt']) : null;
+    final createdAt =
+        p['createdAt'] != null ? DateTime.tryParse(p['createdAt']) : null;
     final doctorName = doctor['fullName'] ?? 'Doctor';
     final specialty = doctor['specialty'] ?? '';
     final photoUrl = AppUrl.getFullUrl(doctor['profilePhotoUrl']?.toString());
-    final hasPendingTests = testsPending > 0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
+            blurRadius: 12,
             offset: const Offset(0, 4),
           )
         ],
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: () => _onViewTapped(context, p, doctor),
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+            padding: const EdgeInsets.all(12),
+            child: Column(
               children: [
-                _buildAvatar(photoUrl, doctorName),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Dr. $doctorName",
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                          color: AppColors.textPrimary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (specialty.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Text(
-                            specialty,
-                            style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w500),
-                          ),
-                        ),
-                      const SizedBox(height: 6),
-                      Row(
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildAvatar(photoUrl, doctorName),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.medication_outlined, size: 14, color: AppColors.primary),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              diagnosis,
-                              style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w500),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                          Text(
+                            "E-Prescription",
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Dr. $doctorName",
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF1F2937),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            specialty.isEmpty ? "General" : specialty,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF71717A),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "Diagnosis: $diagnosis",
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: const Color(0xFF52525B),
+                              height: 1.25,
                             ),
                           ),
                         ],
                       ),
-                      if (hasPendingTests)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Row(
-                            children: [
-                              Icon(Icons.info_outline_rounded, size: 14, color: Colors.orange[700]),
-                              const SizedBox(width: 4),
-                              Text(
-                                "Action: Submit Report",
-                                style: TextStyle(fontSize: 11, color: Colors.orange[700], fontWeight: FontWeight.w600),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    if (createdAt != null)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.calendar_today_rounded, size: 12, color: Colors.grey[500]),
-                          const SizedBox(width: 4),
-                          Text(
-                            DateFormat('dd MMM yyyy').format(createdAt),
-                            style: TextStyle(fontSize: 11, color: Colors.grey[500], fontWeight: FontWeight.w500),
-                          ),
-                        ],
-                      ),
-                    const SizedBox(height: 12),
-                    GestureDetector(
-                      onTap: () => _onViewTapped(context, p, doctor),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Text(
-                          "View",
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary),
-                        ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      createdAt != null
+                          ? DateFormat('MMM d, h:mm a').format(createdAt.toLocal())
+                          : "No date",
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[600],
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: SizedBox(
+                    width: 150,
+                    height: 30,
+                    child: ElevatedButton(
+                      onPressed: () => _onViewTapped(context, p, doctor),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.zero,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          testsPending > 0
+                              ? "Submit Report"
+                              : "View Prescription",
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -208,48 +219,13 @@ class _PrescriptionViewState extends State<PrescriptionView> {
   }
 
   Widget _buildAvatar(String photoUrl, String name) {
-    final initials = name.isNotEmpty ? name[0].toUpperCase() : 'D';
-    final fallback = Container(
-      width: 46,
-      height: 46,
-      decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Center(
-        child: Text(
-          initials,
-          style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.primary),
-        ),
-      ),
-    );
-
-    if (photoUrl.isEmpty) return fallback;
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: Image.network(
-        photoUrl,
-        width: 46,
-        height: 46,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => fallback,
-        loadingBuilder: (_, child, progress) {
-          if (progress == null) return child;
-          return Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(14)),
-            child: Center(
-              child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
-              ),
-            ),
-          );
-        },
-      ),
+    return CustomNetworkImage(
+      imageUrl: photoUrl,
+      width: 48,
+      height: 48,
+      shape: BoxShape.circle,
+      fit: BoxFit.cover,
+      placeholderName: name,
     );
   }
 
@@ -260,16 +236,111 @@ class _PrescriptionViewState extends State<PrescriptionView> {
 
     final vm = Provider.of<PrescriptionViewModel>(context, listen: false);
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      isDismissible: false,
+      enableDrag: false,
+      builder: (_) => Container(
+        width: MediaQuery.of(context).size.width * 0.92,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: SizedBox(
+          height: 360,
+          child: Shimmer.fromColors(
+            baseColor: Colors.grey[200]!,
+            highlightColor: Colors.grey[50]!,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    height: 18,
+                    width: 160,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(height: 12, width: 120, color: Colors.white),
+                            const SizedBox(height: 8),
+                            Container(height: 14, width: 170, color: Colors.white),
+                            const SizedBox(height: 8),
+                            Container(height: 12, width: 130, color: Colors.white),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Container(height: 12, width: 90, color: Colors.white),
+                  const SizedBox(height: 8),
+                  Container(height: 12, width: double.infinity, color: Colors.white),
+                  const SizedBox(height: 8),
+                  Container(height: 12, width: 250, color: Colors.white),
+                  const SizedBox(height: 18),
+                  Container(height: 12, width: 110, color: Colors.white),
+                  const SizedBox(height: 8),
+                  Container(height: 12, width: double.infinity, color: Colors.white),
+                  const SizedBox(height: 8),
+                  Container(height: 12, width: 210, color: Colors.white),
+                  const Spacer(),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Container(
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
 
     final apiDetail = await vm.getPrescriptionDetail(appointmentId);
 
     if (!context.mounted) return;
-    Navigator.of(context).pop(); // dismiss loading
+    Navigator.of(context).pop(); // dismiss shimmer sheet
 
     // Merge: list item data (p) + API detail response
     // p has: diagnosis, doctor, appointment, testsPending, testsCount

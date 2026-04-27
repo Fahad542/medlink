@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/widgets/custom_button.dart';
 
 /// Shows a dialog to collect a cancellation reason. Returns trimmed text on confirm,
 /// or null if cancelled / dismissed.
@@ -53,7 +56,7 @@ class _CancelReasonDialogContentState extends State<_CancelReasonDialogContent> 
       backgroundColor: Colors.white,
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(28),
       ),
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -61,21 +64,26 @@ class _CancelReasonDialogContentState extends State<_CancelReasonDialogContent> 
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               widget.title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: GoogleFonts.plusJakartaSans(
                 fontWeight: FontWeight.bold,
-                fontSize: 18,
+                fontSize: 20,
+                color: AppColors.textPrimary,
               ),
             ),
             if (widget.subtitle != null && widget.subtitle!.isNotEmpty) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Text(
                 widget.subtitle!,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                style: GoogleFonts.plusJakartaSans(
+                  color: Colors.grey[600],
+                  fontSize: 14,
+                  height: 1.45,
+                ),
               ),
             ],
             const SizedBox(height: 16),
@@ -88,8 +96,19 @@ class _CancelReasonDialogContentState extends State<_CancelReasonDialogContent> 
                 labelText: 'Cancellation reason',
                 hintText: 'Briefly explain why you are cancelling',
                 errorText: _errorText,
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: AppColors.primary),
                 ),
                 alignLabelWithHint: true,
               ),
@@ -103,21 +122,33 @@ class _CancelReasonDialogContentState extends State<_CancelReasonDialogContent> 
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
+                  child: TextButton(
                     onPressed: () => Navigator.of(context).pop(null),
-                    style: OutlinedButton.styleFrom(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: Colors.grey[100],
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      foregroundColor: Colors.grey.shade700,
                     ),
-                    child: const Text('Back'),
+                    child: Text(
+                      'Back',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black87,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton(
+                  child: CustomButton(
+                    text: 'Confirm cancel',
+                    backgroundColor: AppColors.primary,
+                    height: 48,
+                    fontSize: 14,
+                    borderRadius: 16,
                     onPressed: () {
                       final raw = _controller.text.trim();
                       if (raw.length < 3) {
@@ -127,16 +158,6 @@ class _CancelReasonDialogContentState extends State<_CancelReasonDialogContent> 
                       }
                       Navigator.of(context).pop(raw);
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      elevation: 0,
-                    ),
-                    child: const Text('Confirm cancel'),
                   ),
                 ),
               ],

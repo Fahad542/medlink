@@ -241,9 +241,15 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
                               ),
                             ),
                             // Action Buttons
-                            _buildActionButton(Icons.call_rounded, Colors.green),
+                            _buildActionButton(
+                              icon: Icons.call_rounded,
+                              color: Colors.green,
+                            ),
                             const SizedBox(width: 10),
-                            _buildActionButton(Icons.message_rounded, AppColors.primary),
+                            _buildActionButton(
+                              color: AppColors.primary,
+                              assetPath: "assets/Icons/chat-icon.png",
+                            ),
                           ],
                         ),
                       ),
@@ -341,14 +347,20 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
     );
   }
 
-  Widget _buildActionButton(IconData icon, Color color) {
+  Widget _buildActionButton({
+    IconData? icon,
+    required Color color,
+    String? assetPath,
+  }) {
     return Container(
       padding: const EdgeInsets.all(8), // Reduced from 10
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         shape: BoxShape.circle,
       ),
-      child: Icon(icon, color: color, size: 18), // Reduced from 20
+      child: assetPath != null
+          ? Image.asset(assetPath, color: color, width: 18, height: 18)
+          : Icon(icon, color: color, size: 18), // Reduced from 20
     );
   }
 

@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/models/in_app_notification_model.dart';
+import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/widgets/notification_detail_sheet.dart';
 import 'package:provider/provider.dart';
 import 'package:medlink/views/Patient App/home/home_viewmodel.dart';
@@ -172,18 +174,8 @@ class _NotificationsListViewState extends State<NotificationsListView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        foregroundColor: const Color(0xFF1E293B),
-        title: Text(
-          'Notifications',
-          style: GoogleFonts.inter(
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF1E293B),
-          ),
-        ),
-        centerTitle: true,
+      appBar: const CustomAppBar(
+        title: 'Notifications',
       ),
       body: RefreshIndicator(
         onRefresh: _load,
@@ -194,7 +186,7 @@ class _NotificationsListViewState extends State<NotificationsListView> {
 
   Widget _buildBody() {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return _buildNotificationsShimmer();
     }
     if (_error != null) {
       return ListView(
@@ -252,139 +244,247 @@ class _NotificationsListViewState extends State<NotificationsListView> {
         final relative = _relativeOrFullDate(n.createdAt);
 
         return Card(
-          margin: const EdgeInsets.only(bottom: 10),
+          margin: const EdgeInsets.only(bottom: 12),
           elevation: 0,
-          color: n.isRead ? Colors.white : AppColors.primary.withValues(alpha: 0.06),
+          color: n.isRead ? Colors.white : const Color(0xFFF5FFFD),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-            side: BorderSide(color: Colors.grey.withValues(alpha: 0.15)),
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: n.isRead
+                  ? Colors.grey.withValues(alpha: 0.15)
+                  : AppColors.primary.withValues(alpha: 0.2),
+            ),
           ),
           clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: () => _showNotificationDetail(n),
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.schedule_rounded,
-                        size: 18,
-                        color: AppColors.primary.withValues(alpha: 0.85),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              dateLine,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              relative,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.inter(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF1E293B),
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
                               ),
                             ),
-                            Row(
-                              children: [
-                                Text(
-                                  timeLine,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                                Text(
-                                  ' • ',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade500,
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Text(
-                                    relative,
-                                    style: GoogleFonts.inter(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
+                          ),
+                          Text(
+                            ' • ',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
                             ),
-                          ],
-                        ),
+                          ),
+                          Text(
+                            timeLine,
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
                       ),
-                      if (!n.isRead)
-                        Container(
-                          width: 8,
-                          height: 8,
-                          margin: const EdgeInsets.only(top: 4, left: 6),
-                          decoration: const BoxDecoration(
-                            color: AppColors.primary,
-                            shape: BoxShape.circle,
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          dateLine,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.grey.shade600,
                           ),
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    n.title,
-                    style: GoogleFonts.inter(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                      color: const Color(0xFF1E293B),
+                        if (!n.isRead)
+                          Container(
+                            width: 8,
+                            height: 8,
+                            margin: const EdgeInsets.only(top: 4),
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    n.body,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      height: 1.35,
-                      color: Colors.grey[800],
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.07),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.notifications_rounded,
+                          size: 16,
+                          color: AppColors.primary,
+                        ),
                     ),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (n.type != null && n.type!.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      n.type!.replaceAll('_', ' '),
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w500,
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        n.title,
+                        style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ),
                   ],
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Text(
-                        'Tap for full details',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          color: Colors.grey.shade500,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                      const Spacer(),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        size: 18,
-                        color: Colors.grey.shade400,
-                      ),
-                    ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  n.body,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    height: 1.35,
+                    color: Colors.grey[800],
                   ),
-                ],
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildNotificationsShimmer() {
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      itemCount: 6,
+      itemBuilder: (context, _) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.withValues(alpha: 0.12)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
+            ],
+          ),
+          child: Shimmer.fromColors(
+            baseColor: Colors.grey[200]!,
+            highlightColor: Colors.grey[50]!,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 18,
+                      height: 18,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 130,
+                            height: 11,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Container(
+                                width: 72,
+                                height: 11,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                width: 56,
+                                height: 9,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  width: MediaQuery.of(context).size.width * 0.42,
+                  height: 15,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  width: MediaQuery.of(context).size.width * 0.55,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
             ),
           ),
         );

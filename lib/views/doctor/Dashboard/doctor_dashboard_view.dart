@@ -44,7 +44,9 @@ class DoctorDashboardView extends StatelessWidget {
             body: RefreshIndicator(
               onRefresh: () => viewModel.fetchData(),
               child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: ClampingScrollPhysics(),
+                ),
                 padding: const EdgeInsets.only(bottom: 100),
                 child: Stack(
                   children: [
@@ -192,10 +194,11 @@ class DoctorDashboardView extends StatelessWidget {
                                                     .withOpacity(0.2),
                                                 shape: BoxShape.circle,
                                               ),
-                                              child: const Icon(
-                                                Icons.notifications_outlined,
+                                              child: Image.asset(
+                                                'assets/Icons/notification.png',
+                                                width: 20,
+                                                height: 20,
                                                 color: Colors.white,
-                                                size: 20,
                                               ),
                                             ),
                                             if (viewModel
@@ -271,9 +274,9 @@ class DoctorDashboardView extends StatelessWidget {
                                               shape: BoxShape.circle,
                                             ),
                                             child: Image.asset(
-                                              'assets/msg.png',
-                                              width: 20,
-                                              height: 20,
+                                              'assets/Icons/chat-icon.png',
+                                              width: 22,
+                                              height: 22,
                                               color: Colors.white,
                                             ),
                                           ),
@@ -689,29 +692,7 @@ class DoctorDashboardView extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(icon, color: color, size: 20),
-                // Tiny trend indicator could go here
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    "+2.5%",
-                    style: GoogleFonts.inter(
-                        fontSize: 10,
-                        color: Colors.green,
-                        fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
             Text(
               value,
               style: GoogleFonts.inter(
@@ -720,7 +701,7 @@ class DoctorDashboardView extends StatelessWidget {
                 color: AppColors.textPrimary,
               ),
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 4),
             Text(
               title,
               style: GoogleFonts.inter(
@@ -832,6 +813,7 @@ class DoctorDashboardView extends StatelessWidget {
               ],
             ),
             child: Stack(
+              clipBehavior: Clip.none,
               children: [
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -875,8 +857,8 @@ class DoctorDashboardView extends StatelessWidget {
                   ],
                 ),
                 Positioned(
-                  bottom: -4,
-                  right: -4,
+                  bottom: 0,
+                  right: 0,
                   child: Container(
                     height: 32,
                     width: 32,

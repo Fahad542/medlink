@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/models/prescription_detail_model.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
+import 'package:medlink/widgets/no_data_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:medlink/views/doctor/Doctor%20Patient%20Dashboard/prescription_detail_view_model.dart';
@@ -45,8 +47,11 @@ class _AppointmentDetailViewState extends State<AppointmentDetailView> {
           }
 
           final details = viewModel.details;
-          if (details == null) {
-            return const Center(child: Text("No details available"));
+          if (details == null || _isPrescriptionEffectivelyEmpty(details)) {
+            return const NoDataWidget(
+              title: "No prescription found",
+              subTitle: "No prescription found",
+            );
           }
 
           return SingleChildScrollView(
@@ -173,6 +178,18 @@ class _AppointmentDetailViewState extends State<AppointmentDetailView> {
         ),
       ),
     );
+  }
+
+  bool _isPrescriptionEffectivelyEmpty(PrescriptionDetailData details) {
+    bool hasText(String? value) => value != null && value.trim().isNotEmpty;
+    final hasMainText = hasText(details.chiefComplaint) ||
+        hasText(details.diagnosis) ||
+        hasText(details.bps) ||
+        hasText(details.doctorsRemark);
+    final hasVitals = details.heartRate != null || details.temperature != null;
+    final hasMedications = (details.medications ?? []).isNotEmpty;
+    final hasTests = (details.tests ?? []).isNotEmpty;
+    return !(hasMainText || hasVitals || hasMedications || hasTests);
   }
 
   Widget _buildShimmerDetail(BuildContext context) {

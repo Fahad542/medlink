@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:provider/provider.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/core/utils/doctor_schedule_slot_labels.dart';
@@ -457,7 +458,7 @@ class _RescheduleSheetBodyState extends State<_RescheduleSheetBody> {
               ],
               if (_loadingAvailability) ...[
                 const SizedBox(height: 24),
-                const Center(child: CircularProgressIndicator()),
+                _buildRescheduleShimmer(),
               ],
               if (!_loadingAvailability && doctor != null) ...[
                 const SizedBox(height: 20),
@@ -485,11 +486,7 @@ class _RescheduleSheetBodyState extends State<_RescheduleSheetBody> {
                 ),
                 const SizedBox(height: 12),
                 if (_loadingBooked)
-                  const Center(
-                      child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: CircularProgressIndicator(),
-                  ))
+                  _buildSlotsShimmer()
                 else if (_slotLabels.isEmpty)
                   Text(
                     'No openings on this day.',
@@ -655,6 +652,59 @@ class _RescheduleSheetBodyState extends State<_RescheduleSheetBody> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildRescheduleShimmer() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade200,
+      highlightColor: Colors.grey.shade100,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _shimmerBox(width: double.infinity, height: 56, radius: 12),
+          const SizedBox(height: 14),
+          _shimmerBox(width: 120, height: 16, radius: 8),
+          const SizedBox(height: 12),
+          _buildSlotsShimmer(),
+          const SizedBox(height: 20),
+          _shimmerBox(width: double.infinity, height: 50, radius: 14),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSlotsShimmer() {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        childAspectRatio: 2.5,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+      ),
+      itemCount: 9,
+      itemBuilder: (_, __) => _shimmerBox(
+        width: double.infinity,
+        height: double.infinity,
+        radius: 24,
+      ),
+    );
+  }
+
+  Widget _shimmerBox({
+    required double width,
+    required double height,
+    required double radius,
+  }) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(radius),
       ),
     );
   }

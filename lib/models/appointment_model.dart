@@ -23,7 +23,7 @@ extension AppointmentTypeApi on AppointmentType {
 /// Short labels for UI lists and badges.
 extension AppointmentTypeUi on AppointmentType {
   String get shortLabel =>
-      this == AppointmentType.online ? 'Online' : 'In clinic';
+      this == AppointmentType.online ? 'Online' : 'Physical';
 }
 
 class PrescriptionModel {

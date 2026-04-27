@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/Patient%20App/emergency/emergency_viewmodel.dart';
@@ -143,6 +144,11 @@ class _HomeViewState extends State<HomeView> {
                                       "https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Hand%20gestures/Waving%20Hand.png",
                                       width: 22, // Slightly refined size
                                       height: 22,
+                                      errorBuilder: (_, __, ___) => const Icon(
+                                        Icons.waving_hand_rounded,
+                                        size: 20,
+                                        color: Color(0xFFF59E0B),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -187,10 +193,11 @@ class _HomeViewState extends State<HomeView> {
                                           ),
                                         ],
                                       ),
-                                      child: const Icon(
-                                        Icons.notifications_outlined,
-                                        size: 24,
-                                        color: Color(0xFF1E293B),
+                                      child: Image.asset(
+                                        'assets/Icons/notification.png',
+                                        width: 24,
+                                        height: 24,
+                                        color: const Color(0xFF1E293B),
                                       ),
                                     ),
                                     if (homeVM.unreadNotificationsCount > 0)
@@ -266,9 +273,9 @@ class _HomeViewState extends State<HomeView> {
                                         ],
                                       ),
                                       child: Image.asset(
-                                        'assets/msg.png',
-                                        width: 24,
-                                        height: 24,
+                                        'assets/Icons/chat-icon.png',
+                                        width: 26,
+                                        height: 26,
                                         color: const Color(0xFF1E293B),
                                       ),
                                     ),
@@ -506,10 +513,8 @@ class _HomeViewState extends State<HomeView> {
                                 .map((appointment) => Padding(
                                       padding:
                                           const EdgeInsets.only(bottom: 12.0),
-                                      child: AppointmentInfoCard(
-                                        appointment: appointment,
-                                        showConfirmationActions: true,
-                                      ),
+                                      child: _buildHomeUpcomingAppointmentCard(
+                                          appointment),
                                     )),
                             const SizedBox(height: 15),
                           ],
@@ -537,11 +542,116 @@ class _HomeViewState extends State<HomeView> {
 
   void _showSOSConfirmation(
       BuildContext context, EmergencyViewModel emergencyVM) {
-    // Navigate to maps view to pick destination before triggering SOS
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const DestinationPickerView(),
+    showDialog(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        elevation: 0,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "Activate SOS",
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                "Choose how you want to send emergency request.",
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  color: Colors.grey[600],
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
+                        emergencyVM.triggerSos(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: Text(
+                        "Activate SOS",
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: Colors.grey[100],
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: Text(
+                        "Cancel",
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: () {
+                  Navigator.pop(dialogContext);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const DestinationPickerView(),
+                    ),
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Text(
+                    "Select Pickup & Destination",
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -645,6 +755,127 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
+  Widget _buildHomeUpcomingAppointmentCard(AppointmentModel appointment) {
+    final doctor = appointment.doctor;
+    final doctorName = doctor?.name.isNotEmpty == true
+        ? doctor!.name
+        : "Unknown Doctor";
+    final specialty = doctor?.specialty.isNotEmpty == true
+        ? doctor!.specialty
+        : "General";
+    final profileImage = doctor?.imageUrl ?? '';
+    final dateLabel =
+        DateFormat('MMM d, h:mm a').format(appointment.displayScheduledStart);
+    final duration = appointment.scheduledDurationLabel;
+    final dateLine = duration != null ? '$dateLabel · $duration' : dateLabel;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => AppointmentInfoCard(
+          appointment: appointment,
+          showConfirmationActions: true,
+        ).showAppointmentOptions(context),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: const Color(0xFFE8EEF5),
+                backgroundImage:
+                    profileImage.isNotEmpty ? NetworkImage(profileImage) : null,
+                child: profileImage.isEmpty
+                    ? const Icon(Icons.person, color: Colors.grey)
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${appointment.type.shortLabel} Consultation',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      doctorName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1F2937),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      specialty,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF71717A),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.watch_later_outlined,
+                          size: 14,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            dateLine,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.primary,
+                              height: 1.2,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: () => AppointmentInfoCard(
+                  appointment: appointment,
+                  showConfirmationActions: true,
+                ).showAppointmentOptions(context),
+                icon: const Icon(Icons.more_vert_rounded, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildQuickActionsGrid(BuildContext context) {
     final actions = Provider.of<HomeViewModel>(context).quickActions;
 
@@ -655,7 +886,7 @@ class _HomeViewState extends State<HomeView> {
       itemCount: actions.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 0.85,
+        childAspectRatio: 0.95,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
       ),
@@ -796,7 +1027,7 @@ class _HomeViewState extends State<HomeView> {
             },
             borderRadius: BorderRadius.circular(16),
             child: Container(
-              width: 100,
+              width: 112,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.white,

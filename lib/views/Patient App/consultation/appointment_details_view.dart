@@ -210,69 +210,64 @@ class AppointmentDetailsView extends StatelessWidget {
         child: SafeArea(
           child: SizedBox(
             width: double.infinity,
-            child: CustomButton(
-                text: "Proceed to Payment",
-                onPressed: () async {
-                  final userViewModel =
-                      Provider.of<UserViewModel>(context, listen: false);
-                  final patientId = userViewModel.patient?.id;
+            child: Consumer<AppointmentViewModel>(
+              builder: (context, viewModel, _) {
+                return CustomButton(
+                  text: "Proceed to Payment",
+                  isLoading: viewModel.isLoading,
+                  onPressed: () async {
+                    final userViewModel =
+                        Provider.of<UserViewModel>(context, listen: false);
+                    final patientId = userViewModel.patient?.id;
 
-                  if (patientId == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text(
-                              "Error: User session not found. Please login again.")),
-                    );
-                    return;
-                  }
-
-                  // Show loading indicator
-                  showDialog(
-                    context: context,
-                    barrierDismissible: false,
-                    builder: (context) =>
-                        const Center(child: CircularProgressIndicator()),
-                  );
-
-                  final viewModel =
-                      Provider.of<AppointmentViewModel>(context, listen: false);
-                  final result = await viewModel.bookAppointment(
-                    doctor: doctor,
-                    date: selectedDate,
-                    time: selectedTime,
-                    patientId: patientId,
-                    consultationType: consultationType,
-                  );
-
-                  if (!context.mounted) return;
-                  Navigator.pop(context); // Close loading dialog
-
-                  if (result['success'] == true && result['paymentData'] != null) {
-                    // Navigate to Payment Screen to show the native sheet
-                    final paid = await Navigator.push<bool>(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AppointmentPaymentView(
-                          doctor: doctor,
-                          date: selectedDate,
-                          time: selectedTime,
-                          appointmentId: result['appointmentId'],
-                          paymentData: result['paymentData'],
-                        ),
-                      ),
-                    );
-
-                    if (paid == true && context.mounted) {
-                      _showFinalSuccessDialog(context);
+                    if (patientId == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text(
+                                "Error: User session not found. Please login again.")),
+                      );
+                      return;
                     }
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text(result['message'] ??
-                              "Failed to initiate payment.")),
+
+                    final result = await viewModel.bookAppointment(
+                      doctor: doctor,
+                      date: selectedDate,
+                      time: selectedTime,
+                      patientId: patientId,
+                      consultationType: consultationType,
                     );
-                  }
-                }),
+
+                    if (!context.mounted) return;
+
+                    if (result['success'] == true && result['paymentData'] != null) {
+                      // Navigate to Payment Screen to show the native sheet
+                      final paid = await Navigator.push<bool>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AppointmentPaymentView(
+                            doctor: doctor,
+                            date: selectedDate,
+                            time: selectedTime,
+                            appointmentId: result['appointmentId'],
+                            paymentData: result['paymentData'],
+                          ),
+                        ),
+                      );
+
+                      if (paid == true && context.mounted) {
+                        _showFinalSuccessDialog(context);
+                      }
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text(result['message'] ??
+                                "Failed to initiate payment.")),
+                      );
+                    }
+                  },
+                );
+              },
+            ),
           ),
         ),
       ),
