@@ -36,6 +36,13 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
     return '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}';
   }
 
+  static String _moneyLabel(dynamic amount, {String currency = 'CFA'}) {
+    final numValue = _toDouble(amount);
+    if (numValue == null) return '--';
+    final asInt = numValue % 1 == 0;
+    return '$currency ${asInt ? numValue.toInt() : numValue.toStringAsFixed(2)}';
+  }
+
   static LatLngBounds _boundsForPoints(List<LatLng> points) {
     var minLat = points.first.latitude;
     var maxLat = points.first.latitude;
@@ -62,6 +69,11 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
     final pickupLng = _toDouble(request['lng']);
     final dropLat = _toDouble(request['destinationLat']);
     final dropLng = _toDouble(request['destinationLng']);
+    final estimatedDistanceKm = _toDouble(request['estimatedDistanceKm']);
+    final estimatedFareAmount = _toDouble(request['estimatedFareAmount']);
+    final currency = (request['currency']?.toString().trim().isNotEmpty ?? false)
+        ? request['currency'].toString()
+        : 'CFA';
     final pickup = (pickupLat != null && pickupLng != null)
         ? LatLng(pickupLat, pickupLng)
         : null;
@@ -306,6 +318,41 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
                           : 'Drop location not shared',
                       coord: _coordLabel(dropLat, dropLng),
                     ),
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Distance: ${estimatedDistanceKm != null ? '${estimatedDistanceKm.toStringAsFixed(1)} km' : '--'}',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF334155),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  'Fare: ${_moneyLabel(estimatedFareAmount, currency: currency)}',
+                                  textAlign: TextAlign.end,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF0F172A),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         const SizedBox(height: 12),
                         Row(
                       children: [
@@ -760,6 +807,11 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
     final countdownColor = progress < 0.2
         ? Colors.red
         : (progress < 0.45 ? Colors.orange : AppColors.primary);
+    final estimatedDistanceKm = _toDouble(request['estimatedDistanceKm']);
+    final estimatedFareAmount = _toDouble(request['estimatedFareAmount']);
+    final currency = (request['currency']?.toString().trim().isNotEmpty ?? false)
+        ? request['currency'].toString()
+        : 'CFA';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -877,6 +929,32 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Trip: ${estimatedDistanceKm != null ? '${estimatedDistanceKm.toStringAsFixed(1)} km' : '--'}',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF334155),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  'Fare: ${_moneyLabel(estimatedFareAmount, currency: currency)}',
+                  textAlign: TextAlign.end,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF0F172A),
+                  ),
                 ),
               ),
             ],

@@ -3,17 +3,18 @@ class AppUrl {
   /// Base URL
   ///static const String baseUrl = 'https://medlink-be-production.up.railway.app';
 
+//   static const String baseUrl =
+//       'https://www.medlink-africa.com';
   static const String baseUrl =
-      'https://www.medlink-africa.com';
-  // static const String baseUrl =
-  //     'http://192.168.0.101:3000'; // Emulator Magic IP (points to your machine)
+      'http://192.168.100.199:3000'; // Emulator Magic IP (points to your machine)
 
   /// Common Auth Endpoints
   static const String loginEndPoint = '${baseUrl}/auth/login';
   static const String verifyOtp = '${baseUrl}/auth/verify-otp';
   static const String forgotPassword = '${baseUrl}/auth/password/forgot';
   static const String resetPassword = '${baseUrl}/auth/password/reset';
-  static const String deleteAccountSendOtp = '${baseUrl}/auth/account/delete/send-otp';
+  static const String deleteAccountSendOtp =
+      '${baseUrl}/auth/account/delete/send-otp';
   static const String deleteAccountVerifyOtp = '${baseUrl}/auth/account/delete/verify-otp';
   static const String socialLogin = '${baseUrl}/auth/social-login';
   /// POST JSON `{ "access_token": "<jwt>" }` — validates session for patient / doctor / driver.
@@ -183,6 +184,13 @@ class AppUrl {
       '${baseUrl}/patient/appointments'; // /{appointmentId}/review-doctor
   static const String reviewDriver =
       '${baseUrl}/patient/trips'; // /{tripId}/review-driver
+
+  static String patientTripPaymentCheckout(String tripId) =>
+      '${baseUrl}/patient/trips/$tripId/payment/checkout';
+  static String patientTripPaymentCash(String tripId) =>
+      '${baseUrl}/patient/trips/$tripId/payment/cash';
+  static String patientTripPaymentConfirmOnline(String tripId) =>
+      '${baseUrl}/patient/trips/$tripId/payment/confirm-online';
 
   /// Org whose `OrganizationSettings.minimumDoctorConsultationFee` applies app-wide (change to your DB org id).
   static const int defaultOrganizationIdForFeeRules = 1;

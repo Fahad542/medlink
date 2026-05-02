@@ -178,6 +178,44 @@ class ApiServices {
     }
   }
 
+  /// Stripe Payment Sheet client params for trip fare (after driver completes trip).
+  Future<dynamic> patientTripPaymentCheckout(String tripId) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        AppUrl.patientTripPaymentCheckout(tripId),
+        jsonEncode({}),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Patient chose cash — server acknowledges (driver already paid via earnings on complete).
+  Future<dynamic> patientTripPaymentCash(String tripId) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        AppUrl.patientTripPaymentCash(tripId),
+        jsonEncode({}),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> patientTripPaymentConfirmOnline(
+    String tripId,
+    String paymentIntentId,
+  ) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        AppUrl.patientTripPaymentConfirmOnline(tripId),
+        jsonEncode({'paymentIntentId': paymentIntentId}),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<dynamic> createAppointmentCheckout(String appointmentId) async {
     try {
       return await _apiServices.getPostApiResponse(

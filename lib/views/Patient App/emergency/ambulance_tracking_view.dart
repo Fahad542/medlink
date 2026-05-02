@@ -242,7 +242,7 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
   @override
   Widget build(BuildContext context) {
     final emergencyVM = Provider.of<EmergencyViewModel>(context);
-    final ambulance = emergencyVM.assignedAmbulance ?? widget.ambulance;
+    final ambulance = emergencyVM.trackingAmbulance ?? widget.ambulance;
     final etaText = _etaText.isNotEmpty ? _etaText : (emergencyVM.sosEtaText.isNotEmpty
         ? emergencyVM.sosEtaText
         : ambulance.estimatedArrival);
@@ -262,8 +262,8 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
         driverLng = GpsCoord.tryParse(fromTrip['lng']);
       }
     }
-    driverLat ??= emergencyVM.assignedAmbulance?.currentLat ?? ambulance.currentLat;
-    driverLng ??= emergencyVM.assignedAmbulance?.currentLng ?? ambulance.currentLng;
+    driverLat ??= emergencyVM.trackingAmbulance?.currentLat ?? ambulance.currentLat;
+    driverLng ??= emergencyVM.trackingAmbulance?.currentLng ?? ambulance.currentLng;
 
     // Pickup Pos (where the patient is)
     final pickupLat = _toDouble(trip?['pickupLat']) ?? _toDouble(trip?['sos']?['latitude']);
@@ -275,6 +275,16 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
 
     final sosSt = emergencyVM.sosStatus?.toUpperCase() ?? '';
     final tripPhase = (trip?['status']?.toString() ?? '').toUpperCase();
+    final distanceKm = _toDouble(trip?['distanceKm']);
+    final fareAmount = _toDouble(trip?['fareAmount']);
+    final currency = (trip?['currency']?.toString().trim().isNotEmpty ?? false)
+        ? trip!['currency'].toString()
+        : 'CFA';
+    final distanceText =
+        distanceKm != null && distanceKm > 0 ? '${distanceKm.toStringAsFixed(1)} km' : null;
+    final fareText = fareAmount != null && fareAmount > 0
+        ? '$currency ${fareAmount.toStringAsFixed(fareAmount % 1 == 0 ? 0 : 2)}'
+        : null;
 
     LatLng? driverPos = GpsCoord.isValidPair(driverLat, driverLng)
         ? LatLng(driverLat!, driverLng!)
@@ -642,6 +652,46 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                           ),
                         ],
                       ),
+                      if (distanceText != null || fareText != null) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Row(
+                            children: [
+                              if (distanceText != null)
+                                Expanded(
+                                  child: Text(
+                                    'Distance: $distanceText',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF334155),
+                                    ),
+                                  ),
+                                ),
+                              if (fareText != null)
+                                Expanded(
+                                  child: Text(
+                                    'Fare: $fareText',
+                                    textAlign: TextAlign.end,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
 
                       // Collapsible Content
                       AnimatedCrossFade(

@@ -278,11 +278,56 @@ class _AmbulanceHistoryBody extends StatelessWidget {
                     ],
                   ),
                 ),
+                const SizedBox(height: 8),
+                _buildTripMetaRow(
+                  icon: Icons.payments_outlined,
+                  label: 'Payment',
+                  value: trip['paymentMethodLabel']?.toString() ?? '—',
+                ),
+                const SizedBox(height: 4),
+                _buildTripMetaRow(
+                  icon: Icons.schedule_outlined,
+                  label: 'Paid at',
+                  value: trip['paidAtLabel']?.toString() ?? '—',
+                ),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildTripMetaRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: Colors.grey[500]),
+        const SizedBox(width: 6),
+        Text(
+          '$label: ',
+          style: GoogleFonts.inter(
+            color: Colors.grey[600],
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: GoogleFonts.inter(
+              color: Colors.grey[700],
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
     );
   }
 }

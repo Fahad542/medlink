@@ -22,6 +22,8 @@ class SosSocketService {
       StreamController.broadcast();
   final StreamController<Map<String, dynamic>> _tripLocationUpdatedController =
       StreamController.broadcast();
+  final StreamController<Map<String, dynamic>> _tripPaymentRequiredController =
+      StreamController.broadcast();
 
   Stream<Map<String, dynamic>> get sosUpdatedStream =>
       _sosUpdatedController.stream;
@@ -29,6 +31,8 @@ class SosSocketService {
       _tripUpdatedController.stream;
   Stream<Map<String, dynamic>> get tripLocationUpdatedStream =>
       _tripLocationUpdatedController.stream;
+  Stream<Map<String, dynamic>> get tripPaymentRequiredStream =>
+      _tripPaymentRequiredController.stream;
 
   bool get isConnected => _socket?.connected == true;
 
@@ -86,6 +90,10 @@ class SosSocketService {
     socket.on('trip:updated', (data) {
       final m = _toMap(data);
       if (m != null) _tripUpdatedController.add(m);
+    });
+    socket.on('trip:paymentRequired', (data) {
+      final m = _toMap(data);
+      if (m != null) _tripPaymentRequiredController.add(m);
     });
     void onDriverLoc(dynamic data) {
       final m = _toMap(data);

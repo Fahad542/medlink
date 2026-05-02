@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
@@ -9,6 +10,8 @@ import 'package:medlink/services/sos_socket_service.dart';
 class AmbulanceDashboardViewModel extends ChangeNotifier {
   final ApiServices _apiServices = ApiServices();
   final SosSocketService _socket = SosSocketService.instance;
+  static const double _sosBaseFareCfa = 150;
+  static const double _sosRatePerKmCfa = 50;
   StreamSubscription<Map<String, dynamic>>? _sosSub;
   Timer? _countdownTickTimer;
 
@@ -108,6 +111,29 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
     if (v is num) return v.toDouble();
     return double.tryParse(v.toString());
   }
+
+  static double? _haversineKm(
+    double? lat1,
+    double? lng1,
+    double? lat2,
+    double? lng2,
+  ) {
+    if (lat1 == null || lng1 == null || lat2 == null || lng2 == null) {
+      return null;
+    }
+    const earthRadiusKm = 6371.0;
+    final dLat = _degToRad(lat2 - lat1);
+    final dLng = _degToRad(lng2 - lng1);
+    final a =
+        (sin(dLat / 2) * sin(dLat / 2)) +
+            cos(_degToRad(lat1)) *
+                cos(_degToRad(lat2)) *
+                (sin(dLng / 2) * sin(dLng / 2));
+    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return double.parse((earthRadiusKm * c).toStringAsFixed(2));
+  }
+
+  static double _degToRad(double deg) => deg * (3.141592653589793 / 180);
 
   static String _formatDistanceMeters(double meters) {
     if (meters < 1000) {
@@ -231,6 +257,13 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
     final lng = _toDouble(m['lng']);
     final destinationLat = _toDouble(m['destinationLat'] ?? m['dropoffLat']);
     final destinationLng = _toDouble(m['destinationLng'] ?? m['dropoffLng']);
+    final estimatedDistanceKm = _haversineKm(lat, lng, destinationLat, destinationLng);
+    final estimatedFare = estimatedDistanceKm != null
+        ? double.parse(
+            (_sosBaseFareCfa + (estimatedDistanceKm * _sosRatePerKmCfa))
+                .toStringAsFixed(2),
+          )
+        : null;
     return {
       'id': m['id'].toString(),
       'createdAt': m['createdAt'],
@@ -246,6 +279,9 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
           : (lat != null && lng != null ? 'Loading address...' : 'Location unavailable'),
       'destinationLat': destinationLat,
       'destinationLng': destinationLng,
+      'estimatedDistanceKm': estimatedDistanceKm,
+      'estimatedFareAmount': estimatedFare,
+      'currency': _currency,
       'incident': m['emergencyType'] ?? 'Emergency',
       'time': _formatTime(
         (m['searchWindowStartedAt'] ?? m['createdAt'])?.toString(),
@@ -263,6 +299,13 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
         _toDouble(payload['destinationLat'] ?? payload['dropoffLat']);
     final destinationLng =
         _toDouble(payload['destinationLng'] ?? payload['dropoffLng']);
+    final estimatedDistanceKm = _haversineKm(lat, lng, destinationLat, destinationLng);
+    final estimatedFare = estimatedDistanceKm != null
+        ? double.parse(
+            (_sosBaseFareCfa + (estimatedDistanceKm * _sosRatePerKmCfa))
+                .toStringAsFixed(2),
+          )
+        : null;
     final patient = payload['patient'] is Map
         ? Map<String, dynamic>.from(payload['patient'] as Map)
         : <String, dynamic>{};
@@ -282,6 +325,9 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
           : (lat != null && lng != null ? 'Loading address...' : 'Location unavailable'),
       'destinationLat': destinationLat,
       'destinationLng': destinationLng,
+      'estimatedDistanceKm': estimatedDistanceKm,
+      'estimatedFareAmount': estimatedFare,
+      'currency': _currency,
       'incident': payload['emergencyType'] ?? 'Emergency',
       'time': _formatTime(
         (payload['searchWindowStartedAt'] ?? payload['createdAt'])

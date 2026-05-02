@@ -8,7 +8,15 @@ import 'package:medlink/services/sos_socket_service.dart';
 import 'package:medlink/utils/gps_coord.dart';
 import 'package:medlink/utils/trip_driver_location.dart';
 import 'package:medlink/utils/utils.dart';
+import 'package:medlink/utils/jwt_user_id.dart';
 import 'package:medlink/core/constants/sos_constants.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+String? _normEnum(dynamic v) {
+  final s = v?.toString().trim();
+  if (s == null || s.isEmpty) return null;
+  return s.toUpperCase();
+}
 
 /// Real-time SOS feedback for the patient UI (custom toasts via [Utils.toastMessage]).
 class EmergencyToast {
@@ -17,6 +25,21 @@ class EmergencyToast {
   final bool isError;
 
   EmergencyToast(this.message, this.backgroundColor, {this.isError = false});
+}
+
+/// Global payment prompt when driver completes drop-off (`trip:paymentRequired` / `trip:updated`).
+class TripPaymentPromptEvent {
+  final String tripId;
+  final double fareAmount;
+  final String currency;
+  final String? driverName;
+
+  TripPaymentPromptEvent({
+    required this.tripId,
+    required this.fareAmount,
+    required this.currency,
+    this.driverName,
+  });
 }
 
 class EmergencyViewModel extends ChangeNotifier {
@@ -30,14 +53,19 @@ class EmergencyViewModel extends ChangeNotifier {
   Map<String, dynamic>? _activeTrip;
   String? _lastCompletedTripId;
   Timer? _pollingTimer;
+  /// While realtime is on we normally skip polling; this backs up REST if sockets drop events.
+  Timer? _sosBackupSyncTimer;
   bool _realtimeEnabled = false;
   StreamSubscription<Map<String, dynamic>>? _sosSub;
   StreamSubscription<Map<String, dynamic>>? _tripSub;
   StreamSubscription<Map<String, dynamic>>? _locSub;
+  StreamSubscription<Map<String, dynamic>>? _tripPaySub;
   Timer? _searchUiTicker;
 
-  /// Logged-in patient user id (string — numeric or UUID from API).
-  String? _currentPatientId;
+  /// JWT `sub` (User id) — matches `sos.patientId` / `trip.patientId` on the server.
+  String? _jwtPatientIdStr;
+  /// Session `UserModel.id` (may differ from JWT if API nests profile ids).
+  String? _sessionPatientIdStr;
 
   /// Server-driven driver search window (minutes). Default until API responds.
   int _searchWindowMinutes = 2;
@@ -55,6 +83,18 @@ class EmergencyViewModel extends ChangeNotifier {
       StreamController<EmergencyToast>.broadcast();
   Stream<EmergencyToast> get toastStream => _toastController.stream;
 
+  final StreamController<TripPaymentPromptEvent> _tripPaymentPromptController =
+      StreamController<TripPaymentPromptEvent>.broadcast();
+  Stream<TripPaymentPromptEvent> get tripPaymentPromptStream =>
+      _tripPaymentPromptController.stream;
+
+  static const String _kPendingTripPaymentIdsKey = 'pending_trip_payment_ids_v1';
+
+  final Set<String> _tripPaymentPromptedIds = {};
+  final Set<String> _pendingTripPaymentIds = {};
+  final Map<String, TripPaymentPromptEvent> _pendingTripPaymentMeta = {};
+  bool _pendingTripPaymentsLoaded = false;
+
   /// Last known status per SOS id (for transition toasts).
   final Map<String, String> _lastSosStatusById = {};
 
@@ -65,7 +105,45 @@ class EmergencyViewModel extends ChangeNotifier {
   AmbulanceModel? get assignedAmbulance => _assignedAmbulance;
   String? get sosStatus => _sosStatus;
   Map<String, dynamic>? get activeTrip => _activeTrip;
-  String? get tripStatus => _activeTrip?['status']?.toString();
+  String? get tripStatus => _normEnum(_activeTrip?['status']);
+
+  bool get hasPendingTripPayment => _pendingTripPaymentIds.isNotEmpty;
+  int get pendingTripPaymentCount => _pendingTripPaymentIds.length;
+  String get pendingTripPaymentWarningText =>
+      pendingTripPaymentCount <= 1
+          ? 'Payment is pending for your completed trip'
+          : 'Payment is pending for $pendingTripPaymentCount completed trips';
+
+  TripPaymentPromptEvent? get nextPendingTripPaymentPrompt {
+    if (_pendingTripPaymentIds.isEmpty) return null;
+    for (final id in _pendingTripPaymentIds) {
+      final known = _pendingTripPaymentMeta[id];
+      if (known != null) return known;
+    }
+    final fallback = _pendingTripPaymentIds.first;
+    return TripPaymentPromptEvent(
+      tripId: fallback,
+      fareAmount: 0,
+      currency: 'CFA',
+    );
+  }
+
+  /// Prefer [assignedAmbulance]; if missing, build from `trip.driver` (socket / richer payloads).
+  AmbulanceModel? get trackingAmbulance {
+    if (_assignedAmbulance != null) return _assignedAmbulance;
+    final t = _activeTrip;
+    if (t == null) return null;
+    final ts = _normEnum(t['status']);
+    if (ts != 'ACCEPTED' && ts != 'ARRIVED' && ts != 'IN_PROGRESS') {
+      return null;
+    }
+    final d = t['driver'];
+    if (d is! Map) return null;
+    return AmbulanceModel.fromJson({
+      'driver': Map<String, dynamic>.from(d),
+      if (t['latestLocation'] is Map) 'latestLocation': t['latestLocation'],
+    });
+  }
   String? get lastCompletedTripId => _lastCompletedTripId;
 
   int get searchWindowMinutes => _searchWindowMinutes;
@@ -135,7 +213,7 @@ class EmergencyViewModel extends ChangeNotifier {
       _recomputeSearchWindowEndsIfNeeded();
     }
 
-    final st = m['status']?.toString() ?? _sosStatus;
+    final st = _normEnum(m['status']) ?? _sosStatus;
     final nd = m['noDriverFoundMessage'];
     if (nd != null && nd.toString().trim().isNotEmpty) {
       _noDriverFoundMessage = nd.toString();
@@ -176,7 +254,7 @@ class EmergencyViewModel extends ChangeNotifier {
   }
 
   void _applyAssignedDriverFromSosMap(Map<String, dynamic> sos) {
-    final st = sos['status']?.toString();
+    final st = _normEnum(sos['status']);
     final assignedId = sos['assignedDriverId'];
     if (st == 'ASSIGNED' && sos['assignedDriver'] is Map) {
       _assignedAmbulance = AmbulanceModel.fromJson(
@@ -192,12 +270,15 @@ class EmergencyViewModel extends ChangeNotifier {
 
   void _ingestSosRecord(Map<String, dynamic> sos) {
     _sosId = sos['id']?.toString() ?? _sosId;
-    _sosStatus = sos['status']?.toString();
+    _sosStatus = _normEnum(sos['status']) ?? _sosStatus;
     _mergeSosTimingFromMap(sos);
     _activeTrip = sos['trip'] is Map
         ? Map<String, dynamic>.from(sos['trip'])
         : _activeTrip;
     _applyAssignedDriverFromSosMap(sos);
+    if (_activeTrip != null) {
+      _hydrateAmbulanceFromTripPayload(_activeTrip!);
+    }
     _mergeDriverLocationFromTripMap(_activeTrip);
   }
 
@@ -239,6 +320,133 @@ class EmergencyViewModel extends ChangeNotifier {
     }
   }
 
+  /// `trip:updated` carries `driver` even when `sos:updated` was filtered or missed — align UI + tap-to-track.
+  void _hydrateAmbulanceFromTripPayload(Map<String, dynamic> trip) {
+    final ts = _normEnum(trip['status']);
+    if (ts != 'ACCEPTED' && ts != 'ARRIVED' && ts != 'IN_PROGRESS') {
+      return;
+    }
+    final d = trip['driver'];
+    if (d is! Map) return;
+    _assignedAmbulance = AmbulanceModel.fromJson({
+      'driver': Map<String, dynamic>.from(d),
+      if (trip['latestLocation'] is Map)
+        'latestLocation': trip['latestLocation'],
+    });
+    if (_sosStatus == 'OPEN') {
+      _sosStatus = 'ASSIGNED';
+    }
+  }
+
+  /// NestJS returns either a raw `[...]` or `{ "data": [...] }` from `GET /patient/sos`.
+  List<Map<String, dynamic>>? _parseMySosList(dynamic response) {
+    if (response == null) return null;
+    if (response is List) {
+      return response
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+    if (response is Map) {
+      final data = response['data'];
+      if (data is List) {
+        return data
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+      }
+    }
+    return null;
+  }
+
+  bool _matchesPatientIdentity(Object? raw) {
+    if (raw == null) return false;
+    if (_jwtPatientIdStr != null &&
+        _jwtPatientIdStr!.isNotEmpty &&
+        GpsCoord.sameId(raw, _jwtPatientIdStr!)) {
+      return true;
+    }
+    if (_sessionPatientIdStr != null &&
+        _sessionPatientIdStr!.isNotEmpty &&
+        GpsCoord.sameId(raw, _sessionPatientIdStr!)) {
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> _savePendingTripPayments() async {
+    final sp = await SharedPreferences.getInstance();
+    await sp.setStringList(
+      _kPendingTripPaymentIdsKey,
+      _pendingTripPaymentIds.toList(),
+    );
+  }
+
+  Future<void> _loadPendingTripPayments() async {
+    if (_pendingTripPaymentsLoaded) return;
+    _pendingTripPaymentsLoaded = true;
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final ids = sp.getStringList(_kPendingTripPaymentIdsKey) ?? const <String>[];
+      _pendingTripPaymentIds
+        ..clear()
+        ..addAll(ids.where((e) => e.trim().isNotEmpty));
+      if (_pendingTripPaymentIds.isNotEmpty) notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> _markTripPaymentPending(TripPaymentPromptEvent event) async {
+    _pendingTripPaymentMeta[event.tripId] = event;
+    if (_pendingTripPaymentIds.add(event.tripId)) {
+      await _savePendingTripPayments();
+      notifyListeners();
+    }
+  }
+
+  Future<void> markTripPaymentSettled(String tripId) async {
+    final tid = tripId.trim();
+    if (tid.isEmpty) return;
+    _pendingTripPaymentMeta.remove(tid);
+    _tripPaymentPromptedIds.remove(tid);
+    if (_pendingTripPaymentIds.remove(tid)) {
+      await _savePendingTripPayments();
+      notifyListeners();
+    }
+  }
+
+  void _offerTripPaymentPrompt(Map<String, dynamic> raw) {
+    if (_tripPaymentPromptController.isClosed) return;
+    final tid =
+        raw['tripId']?.toString() ?? raw['id']?.toString() ?? '';
+    if (tid.isEmpty) return;
+    if (_tripPaymentPromptedIds.contains(tid)) return;
+    _tripPaymentPromptedIds.add(tid);
+
+    final fare =
+        double.tryParse(raw['fareAmount']?.toString() ?? '') ?? 0;
+    final currency =
+        raw['currency']?.toString().trim().isNotEmpty == true
+            ? raw['currency'].toString()
+            : 'CFA';
+    String? driverName;
+    final dn = raw['driverName'];
+    if (dn != null && dn.toString().trim().isNotEmpty) {
+      driverName = dn.toString();
+    } else if (raw['driver'] is Map) {
+      driverName =
+          (raw['driver'] as Map)['fullName']?.toString();
+    }
+
+    final event = TripPaymentPromptEvent(
+      tripId: tid,
+      fareAmount: fare,
+      currency: currency,
+      driverName: driverName,
+    );
+    unawaited(_markTripPaymentPending(event));
+    _tripPaymentPromptController.add(event);
+  }
+
   /// Call when opening the live map so the patient (re)joins SOS + trip rooms for driver GPS.
   void ensurePatientTripTracking() {
     if (!_realtimeEnabled) return;
@@ -252,25 +460,27 @@ class EmergencyViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _pollingTimer?.cancel();
+    _sosBackupSyncTimer?.cancel();
     _searchUiTicker?.cancel();
     _sosSub?.cancel();
     _tripSub?.cancel();
     _locSub?.cancel();
+    _tripPaySub?.cancel();
     _toastController.close();
     super.dispose();
   }
 
   bool _payloadIsForCurrentPatient(Map<String, dynamic> payload) {
-    if (_currentPatientId == null || _currentPatientId!.isEmpty) {
-      return false;
-    }
+    final hasId = (_jwtPatientIdStr != null && _jwtPatientIdStr!.isNotEmpty) ||
+        (_sessionPatientIdStr != null && _sessionPatientIdStr!.isNotEmpty);
+    if (!hasId) return false;
     final direct = payload['patientId'];
     if (direct != null) {
-      return GpsCoord.sameId(direct, _currentPatientId);
+      return _matchesPatientIdentity(direct);
     }
     final pat = payload['patient'];
     if (pat is Map && pat['id'] != null) {
-      return GpsCoord.sameId(pat['id'], _currentPatientId);
+      return _matchesPatientIdentity(pat['id']);
     }
     // Many backends only put the patient in their user room and omit patientId on trip payloads.
     return true;
@@ -280,7 +490,7 @@ class EmergencyViewModel extends ChangeNotifier {
     if (_toastController.isClosed) return;
     final sid = payload['id']?.toString() ?? '';
     if (sid.isEmpty) return;
-    final status = payload['status']?.toString() ?? '';
+    final status = _normEnum(payload['status']) ?? '';
     final prev = _lastSosStatusById[sid];
     final assignedId = payload['assignedDriverId'];
 
@@ -346,7 +556,7 @@ class EmergencyViewModel extends ChangeNotifier {
   void _seedTripStatusFromMap(Map<String, dynamic>? trip) {
     if (trip == null) return;
     final tid = trip['id']?.toString();
-    final st = trip['status']?.toString();
+    final st = _normEnum(trip['status']);
     if (tid != null && tid.isNotEmpty && st != null && st.isNotEmpty) {
       _lastTripStatusById[tid] = st;
     }
@@ -356,7 +566,7 @@ class EmergencyViewModel extends ChangeNotifier {
     if (_toastController.isClosed) return;
     final tid = payload['id']?.toString() ?? '';
     if (tid.isEmpty) return;
-    final status = payload['status']?.toString() ?? '';
+    final status = _normEnum(payload['status']) ?? '';
     final prev = _lastTripStatusById[tid];
     if (status.isEmpty || status == prev) return;
 
@@ -426,12 +636,37 @@ class EmergencyViewModel extends ChangeNotifier {
   void startRealtime({required String patientUserId, required String token}) {
     final pid = patientUserId.trim();
     if (pid.isEmpty) return;
-    _currentPatientId = pid;
+    final jwtUid = readAuthUserIdFromJwt(token);
+    _jwtPatientIdStr = jwtUid?.toString();
+    _sessionPatientIdStr = pid;
     _realtimeEnabled = true;
+    unawaited(_loadPendingTripPayments());
     _pollingTimer?.cancel();
+    _sosBackupSyncTimer?.cancel();
+    _sosBackupSyncTimer =
+        Timer.periodic(const Duration(seconds: 12), (_) {
+      if (!_realtimeEnabled || !_isSosActive) return;
+      if (_sosStatus != 'OPEN' || _assignedAmbulance != null) return;
+      final tripSt = _normEnum(_activeTrip?['status']);
+      if (tripSt == 'ACCEPTED' ||
+          tripSt == 'ARRIVED' ||
+          tripSt == 'IN_PROGRESS') {
+        return;
+      }
+      checkActiveSos();
+    });
     _seedTripStatusFromMap(_activeTrip);
     _syncTrackedTripIdFromActiveTrip();
     _socket.connect(url: '${AppUrl.baseUrl}/sos', token: token);
+    scheduleMicrotask(() => checkActiveSos());
+
+    _tripPaySub ??=
+        _socket.tripPaymentRequiredStream.listen((payload) {
+      final m = Map<String, dynamic>.from(payload);
+      final pid = m['patientId'];
+      if (pid != null && !_matchesPatientIdentity(pid)) return;
+      _offerTripPaymentPrompt(m);
+    });
 
     _sosSub ??= _socket.sosUpdatedStream.listen((payload) {
       final m = Map<String, dynamic>.from(payload);
@@ -440,7 +675,7 @@ class EmergencyViewModel extends ChangeNotifier {
       _maybeEmitSosToast(m);
 
       _sosId = m['id']?.toString() ?? _sosId;
-      _sosStatus = m['status']?.toString();
+      _sosStatus = _normEnum(m['status']) ?? _sosStatus;
       _mergeSosTimingFromMap(m);
 
       final assigned = m['assignedDriver'];
@@ -479,13 +714,23 @@ class EmergencyViewModel extends ChangeNotifier {
 
       _activeTrip = m;
       _syncTrackedTripIdFromActiveTrip();
+      _hydrateAmbulanceFromTripPayload(m);
       _mergeDriverLocationFromTripMap(_activeTrip);
       final tripId = _activeTrip?['id'];
-      final status = _activeTrip?['status']?.toString();
+      final status = _normEnum(_activeTrip?['status']);
 
       if (status == 'COMPLETED' || status == 'CANCELLED') {
         if (status == 'COMPLETED') {
           _lastCompletedTripId = _activeTrip?['id']?.toString();
+          final payMap = Map<String, dynamic>.from(m);
+          payMap['tripId'] ??= m['id'];
+          payMap['fareAmount'] ??= m['fareAmount'];
+          payMap['currency'] ??= m['currency'];
+          if (payMap['driverName'] == null && m['driver'] is Map) {
+            payMap['driverName'] =
+                (m['driver'] as Map)['fullName']?.toString();
+          }
+          _offerTripPaymentPrompt(payMap);
         }
         cancelSos();
         return;
@@ -555,37 +800,35 @@ class EmergencyViewModel extends ChangeNotifier {
   Future<void> checkActiveSos() async {
     try {
       final response = await _apiServices.getMySos();
-      if (response != null && response['data'] is List) {
-        final list = response['data'] as List;
-        if (list.isNotEmpty) {
-          final sos = Map<String, dynamic>.from(list.first as Map);
-          final st = sos['status']?.toString();
-          if (st == 'OPEN' || st == 'ASSIGNED' || st == 'EXPIRED') {
-            _isSosActive = true;
-            _ingestSosRecord(sos);
-            _seedTripStatusFromMap(_activeTrip);
-            _syncTrackedTripIdFromActiveTrip();
-            final tripId = _activeTrip?['id'];
-            if (tripId != null) {
-              _socket.joinTrip(tripId);
-            }
-            if (_realtimeEnabled &&
-                _sosId != null &&
-                _sosId!.isNotEmpty) {
-              _socket.joinSos(_sosId!);
-            }
-            if (st == 'OPEN' && _assignedAmbulance == null) {
-              _startSearchUiTicker();
-            } else {
-              _stopSearchUiTicker();
-            }
-            _seedSosStatusTrackingForCurrent();
-            notifyListeners();
-            if (!_realtimeEnabled) {
-              _startPollingForDriver();
-            }
-            debugPrint("Restored active SOS session: ${sos['id']}");
+      final list = _parseMySosList(response);
+      if (list != null && list.isNotEmpty) {
+        final sos = list.first;
+        final st = _normEnum(sos['status']);
+        if (st == 'OPEN' || st == 'ASSIGNED' || st == 'EXPIRED') {
+          _isSosActive = true;
+          _ingestSosRecord(sos);
+          _seedTripStatusFromMap(_activeTrip);
+          _syncTrackedTripIdFromActiveTrip();
+          final tripId = _activeTrip?['id'];
+          if (tripId != null) {
+            _socket.joinTrip(tripId);
           }
+          if (_realtimeEnabled &&
+              _sosId != null &&
+              _sosId!.isNotEmpty) {
+            _socket.joinSos(_sosId!);
+          }
+          if (st == 'OPEN' && _assignedAmbulance == null) {
+            _startSearchUiTicker();
+          } else {
+            _stopSearchUiTicker();
+          }
+          _seedSosStatusTrackingForCurrent();
+          notifyListeners();
+          if (!_realtimeEnabled) {
+            _startPollingForDriver();
+          }
+          debugPrint("Restored active SOS session: ${sos['id']}");
         }
       }
     } catch (e) {
@@ -750,31 +993,27 @@ class EmergencyViewModel extends ChangeNotifier {
     _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
       try {
         final response = await _apiServices.getMySos();
-        if (response != null && response['data'] is List) {
-          final list = response['data'] as List;
-          if (list.isNotEmpty) {
-            // Check the most recent SOS
-            final sos = Map<String, dynamic>.from(list.first as Map);
-            final st = sos['status']?.toString();
-            _ingestSosRecord(sos);
-            _syncTrackedTripIdFromActiveTrip();
-            if (st == 'OPEN' && _assignedAmbulance == null) {
-              _startSearchUiTicker();
-            } else {
-              _stopSearchUiTicker();
-            }
-            _mergeDriverLocationFromTripMap(_activeTrip);
-            if (st == 'RESOLVED' || st == 'CANCELLED') {
-              final trip = _activeTrip;
-              final tripStatus = trip?['status']?.toString();
-              if (tripStatus == 'COMPLETED') {
-                _lastCompletedTripId = trip?['id']?.toString();
-              }
-              cancelSos();
-            } else {
-              notifyListeners();
-            }
+        final list = _parseMySosList(response);
+        if (list == null || list.isEmpty) return;
+        final sos = list.first;
+        final st = _normEnum(sos['status']);
+        _ingestSosRecord(sos);
+        _syncTrackedTripIdFromActiveTrip();
+        if (st == 'OPEN' && _assignedAmbulance == null) {
+          _startSearchUiTicker();
+        } else {
+          _stopSearchUiTicker();
+        }
+        _mergeDriverLocationFromTripMap(_activeTrip);
+        if (st == 'RESOLVED' || st == 'CANCELLED') {
+          final trip = _activeTrip;
+          final tripStatus = _normEnum(trip?['status']);
+          if (tripStatus == 'COMPLETED') {
+            _lastCompletedTripId = trip?['id']?.toString();
           }
+          cancelSos();
+        } else {
+          notifyListeners();
         }
       } catch (e) {
         debugPrint("Error polling SOS: $e");
@@ -788,6 +1027,7 @@ class EmergencyViewModel extends ChangeNotifier {
     final trip = tripStatus;
     if (trip == 'ARRIVED') return 'Ambulance Arrived';
     if (trip == 'IN_PROGRESS') return 'Trip In Progress';
+    if (trip == 'ACCEPTED') return 'Ambulance Dispatched';
     if (_sosStatus == 'OPEN') return 'Finding Driver';
     return 'Ambulance Dispatched';
   }
@@ -797,7 +1037,12 @@ class EmergencyViewModel extends ChangeNotifier {
       return _noDriverFoundMessage ?? SosConstants.noAmbulanceDriverMessage;
     }
     final rem = searchWindowRemaining;
-    if (_sosStatus == 'OPEN' &&
+    final tripSt = tripStatus;
+    if (tripSt == 'ACCEPTED' ||
+        tripSt == 'ARRIVED' ||
+        tripSt == 'IN_PROGRESS') {
+      // fall through to trip-based ETA
+    } else if (_sosStatus == 'OPEN' &&
         _assignedAmbulance == null &&
         rem != null &&
         rem > Duration.zero) {
@@ -841,6 +1086,8 @@ class EmergencyViewModel extends ChangeNotifier {
     _stopSearchUiTicker();
     _socket.clearJoinedRooms();
     _pollingTimer?.cancel();
+    _sosBackupSyncTimer?.cancel();
+    _sosBackupSyncTimer = null;
     notifyListeners();
   }
 

@@ -15,6 +15,7 @@ import 'package:medlink/views/call/call_screen.dart';
 import 'package:medlink/services/appointment_socket_service.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
 import 'package:medlink/core/constants/app_url.dart';
+import 'package:medlink/views/Patient%20App/emergency/trip_payment_flow.dart';
 import 'dart:async';
 
 class MainScreen extends StatefulWidget {
@@ -32,6 +33,7 @@ class _MainScreenState extends State<MainScreen>
   StreamSubscription? _callEndedSub;
   StreamSubscription? _appointmentSub;
   StreamSubscription? _emergencyToastSub;
+  StreamSubscription<TripPaymentPromptEvent>? _tripPaymentPromptSub;
   Map<String, dynamic>? _pendingIncomingCall;
 
   @override
@@ -72,6 +74,13 @@ class _MainScreenState extends State<MainScreen>
               behavior: SnackBarBehavior.floating,
             ),
           );
+        });
+
+        _tripPaymentPromptSub?.cancel();
+        _tripPaymentPromptSub =
+            emergencyVM.tripPaymentPromptStream.listen((event) async {
+          if (!mounted) return;
+          await showTripPaymentPromptDialog(context, event);
         });
 
         // Initial load
@@ -132,6 +141,8 @@ class _MainScreenState extends State<MainScreen>
       );
       Provider.of<AppointmentViewModel>(context, listen: false)
           .loadUpcomingAppointments();
+      Provider.of<EmergencyViewModel>(context, listen: false)
+          .checkActiveSos();
     } catch (_) {}
   }
 
@@ -152,6 +163,7 @@ class _MainScreenState extends State<MainScreen>
     _callEndedSub?.cancel();
     _appointmentSub?.cancel();
     _emergencyToastSub?.cancel();
+    _tripPaymentPromptSub?.cancel();
     super.dispose();
   }
 
@@ -195,6 +207,15 @@ class _MainScreenState extends State<MainScreen>
               child: _buildIncomingCallBanner(_pendingIncomingCall!),
             ),
 
+          if (emergencyVM.hasPendingTripPayment)
+            Positioned(
+              top: MediaQuery.of(context).padding.top +
+                  (_pendingIncomingCall != null ? 64 : 8),
+              left: 12,
+              right: 12,
+              child: _buildPendingTripPaymentBanner(emergencyVM),
+            ),
+
           // 3. Floating SOS Status (Fixed Position above Navbar)
           if (emergencyVM.isSosActive)
             Positioned(
@@ -206,12 +227,13 @@ class _MainScreenState extends State<MainScreen>
                 children: [
                   GestureDetector(
                     onTap: () {
-                      if (emergencyVM.assignedAmbulance != null) {
+                      final trackAmb = emergencyVM.trackingAmbulance;
+                      if (trackAmb != null) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => AmbulanceTrackingView(
-                                ambulance: emergencyVM.assignedAmbulance!),
+                            builder: (_) =>
+                                AmbulanceTrackingView(ambulance: trackAmb),
                           ),
                         );
                       } else {
@@ -288,7 +310,7 @@ class _MainScreenState extends State<MainScreen>
                                 ),
                                 if (!emergencyVM.canRetrySearch &&
                                     emergencyVM.sosStatus == 'OPEN' &&
-                                    emergencyVM.assignedAmbulance == null) ...[
+                                    emergencyVM.trackingAmbulance == null) ...[
                                   const SizedBox(height: 4),
                                   Text(
                                     '${emergencyVM.driversViewingCount} drivers are currently viewing your SOS',
@@ -546,6 +568,55 @@ class _MainScreenState extends State<MainScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPendingTripPaymentBanner(EmergencyViewModel emergencyVM) {
+    return GestureDetector(
+      onTap: () async {
+        final pending = emergencyVM.nextPendingTripPaymentPrompt;
+        if (pending == null) return;
+        await showTripPaymentPromptDialog(context, pending);
+      },
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFFBEB),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFF59E0B), width: 1),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded,
+                  color: Color(0xFFF59E0B), size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  emergencyVM.pendingTripPaymentWarningText,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF92400E),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Pay now',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

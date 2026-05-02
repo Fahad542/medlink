@@ -183,6 +183,18 @@ class _DestinationPickerViewState extends State<DestinationPickerView> {
     return NumberFormat.decimalPattern().format(fare.round());
   }
 
+  String _distanceKmText() {
+    if (_pickup == null || _destination == null) return '--';
+    final distanceMeters = Geolocator.distanceBetween(
+      _pickup!.latitude,
+      _pickup!.longitude,
+      _destination!.latitude,
+      _destination!.longitude,
+    );
+    final distanceKm = distanceMeters / 1000;
+    return distanceKm.toStringAsFixed(1);
+  }
+
   void _triggerFindDriver() {
     if (_pickup == null || _destination == null) {
       Utils.toastMessage(
@@ -670,7 +682,7 @@ class _DestinationPickerViewState extends State<DestinationPickerView> {
                 child: Row(
                   children: [
                     Text(
-                      'FCA',
+                      'CFA',
                       style: GoogleFonts.inter(
                         fontWeight: FontWeight.w600,
                         color: Colors.black54,
@@ -692,6 +704,14 @@ class _DestinationPickerViewState extends State<DestinationPickerView> {
                             ),
                             TextSpan(
                               text: '   Your Fare',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.normal,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                            TextSpan(
+                              text: ' • ${_distanceKmText()} km',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.normal,
