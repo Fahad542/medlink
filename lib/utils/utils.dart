@@ -2,12 +2,24 @@ import 'dart:convert';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/data/app_exceptions.dart';
 
 class Utils {
   /// Short user-facing text from thrown API errors (server `message`, not raw JSON).
   static String apiErrorMessage(Object error) {
+    if (error is PlatformException) {
+      final msg = error.message ?? '';
+      // Android Google Sign-In: DEVELOPER_ERROR — missing/wrong SHA-1 in Firebase.
+      if (error.code == 'sign_in_failed' &&
+          (msg.contains('ApiException: 10') || msg.contains(' 10: '))) {
+        return 'Google Sign-In needs Firebase setup: open Firebase Console → '
+            'Project settings → Android app com.example.medlink → add your '
+            'debug SHA-1 fingerprint, save, then download google-services.json '
+            'again (it should list oauth clients). Rebuild the app.';
+      }
+    }
     if (error is AppException) {
       final m = error.toString();
       if (m.isNotEmpty) return m;

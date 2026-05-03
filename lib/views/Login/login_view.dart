@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/utils/apple_sign_in_visibility.dart';
 import 'package:medlink/views/Register/register_view.dart';
 import 'package:medlink/views/Register/register_viewmodel.dart';
 import 'package:medlink/widgets/custom_button.dart';
@@ -167,17 +168,19 @@ class LoginView extends StatelessWidget {
                             },
                           ),
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildSocialButton(
-                            icon: "assets/Icons/apple.png",
-                            label: "Apple",
-                            onTap: () {
-                              viewModel.signInWithApple(context);
-                            },
-                            isApple: true,
+                        if (showAppleSignInButton) ...[
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildSocialButton(
+                              icon: "assets/Icons/apple.png",
+                              label: "Apple",
+                              onTap: () {
+                                viewModel.signInWithApple(context);
+                              },
+                              isApple: true,
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
 

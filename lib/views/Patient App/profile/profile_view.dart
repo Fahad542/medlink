@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/Patient App/profile/personal_info_view.dart';
 import 'package:medlink/views/Patient App/profile/emergency_contacts_view.dart';
+import 'package:medlink/views/Patient App/sos_history/patient_sos_history_view.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/models/user_model.dart';
 
@@ -163,6 +164,19 @@ class _ProfileViewState extends State<ProfileView> {
                                     MaterialPageRoute(
                                         builder: (context) =>
                                             const EmergencyContactsView())),
+                              ),
+                              _buildDivider(),
+                              _buildPremiumTile(
+                                context,
+                                icon: Icons.history_rounded,
+                                color: AppColors.primary,
+                                title: "Emergency history",
+                                subtitle: "Past SOS requests & ambulance trips",
+                                onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (context) =>
+                                            const PatientSosHistoryView())),
                               ),
                               _buildDivider(),
                               _buildPremiumTile(

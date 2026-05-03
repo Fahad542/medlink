@@ -15,6 +15,7 @@ import 'package:medlink/views/Patient%20App/auth/patient_info.dart';
 import 'package:medlink/widgets/emergency_contact.dart';
 import 'package:medlink/widgets/Setting_up_account.dart';
 import 'package:medlink/views/main/main_screen.dart';
+import 'package:medlink/utils/apple_sign_in_visibility.dart';
 import 'package:medlink/utils/utils.dart';
 
 // Doctor steps
@@ -166,7 +167,8 @@ class _RegisterViewState extends State<RegisterView> {
       onGoogleSignIn: authViewModel.role != UserRole.driver
           ? () => authViewModel.signInWithGoogleForRegistration(context)
           : null,
-      onAppleSignIn: authViewModel.role != UserRole.driver
+      onAppleSignIn: authViewModel.role != UserRole.driver &&
+              showAppleSignInButton
           ? () => authViewModel.signInWithAppleForRegistration(context)
           : null,
     );
