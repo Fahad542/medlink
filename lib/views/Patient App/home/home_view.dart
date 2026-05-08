@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/Patient%20App/emergency/emergency_viewmodel.dart';
 import 'package:medlink/views/Patient%20App/emergency/destination_picker_view.dart';
@@ -117,7 +118,7 @@ class _HomeViewState extends State<HomeView> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
-                                  "Good Morning,",
+                                  context.tr('home.greeting.morning'),
                                   style: GoogleFonts.inter(
                                     // Ensure Inter
                                     color: Colors.grey[600],
@@ -129,7 +130,8 @@ class _HomeViewState extends State<HomeView> {
                                 Row(
                                   children: [
                                     Text(
-                                      userVM.patient?.name ?? "Guest",
+                                      userVM.patient?.name ??
+                                          context.tr('home.guest'),
                                       style: GoogleFonts.inter(
                                         // Ensure Inter
                                         color: const Color(
@@ -160,7 +162,7 @@ class _HomeViewState extends State<HomeView> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Tooltip(
-                              message: 'Notifications',
+                              message: context.tr('home.tooltip.notifications'),
                               child: GestureDetector(
                                 onTap: () async {
                                   await Navigator.push(
@@ -240,7 +242,7 @@ class _HomeViewState extends State<HomeView> {
                             ),
                             const SizedBox(width: 10),
                             Tooltip(
-                              message: 'Messages',
+                              message: context.tr('home.tooltip.messages'),
                               child: GestureDetector(
                                 onTap: () async {
                                   await Navigator.push(
@@ -358,7 +360,7 @@ class _HomeViewState extends State<HomeView> {
                                       builder: (_) => const DoctorListView()),
                                 ),
                                 decoration: InputDecoration(
-                                  hintText: "Search doctor, specialty...",
+                                  hintText: context.tr('home.search.hint'),
                                   hintStyle: GoogleFonts.inter(
                                       color: Colors.grey[400], fontSize: 14),
                                   filled: true,
@@ -419,7 +421,7 @@ class _HomeViewState extends State<HomeView> {
                                             CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            "Medical Emergency?",
+                                            context.tr('home.sos.title'),
                                             style: GoogleFonts.inter(
                                                 fontWeight: FontWeight.w600,
                                                 fontSize:
@@ -428,7 +430,7 @@ class _HomeViewState extends State<HomeView> {
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
-                                            "Long Press button for ambulance",
+                                            context.tr('home.sos.subtitle'),
                                             style: GoogleFonts.inter(
                                               color: Colors.grey,
                                               fontSize:
@@ -459,8 +461,8 @@ class _HomeViewState extends State<HomeView> {
                           if (homeVM.categoriesLoading ||
                               homeVM.categories.isNotEmpty) ...[
                             _buildSectionHeader(
-                              "Doctors Categories",
-                              actionLabel: "See all",
+                              context.tr('home.section.categories'),
+                              actionLabel: context.tr('common.see_all'),
                               onAction: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -475,8 +477,8 @@ class _HomeViewState extends State<HomeView> {
                           // 4. Upcoming Appointment
                           if (appointmentVM.isLoading) ...[
                             _buildSectionHeader(
-                              "Upcoming Appointment",
-                              actionLabel: "See all",
+                              context.tr('home.section.upcoming'),
+                              actionLabel: context.tr('common.see_all'),
                               onAction: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -493,8 +495,8 @@ class _HomeViewState extends State<HomeView> {
                               a.status == AppointmentStatus.confirmed ||
                               a.status == AppointmentStatus.rescheduled)) ...[
                             _buildSectionHeader(
-                              "Upcoming Appointment",
-                              actionLabel: "See all",
+                              context.tr('home.section.upcoming'),
+                              actionLabel: context.tr('common.see_all'),
                               onAction: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -520,7 +522,8 @@ class _HomeViewState extends State<HomeView> {
                           ],
 
                           // 4. Services Grid
-                          _buildSectionHeader("Quick Services"),
+                          _buildSectionHeader(
+                              context.tr('home.section.quick_services')),
                           const SizedBox(height: 15),
                           _buildQuickActionsGrid(context),
 
@@ -555,7 +558,7 @@ class _HomeViewState extends State<HomeView> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                "Activate SOS",
+                context.tr('home.sos.dialog.title'),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   fontSize: 22,
@@ -566,7 +569,7 @@ class _HomeViewState extends State<HomeView> {
               ),
               const SizedBox(height: 10),
               Text(
-                "Choose how you want to send emergency request.",
+                context.tr('home.sos.dialog.body'),
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
                   color: Colors.grey[600],
@@ -593,7 +596,7 @@ class _HomeViewState extends State<HomeView> {
                         ),
                       ),
                       child: Text(
-                        "Activate SOS",
+                        context.tr('home.sos.dialog.activate'),
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           fontWeight: FontWeight.w400,
@@ -613,7 +616,7 @@ class _HomeViewState extends State<HomeView> {
                         ),
                       ),
                       child: Text(
-                        "Cancel",
+                        context.tr('common.cancel'),
                         style: GoogleFonts.inter(
                           fontSize: 14,
                           fontWeight: FontWeight.w400,
@@ -639,7 +642,7 @@ class _HomeViewState extends State<HomeView> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   child: Text(
-                    "Select Pickup & Destination",
+                    context.tr('home.sos.dialog.pickup_destination'),
                     textAlign: TextAlign.center,
                     style: GoogleFonts.inter(
                       fontSize: 14,
@@ -668,13 +671,14 @@ class _HomeViewState extends State<HomeView> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 8),
-              const Text(
-                "Remove Widget?",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              Text(
+                context.tr('home.sos.remove.title'),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 18),
               ),
               const SizedBox(height: 8),
               Text(
-                "This will hide the SOS shortcut from your home screen.",
+                context.tr('home.sos.remove.body'),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey[600], fontSize: 14),
               ),
@@ -690,7 +694,7 @@ class _HomeViewState extends State<HomeView> {
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         foregroundColor: Colors.grey.shade700,
                       ),
-                      child: const Text("Cancel"),
+                      child: Text(context.tr('common.cancel')),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -709,7 +713,7 @@ class _HomeViewState extends State<HomeView> {
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         elevation: 0,
                       ),
-                      child: const Text("Remove"),
+                      child: Text(context.tr('common.remove')),
                     ),
                   ),
                 ],
@@ -757,12 +761,14 @@ class _HomeViewState extends State<HomeView> {
 
   Widget _buildHomeUpcomingAppointmentCard(AppointmentModel appointment) {
     final doctor = appointment.doctor;
+    // Doctor name & specialty are server-provided values and are intentionally
+    // NOT localised — only the placeholder fallbacks are.
     final doctorName = doctor?.name.isNotEmpty == true
         ? doctor!.name
-        : "Unknown Doctor";
+        : context.tr('common.unknown_doctor');
     final specialty = doctor?.specialty.isNotEmpty == true
         ? doctor!.specialty
-        : "General";
+        : context.tr('common.general');
     final profileImage = doctor?.imageUrl ?? '';
     final dateLabel =
         DateFormat('MMM d, h:mm a').format(appointment.displayScheduledStart);
@@ -808,7 +814,7 @@ class _HomeViewState extends State<HomeView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '${appointment.type.shortLabel} Consultation',
+                      '${appointment.type.shortLabel} ${context.tr('home.appointment.consultation_suffix')}',
                       style: GoogleFonts.inter(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
@@ -892,24 +898,36 @@ class _HomeViewState extends State<HomeView> {
       ),
       itemBuilder: (context, index) {
         final action = actions[index];
-
+        // Route on stable [type] (locale-independent) instead of the
+        // displayed title to keep navigation working in any language.
         return InkWell(
           onTap: () {
-            if (action.title.contains("Doctors")) {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const DoctorListView()));
-            } else if (action.title.contains("Prescription")) {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const PrescriptionView()));
-            } else if (action.title.contains("Consult")) {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const ChatListView()));
-            } else if (action.title.contains("Health")) {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) =>
-                          const HealthHubView(showBackButton: true)));
+            switch (action.type) {
+              case 'doctors':
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const DoctorListView()));
+                break;
+              case 'prescription':
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const PrescriptionView()));
+                break;
+              case 'consult':
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const ChatListView()));
+                break;
+              case 'health':
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            const HealthHubView(showBackButton: true)));
+                break;
             }
           },
           borderRadius: BorderRadius.circular(24),
@@ -947,9 +965,9 @@ class _HomeViewState extends State<HomeView> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Title
+                    // Title (action.title holds a translation key)
                     Text(
-                      action.title,
+                      context.tr(action.title),
                       style: GoogleFonts.inter(
                         fontWeight: FontWeight.w600,
                         fontSize: 16,
@@ -960,9 +978,9 @@ class _HomeViewState extends State<HomeView> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    // Subtitle
+                    // Subtitle (action.subtitle holds a translation key)
                     Text(
-                      action.subtitle,
+                      context.tr(action.subtitle),
                       style: GoogleFonts.inter(
                         fontWeight: FontWeight.w500,
                         fontSize: 12, // Smaller
@@ -1114,12 +1132,13 @@ class _HomeViewState extends State<HomeView> {
             itemCount: banners.length,
             itemBuilder: (context, index) {
               final banner = banners[index];
+              // banner.{title,subtitle,buttonText} hold translation keys.
               return _buildBannerCard(
                 context,
                 type: banner.type,
-                title: banner.title,
-                subtitle: banner.subtitle,
-                buttonText: banner.buttonText,
+                title: context.tr(banner.title),
+                subtitle: context.tr(banner.subtitle),
+                buttonText: context.tr(banner.buttonText),
                 colors: banner.colors,
                 shadowColor: banner.shadowColor,
                 image: banner.image,

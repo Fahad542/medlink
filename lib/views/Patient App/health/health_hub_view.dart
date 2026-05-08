@@ -12,6 +12,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 
 import 'package:medlink/utils/utils.dart';
 import 'package:medlink/models/health_article_model.dart';
@@ -100,7 +101,9 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: CustomAppBar(
-          title: widget.isDoctor ? "My Articles" : "Health Hub",
+          title: widget.isDoctor
+              ? context.tr('patient.health_hub.my_articles')
+              : context.tr('patient.health_hub.title'),
           automaticallyImplyLeading: widget.showBackButton),
       body: Column(
         children: [
@@ -109,7 +112,7 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
             padding: EdgeInsets.fromLTRB(20, 20, 20, widget.isDoctor ? 4 : 20),
             child: TextField(
               decoration: InputDecoration(
-                hintText: "Search articles, guides, symptoms...",
+                hintText: context.tr('patient.health_hub.search_hint'),
                 hintStyle: GoogleFonts.inter(color: Colors.grey, fontWeight: FontWeight.normal, fontSize: 13),
                 prefixIcon: Icon(Icons.search, color: Colors.grey[400]),
                 filled: true,
@@ -171,11 +174,11 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
                 overlayColor: MaterialStateProperty.all(Colors.transparent),
                 padding: const EdgeInsets.all(4),
                 isScrollable: false, // Changed to false to fit all 4
-                tabs: const [
-                  Tab(text: "Articles"),
-                  Tab(text: "Emerg."),
-                  Tab(text: "First Aid"),
-                  Tab(text: "Videos"),
+                tabs: [
+                  Tab(text: context.tr('patient.health_hub.tab.articles')),
+                  Tab(text: context.tr('patient.health_hub.tab.emergency')),
+                  Tab(text: context.tr('patient.health_hub.tab.first_aid')),
+                  Tab(text: context.tr('patient.health_hub.tab.videos')),
                 ],
               ),
             ),
@@ -212,7 +215,7 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
               backgroundColor: AppColors.primary,
               icon: const Icon(Icons.add_rounded, color: Colors.white),
               label: Text(
-                "Upload Article",
+                context.tr('patient.health_hub.upload_article'),
                 style: GoogleFonts.inter(
                     color: Colors.white, fontWeight: FontWeight.normal),
               ),
@@ -241,16 +244,16 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Article'),
-        content: const Text('Are you sure you want to delete this article?'),
+        title: Text(context.tr('patient.health_hub.delete_article')),
+        content: Text(context.tr('patient.health_hub.delete_article_confirm')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.tr('common.cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: Text(context.tr('common.delete')),
           ),
         ],
       ),
@@ -261,7 +264,9 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
     if (!mounted) return;
     Utils.toastMessage(
       context,
-      success ? 'Article deleted successfully' : 'Failed to delete article',
+      success
+          ? context.tr('patient.health_hub.article_deleted')
+          : context.tr('patient.health_hub.article_delete_failed'),
       isError: !success,
     );
   }
@@ -295,7 +300,7 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
                   height: MediaQuery.of(context).size.height * 0.4,
                   child: Center(
                     child: Text(
-                      "No health articles available.",
+                      context.tr('patient.health_hub.no_articles'),
                       style: GoogleFonts.inter(color: Colors.grey),
                     ),
                   ),
@@ -437,7 +442,7 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
                                               ),
                                               const SizedBox(width: 10),
                                               Text(
-                                                'Edit Article',
+                                                context.tr('patient.health_hub.edit_article'),
                                                 style: GoogleFonts.inter(
                                                   fontWeight: FontWeight.w600,
                                                   fontSize: 13,
@@ -467,7 +472,7 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
                                               ),
                                               const SizedBox(width: 10),
                                               Text(
-                                                'Delete Article',
+                                                context.tr('patient.health_hub.delete_article'),
                                                 style: GoogleFonts.inter(
                                                   fontWeight: FontWeight.w600,
                                                   fontSize: 13,
@@ -483,7 +488,10 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
                                     GestureDetector(
                                       onTap: () {
                                         Share.share(
-                                            "${article.title}\n\nCheck out this article on Medlink!");
+                                            context.tr(
+                                              'patient.health_hub.share_article_message',
+                                              params: {'title': article.title},
+                                            ));
                                       },
                                       child: const Icon(Icons.share_outlined,
                                           color: Colors.black87, size: 20),
@@ -555,7 +563,10 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
                               Align(
                                 alignment: Alignment.centerLeft,
                                 child: Text(
-                                  'Posted by ${article.postedByLabel}',
+                                  context.tr(
+                                    'patient.health_hub.posted_by',
+                                    params: {'name': article.postedByLabel},
+                                  ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.inter(
@@ -591,7 +602,7 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
                 parent: BouncingScrollPhysics()),
             children: [
               Text(
-                "Emergency Contacts",
+                context.tr('patient.health_hub.emergency_contacts'),
                 style: GoogleFonts.inter(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -601,9 +612,9 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
               if (viewModel.isLoadingEmergencyNumbers)
                 const EmergencyContactsShimmer()
               else if (viewModel.emergencyNumbers.isEmpty)
-                const NoDataWidget(
-                  title: "No emergency numbers",
-                  subTitle: "Check back later",
+                NoDataWidget(
+                  title: context.tr('patient.health_hub.no_emergency_numbers'),
+                  subTitle: context.tr('patient.health_hub.check_back_later'),
                 )
               else
                 Container(
@@ -641,7 +652,7 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
                                           color: Colors.black),
                                     ),
                                     Text(
-                                      "Tap to call",
+                                      context.tr('patient.health_hub.tap_to_call'),
                                       style: GoogleFonts.inter(
                                           color: Colors.grey[500],
                                           fontSize: 11),
@@ -688,7 +699,7 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
                 ),
               const SizedBox(height: 20),
               Text(
-                "Quick Instructions",
+                context.tr('patient.health_hub.quick_instructions'),
                 style: GoogleFonts.inter(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -698,9 +709,9 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
               if (viewModel.isLoadingQuickInstructions)
                 const QuickInstructionShimmer()
               else if (viewModel.quickInstructions.isEmpty)
-                const NoDataWidget(
-                  title: "No quick instructions",
-                  subTitle: "Check back later",
+                NoDataWidget(
+                  title: context.tr('patient.health_hub.no_quick_instructions'),
+                  subTitle: context.tr('patient.health_hub.check_back_later'),
                 )
               else
                 ...viewModel.quickInstructions.map((instruction) =>
@@ -773,7 +784,7 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
                   height: MediaQuery.of(context).size.height * 0.4,
                   child: Center(
                     child: Text(
-                      "No first aid topics available.",
+                      context.tr('patient.health_hub.no_first_aid_topics'),
                       style: GoogleFonts.inter(color: Colors.grey),
                     ),
                   ),
@@ -908,11 +919,10 @@ class _HealthHubViewState extends State<HealthHubView> with SingleTickerProvider
               children: [
                 SizedBox(
                   height: MediaQuery.of(context).size.height * 0.4,
-                  child: const Center(
+                  child: Center(
                     child: NoDataWidget(
-                      title: "No Videos Found",
-                      subTitle:
-                          "We're currently preparing informational videos for you. Please check back later!",
+                      title: context.tr('patient.health_hub.no_videos_found'),
+                      subTitle: context.tr('patient.health_hub.no_videos_subtitle'),
                     ),
                   ),
                 ),
@@ -1213,7 +1223,13 @@ class _ReelVideoCardState extends State<_ReelVideoCard> {
             child: GestureDetector(
               onTap: () {
                 Share.share(
-                  'Check out this health video: ${widget.video.title}\n${widget.video.videoUrl}',
+                  context.tr(
+                    'patient.health_hub.share_video_message',
+                    params: {
+                      'title': widget.video.title,
+                      'url': widget.video.videoUrl,
+                    },
+                  ),
                 );
               },
               child: const Icon(Icons.share_rounded, color: Colors.white, size: 26),

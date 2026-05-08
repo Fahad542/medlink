@@ -8,6 +8,7 @@ import 'package:medlink/widgets/consultation_type_badge.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:provider/provider.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 
 class SubmitConsultationView extends StatelessWidget {
   final AppointmentModel appointment;
@@ -29,8 +30,8 @@ class SubmitConsultationView extends StatelessWidget {
             backgroundColor: const Color(0xFFF9FAFB),
             appBar: CustomAppBar(
                 title: isCompleted
-                    ? "Consultation Details"
-                    : "Medical Consultation"),
+                    ? context.tr('doctor.consultation.details_title')
+                    : context.tr('doctor.consultation.title')),
             body: viewModel.isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : SingleChildScrollView(
@@ -38,28 +39,28 @@ class SubmitConsultationView extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildPatientHeader(),
+                        _buildPatientHeader(context),
                         const SizedBox(height: 24),
-                        _buildSectionTitle("Diagnosis"),
-                        _buildTextField("Chief Complaint",
+                        _buildSectionTitle(context.tr('prescription.section.diagnosis')),
+                        _buildTextField(context, context.tr('doctor.consultation.chief_complaint'),
                             viewModel.chiefComplaintController,
                             maxLines: 2, readOnly: isCompleted),
                         const SizedBox(height: 16),
-                        _buildTextField("Provisional Diagnosis",
+                        _buildTextField(context, context.tr('doctor.consultation.provisional_diagnosis'),
                             viewModel.provisionalDiagnosisController,
                             maxLines: 2, readOnly: isCompleted),
                         const SizedBox(height: 32),
-                        _buildSectionTitle("Vitals"),
+                        _buildSectionTitle(context.tr('prescription.section.vitals')),
                         Row(
                           children: [
                             Expanded(
-                                child: _buildTextField("BP Systolic",
+                                child: _buildTextField(context, context.tr('doctor.consultation.bp_systolic'),
                                     viewModel.bpSystolicController,
                                     keyboardType: TextInputType.number,
                                     readOnly: isCompleted)),
                             const SizedBox(width: 12),
                             Expanded(
-                                child: _buildTextField("BP Diastolic",
+                                child: _buildTextField(context, context.tr('doctor.consultation.bp_diastolic'),
                                     viewModel.bpDiastolicController,
                                     keyboardType: TextInputType.number,
                                     readOnly: isCompleted)),
@@ -70,12 +71,13 @@ class SubmitConsultationView extends StatelessWidget {
                           children: [
                             Expanded(
                                 child: _buildTextField(
-                                    "Pulse (bpm)", viewModel.pulseController,
+                                    context,
+                                    context.tr('doctor.consultation.pulse'), viewModel.pulseController,
                                     keyboardType: TextInputType.number,
                                     readOnly: isCompleted)),
                             const SizedBox(width: 12),
                             Expanded(
-                                child: _buildTextField("Temp (°C)",
+                                child: _buildTextField(context, context.tr('doctor.consultation.temp'),
                                     viewModel.temperatureController,
                                     keyboardType: TextInputType.number,
                                     readOnly: isCompleted)),
@@ -84,16 +86,16 @@ class SubmitConsultationView extends StatelessWidget {
                         const SizedBox(height: 32),
                         if (!isCompleted ||
                             viewModel.medications.isNotEmpty) ...[
-                          _buildSectionTitle("Medications"),
-                          if (!isCompleted) _buildMedicationForm(viewModel),
+                          _buildSectionTitle(context.tr('prescription.section.medications')),
+                          if (!isCompleted) _buildMedicationForm(context, viewModel),
                           const SizedBox(height: 12),
                           _buildMedicationList(viewModel,
                               readOnly: isCompleted),
                           const SizedBox(height: 32),
                         ],
                         if (!isCompleted || viewModel.tests.isNotEmpty) ...[
-                          _buildSectionTitle("Recommended Tests"),
-                          if (!isCompleted) _buildTestForm(viewModel),
+                          _buildSectionTitle(context.tr('prescription.section.tests_required')),
+                          if (!isCompleted) _buildTestForm(context, viewModel),
                           const SizedBox(height: 12),
                           _buildTestList(viewModel, readOnly: isCompleted),
                         ],
@@ -116,7 +118,7 @@ class SubmitConsultationView extends StatelessWidget {
                     ),
                     child: SafeArea(
                       child: CustomButton(
-                        text: "Submit Consultation",
+                        text: context.tr('doctor.consultation.submit'),
                         onPressed: () async {
                           bool success = await viewModel.submitConsultation(
                               context, appointment.id);
@@ -144,7 +146,7 @@ class SubmitConsultationView extends StatelessWidget {
     );
   }
 
-  Widget _buildPatientHeader() {
+  Widget _buildPatientHeader(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -170,11 +172,17 @@ class SubmitConsultationView extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(appointment.user?.name ?? "Patient",
+              Text(appointment.user?.name ?? context.tr('common.patient'),
                   style: GoogleFonts.inter(
                       fontWeight: FontWeight.bold, fontSize: 16)),
               Text(
-                  "Age: ${appointment.user?.age ?? '--'} • ${appointment.user?.gender ?? '--'}",
+                  context.tr(
+                    'doctor.consultation.age_gender',
+                    params: {
+                      'age': appointment.user?.age ?? '--',
+                      'gender': appointment.user?.gender ?? '--',
+                    },
+                  ),
                   style:
                       GoogleFonts.inter(color: Colors.grey[600], fontSize: 13)),
               const SizedBox(height: 8),
@@ -197,7 +205,7 @@ class SubmitConsultationView extends StatelessWidget {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller,
+  Widget _buildTextField(BuildContext context, String label, TextEditingController controller,
       {int maxLines = 1, TextInputType? keyboardType, bool readOnly = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,7 +241,7 @@ class SubmitConsultationView extends StatelessWidget {
     );
   }
 
-  Widget _buildMedicationForm(SubmitConsultationViewModel viewModel) {
+  Widget _buildMedicationForm(BuildContext context, SubmitConsultationViewModel viewModel) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -242,16 +250,17 @@ class SubmitConsultationView extends StatelessWidget {
           border: Border.all(color: Colors.grey.shade200)),
       child: Column(
         children: [
-          _buildTextField("Medicine Name", viewModel.medicineNameController),
+          _buildTextField(context, context.tr('doctor.consultation.medicine_name'), viewModel.medicineNameController),
           const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
-                  child: _buildTextField("Dosage", viewModel.dosageController)),
+                  child: _buildTextField(context, context.tr('doctor.consultation.dosage'), viewModel.dosageController)),
               const SizedBox(width: 12),
               Expanded(
                   child: _buildTextField(
-                      "Frequency", viewModel.frequencyController)),
+                      context,
+                      context.tr('doctor.consultation.frequency'), viewModel.frequencyController)),
             ],
           ),
           const SizedBox(height: 16),
@@ -260,7 +269,7 @@ class SubmitConsultationView extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: viewModel.addMedication,
               icon: const Icon(Icons.add, size: 18),
-              label: const Text("Add Medication"),
+              label: Text(context.tr('doctor.consultation.add_medication')),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.primary,
                 side: const BorderSide(color: AppColors.primary),
@@ -294,7 +303,7 @@ class SubmitConsultationView extends StatelessWidget {
     );
   }
 
-  Widget _buildTestForm(SubmitConsultationViewModel viewModel) {
+  Widget _buildTestForm(BuildContext context, SubmitConsultationViewModel viewModel) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -303,16 +312,16 @@ class SubmitConsultationView extends StatelessWidget {
           border: Border.all(color: Colors.grey.shade200)),
       child: Column(
         children: [
-          _buildTextField("Test Name", viewModel.testNameController),
+          _buildTextField(context, context.tr('doctor.consultation.test_name'), viewModel.testNameController),
           const SizedBox(height: 12),
-          _buildTextField("Notes", viewModel.testNotesController),
+          _buildTextField(context, context.tr('doctor.consultation.notes'), viewModel.testNotesController),
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: viewModel.addTest,
               icon: const Icon(Icons.add, size: 18),
-              label: const Text("Add Test"),
+              label: Text(context.tr('doctor.consultation.add_test')),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.primary,
                 side: const BorderSide(color: AppColors.primary),

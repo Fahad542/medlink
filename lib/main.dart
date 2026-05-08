@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:medlink/core/theme/app_theme.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 import 'package:medlink/views/Register/register_viewmodel.dart';
 import 'package:medlink/views/Patient%20App/home/home_viewmodel.dart';
 import 'package:medlink/views/Patient%20App/emergency/emergency_viewmodel.dart';
@@ -23,7 +25,6 @@ import 'package:medlink/views/call/call_view_model.dart';
 // import 'package:medlink/views/home/home_view.dart'; // Removed direct access
 
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:medlink/services/notification_services.dart';
@@ -45,9 +46,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Native Stripe
-  Stripe.publishableKey = "pk_test_51P7UReRxY2qSg84v2E6fRL72R7U9E8R2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2q"; // Generic Placeholder, actual key managed on backend session
+  Stripe.publishableKey =
+      "pk_test_51P7UReRxY2qSg84v2E6fRL72R7U9E8R2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2qR2q"; // Generic Placeholder, actual key managed on backend session
   await Stripe.instance.applySettings();
 
   try {
@@ -62,7 +64,8 @@ void main() async {
     await notificationServices.configureForegroundPresentation();
     notificationServices.firebaseInit();
     notificationServices.listenForTokenWhenReady((token) {
-      NotificationServices.logFcmTokenToConsole(token, source: 'onTokenRefresh');
+      NotificationServices.logFcmTokenToConsole(token,
+          source: 'onTokenRefresh');
       FcmTokenBackendSync.trySyncToBackend(token);
     });
     final fcm = await notificationServices.getDeviceToken();
@@ -78,8 +81,26 @@ void main() async {
   runApp(const MedLinkApp());
 }
 
-class MedLinkApp extends StatelessWidget {
+class MedLinkApp extends StatefulWidget {
   const MedLinkApp({super.key});
+
+  static void setLocale(BuildContext context, Locale locale) {
+    context.findAncestorStateOfType<_MedLinkAppState>()?.setLocale(locale);
+  }
+
+  @override
+  State<MedLinkApp> createState() => _MedLinkAppState();
+}
+
+class _MedLinkAppState extends State<MedLinkApp> {
+  Locale _locale = AppLocalizations.defaultLocale;
+
+  void setLocale(Locale locale) {
+    if (_locale == locale) return;
+    setState(() {
+      _locale = locale;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -114,6 +135,18 @@ class MedLinkApp extends StatelessWidget {
         title: 'MedLink Africa',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
+        locale: _locale,
+        localeListResolutionCallback: (deviceLocales, supportedLocales) {
+          if (_locale != AppLocalizations.defaultLocale) return _locale;
+          return AppLocalizations.resolve(deviceLocales);
+        },
+        supportedLocales: AppLocalizations.supportedLocales,
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
         builder: (context, child) => GlobalCallBannerHost(
           child: child ?? const SizedBox.shrink(),
         ),

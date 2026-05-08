@@ -8,6 +8,7 @@ import 'package:medlink/widgets/no_data_widget.dart';
 import 'package:medlink/views/Patient App/sos_history/patient_sos_history_detail_view.dart';
 import 'package:medlink/views/Patient App/sos_history/patient_sos_history_list_shimmer.dart';
 import 'package:medlink/views/Patient App/sos_history/patient_sos_history_viewmodel.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 
 class PatientSosHistoryView extends StatefulWidget {
   const PatientSosHistoryView({super.key});
@@ -46,7 +47,7 @@ class _PatientSosHistoryViewState extends State<PatientSosHistoryView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9),
-      appBar: const CustomAppBar(title: 'Emergency history'),
+      appBar: CustomAppBar(title: context.tr('patient.sos_history.title')),
       body: RefreshIndicator(
         onRefresh: _vm.refresh,
         child: _buildBody(),
@@ -76,7 +77,7 @@ class _PatientSosHistoryViewState extends State<PatientSosHistoryView> {
             child: TextButton.icon(
               onPressed: _vm.refresh,
               icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Try again'),
+              label: Text(context.tr('common.try_again')),
             ),
           ),
         ],
@@ -85,12 +86,11 @@ class _PatientSosHistoryViewState extends State<PatientSosHistoryView> {
     if (_vm.items.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        children: const [
-          SizedBox(height: 40),
+        children: [
+          const SizedBox(height: 40),
           NoDataWidget(
-            title: 'No emergency requests yet',
-            subTitle:
-                'When you use SOS, your requests and ambulance trips will appear here.',
+            title: context.tr('patient.sos_history.empty.title'),
+            subTitle: context.tr('patient.sos_history.empty.subtitle'),
             imageHeight: 160,
           ),
         ],
@@ -117,7 +117,9 @@ class _PatientSosHistoryViewState extends State<PatientSosHistoryView> {
         String tripLine = '';
         if (tripMap != null) {
           tripLine = [
-            tripMap['tripNumber']?.toString() ?? 'Trip #${tripMap['id']}',
+            tripMap['tripNumber']?.toString() ??
+                context.tr('patient.sos_history.trip_number',
+                    params: {'id': tripMap['id']}),
             tripMap['status']?.toString() ?? '',
             TripFareFormat.display(tripMap),
           ].where((e) => e.trim().isNotEmpty && e != '—').join(' · ');
@@ -165,7 +167,8 @@ class _PatientSosHistoryViewState extends State<PatientSosHistoryView> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  'SOS #${item['id']}',
+                                  context.tr('patient.sos_history.sos_number',
+                                      params: {'id': item['id']}),
                                   style: GoogleFonts.inter(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w700,
@@ -243,7 +246,7 @@ class _PatientSosHistoryViewState extends State<PatientSosHistoryView> {
                           ] else ...[
                             const SizedBox(height: 6),
                             Text(
-                              'No trip linked',
+                              context.tr('patient.sos_history.no_trip_linked'),
                               style: GoogleFonts.inter(
                                 fontSize: 12,
                                 color: const Color(0xFF94A3B8),

@@ -3,6 +3,7 @@ import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/views/doctor/doctor_main_screen.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/widgets/custom_button.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 
 class VerificationPendingView extends StatelessWidget {
   const VerificationPendingView({super.key});
@@ -11,7 +12,7 @@ class VerificationPendingView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: const CustomAppBar(title: "Status"),
+      appBar: CustomAppBar(title: context.tr('doctor.verification.status')),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(32.0),
@@ -32,7 +33,7 @@ class VerificationPendingView extends StatelessWidget {
               ),
               const SizedBox(height: 32),
               Text(
-                "Verification Pending",
+                context.tr('doctor.verification.pending_title'),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
@@ -41,7 +42,7 @@ class VerificationPendingView extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                "Thank you for submitting your documents. Our team is currently reviewing your profile. This process usually takes 24-48 hours.",
+                context.tr('doctor.verification.pending_body'),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: AppColors.textSecondary,
@@ -58,11 +59,11 @@ class VerificationPendingView extends StatelessWidget {
                     MaterialPageRoute(builder: (_) => const DoctorMainScreen()),
                   );
                 },
-                child: const Text("Refresh Status"),
+                child: Text(context.tr('doctor.verification.refresh')),
               ),
               const SizedBox(height: 16),
               CustomButton(
-                text: "Back to Home",
+                text: context.tr('doctor.verification.back_home'),
                // isOutlined: true,
                 onPressed: () {
 

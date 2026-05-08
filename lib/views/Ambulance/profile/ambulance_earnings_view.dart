@@ -6,6 +6,7 @@ import 'package:medlink/views/Ambulance/profile/ambulance_earnings_view_model.da
 import 'package:medlink/views/Ambulance/profile/ambulance_payout_settings_view.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 
 class AmbulanceEarningsView extends StatefulWidget {
   const AmbulanceEarningsView({super.key});
@@ -165,7 +166,7 @@ class _AmbulanceEarningsViewState extends State<AmbulanceEarningsView> {
         children: [
           const SizedBox(height: 10),
           Text(
-            "Total Balance",
+            context.tr('ambulance.earnings.total_balance'),
             style: GoogleFonts.inter(
               color: Colors.white70,
               fontSize: 13,
@@ -184,11 +185,11 @@ class _AmbulanceEarningsViewState extends State<AmbulanceEarningsView> {
           const SizedBox(height: 24),
           Row(
             children: [
-              _buildStatCard("Today", "\$${viewModel.earningsTodayFormatted}",
+              _buildStatCard(context.tr('ambulance.earnings.today'), "\$${viewModel.earningsTodayFormatted}",
                   Icons.today_rounded),
               const SizedBox(width: 12),
               _buildStatCard(
-                  "This Week",
+                  context.tr('ambulance.earnings.this_week'),
                   "\$${viewModel.earningsThisWeekFormatted}",
                   Icons.calendar_view_week_rounded),
             ],
@@ -255,7 +256,7 @@ class _AmbulanceEarningsViewState extends State<AmbulanceEarningsView> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "Recent Transactions",
+                context.tr('ambulance.earnings.recent_transactions'),
                 style: GoogleFonts.inter(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -312,7 +313,7 @@ class _AmbulanceEarningsViewState extends State<AmbulanceEarningsView> {
                   padding: const EdgeInsets.only(bottom: 20),
                   child: Center(
                     child: Text(
-                      "No transactions yet",
+                      context.tr('ambulance.earnings.no_transactions'),
                       style: GoogleFonts.inter(
                         color: Colors.grey[500],
                         fontSize: 14,
@@ -345,11 +346,12 @@ class _AmbulanceEarningsViewState extends State<AmbulanceEarningsView> {
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             leading: const Icon(Icons.account_balance_outlined),
-            title: const Text('Payout account'),
+            title: Text(context.tr('ambulance.earnings.payout_account')),
             subtitle: Text(
               viewModel.maskedPayoutCard != null
-                  ? 'Card ${viewModel.maskedPayoutCard}'
-                  : 'No payout account saved',
+                  ? context.tr('doctor.earnings.card_label',
+                      params: {'card': viewModel.maskedPayoutCard!})
+                  : context.tr('doctor.earnings.no_payout_card'),
             ),
             trailing: const Icon(Icons.chevron_right),
             onTap: () async {
@@ -372,7 +374,7 @@ class _AmbulanceEarningsViewState extends State<AmbulanceEarningsView> {
                 foregroundColor: Colors.white,
               ),
               icon: const Icon(Icons.account_balance_wallet_outlined),
-              label: const Text('Request Withdrawal'),
+              label: Text(context.tr('doctor.earnings.request_withdrawal')),
             ),
           ),
           const SizedBox(height: 20),
@@ -387,13 +389,12 @@ class _AmbulanceEarningsViewState extends State<AmbulanceEarningsView> {
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: const Text('Add payout account first'),
-          content: const Text(
-              'Please add payout information before requesting withdrawal.'),
+          title: Text(context.tr('doctor.earnings.add_payout_account_first')),
+          content: Text(context.tr('doctor.earnings.add_payout_account_message')),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Later'),
+              child: Text(context.tr('doctor.earnings.later')),
             ),
             ElevatedButton(
               onPressed: () {
@@ -407,7 +408,7 @@ class _AmbulanceEarningsViewState extends State<AmbulanceEarningsView> {
                   viewModel.fetchEarningsSummary();
                 });
               },
-              child: const Text('Add Account'),
+              child: Text(context.tr('doctor.earnings.add_account')),
             ),
           ],
         ),
@@ -441,14 +442,18 @@ class _AmbulanceEarningsViewState extends State<AmbulanceEarningsView> {
                   controller: amountController,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Amount'),
+                  decoration: InputDecoration(
+                      labelText: context.tr('doctor.earnings.amount')),
                 ),
                 if (viewModel.availableToWithdraw > 0 &&
                     viewModel.availableToWithdraw < viewModel.totalBalance)
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
-                      'Pending requests: you can request up to ${viewModel.availableToWithdrawFormatted} until approved.',
+                      context.tr('doctor.earnings.pending_notice',
+                          params: {
+                            'amount': viewModel.availableToWithdrawFormatted
+                          }),
                       style: TextStyle(fontSize: 12, color: Colors.grey[700]),
                     ),
                   ),
@@ -456,7 +461,8 @@ class _AmbulanceEarningsViewState extends State<AmbulanceEarningsView> {
                 TextField(
                   controller: noteController,
                   decoration:
-                      const InputDecoration(labelText: 'Note (optional)'),
+                      InputDecoration(
+                          labelText: context.tr('doctor.earnings.note_optional')),
                 ),
                 const SizedBox(height: 14),
                 SizedBox(
@@ -469,8 +475,9 @@ class _AmbulanceEarningsViewState extends State<AmbulanceEarningsView> {
                                 double.tryParse(amountController.text.trim());
                             if (amount == null || amount <= 0) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text('Enter valid amount')),
+                                SnackBar(
+                                    content: Text(context
+                                        .tr('doctor.earnings.enter_valid_amount'))),
                               );
                               return;
                             }
@@ -486,8 +493,8 @@ class _AmbulanceEarningsViewState extends State<AmbulanceEarningsView> {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(ok
-                                    ? 'Withdrawal request submitted'
-                                    : 'Failed to submit withdrawal request'),
+                                    ? context.tr('doctor.earnings.request_submitted')
+                                    : context.tr('doctor.earnings.request_failed')),
                               ),
                             );
                           },
@@ -497,7 +504,7 @@ class _AmbulanceEarningsViewState extends State<AmbulanceEarningsView> {
                             width: 18,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Submit Request'),
+                        : Text(context.tr('doctor.earnings.submit_request')),
                   ),
                 )
               ],
@@ -521,21 +528,24 @@ class _AmbulanceEarningsViewState extends State<AmbulanceEarningsView> {
     final today = DateTime(now.year, now.month, now.day);
     final dateOnly = DateTime(dt.year, dt.month, dt.day);
     if (dateOnly == today) {
-      return 'Today, ${DateFormat('h:mm a').format(dt)}';
+      return context.tr('common.today_time',
+          params: {'time': DateFormat('h:mm a').format(dt)});
     }
     return DateFormat('MMM d, h:mm a').format(dt);
   }
 
   Widget _buildTransactionItem(Map<String, dynamic> transaction) {
     final tripNumber = transaction['tripNumber']?.toString() ??
-        'Trip #${transaction['id'] ?? '—'}';
+        context.tr('patient.sos_history.trip_number',
+            params: {'id': transaction['id'] ?? '—'});
     final amount = transaction['amount'];
     final amountNum =
         amount is num ? amount : (num.tryParse(amount?.toString() ?? '0') ?? 0);
     final amountStr = amountNum == amountNum.roundToDouble()
         ? amountNum.toInt().toString()
         : amountNum.toStringAsFixed(2);
-    final source = transaction['source']?.toString() ?? 'Wallet';
+    final source =
+        transaction['source']?.toString() ?? context.tr('ambulance.earnings.wallet');
     final dateStr = _formatTransactionDate(transaction['transactionDate']);
 
     return Container(

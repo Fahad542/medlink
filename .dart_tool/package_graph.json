@@ -15,6 +15,7 @@
         "firebase_messaging",
         "flutter",
         "flutter_local_notifications",
+        "flutter_localizations",
         "flutter_stripe",
         "geocoding",
         "geolocator",
@@ -415,6 +416,15 @@
       "name": "cupertino_icons",
       "version": "1.0.8",
       "dependencies": []
+    },
+    {
+      "name": "flutter_localizations",
+      "version": "0.0.0",
+      "dependencies": [
+        "flutter",
+        "intl",
+        "path"
+      ]
     },
     {
       "name": "flutter",

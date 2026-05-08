@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:medlink/widgets/custom_network_image.dart';
 import 'package:intl/intl.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 
 /// Owns [DoctorChatHistoryViewModel] lifecycle (socket subscription + dispose).
 class DoctorChatListScreen extends StatefulWidget {
@@ -120,7 +121,7 @@ class _DoctorChatListViewState extends State<DoctorChatListView> {
       builder: (context, viewModel, child) {
         return Scaffold(
           backgroundColor: const Color(0xFFF1F5F9),
-          appBar: const CustomAppBar(title: "Patient Messages"),
+          appBar: CustomAppBar(title: context.tr('doctor.chat_list.title')),
           body: viewModel.isLoading
               ? _buildShimmerLoading()
               : viewModel.chatHistory?.data == null ||
@@ -186,7 +187,7 @@ class _DoctorChatListViewState extends State<DoctorChatListView> {
                                   ),
                               ],
                             ),
-                            title: Text(chat.patient?.fullName ?? "Unknown Patient",
+                            title: Text(chat.patient?.fullName ?? context.tr('doctor.chat_list.unknown_patient'),
                                 style: GoogleFonts.inter(
                                   fontWeight: isUnread
                                       ? FontWeight.bold
@@ -195,7 +196,7 @@ class _DoctorChatListViewState extends State<DoctorChatListView> {
                                   color: AppColors.textPrimary,
                                 )),
                             subtitle: Text(
-                              chat.lastMessage ?? "No messages yet",
+                              chat.lastMessage ?? context.tr('doctor.chat_list.no_messages'),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.inter(
@@ -317,7 +318,7 @@ class _DoctorChatListViewState extends State<DoctorChatListView> {
       if (difference == 0) {
         return DateFormat.jm().format(dateTime); // e.g. 10:30 AM
       } else if (difference == 1) {
-        return "Yesterday";
+        return context.tr('doctor.chat_list.yesterday');
       } else if (difference < 7) {
         return DateFormat.EEEE().format(dateTime); // e.g. Monday
       } else {
@@ -399,7 +400,7 @@ class _DoctorChatListViewState extends State<DoctorChatListView> {
           ),
           const SizedBox(height: 16),
           Text(
-            "No messages yet",
+            context.tr('doctor.chat_list.no_messages'),
             style: GoogleFonts.inter(
               fontSize: 18,
               fontWeight: FontWeight.w600,
@@ -408,7 +409,7 @@ class _DoctorChatListViewState extends State<DoctorChatListView> {
           ),
           const SizedBox(height: 8),
           Text(
-            "Your conversations with patients will appear here",
+            context.tr('doctor.chat_list.empty_subtitle'),
             style: GoogleFonts.inter(
               fontSize: 14,
               color: Colors.grey[400],

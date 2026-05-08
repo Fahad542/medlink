@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 import 'package:medlink/data/network/api_services.dart';
 
 import 'package:medlink/views/doctor/Doctor%20profile/doctor_personal_info_view.dart';
@@ -48,6 +49,7 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
   Widget build(BuildContext context) {
     final userVM = Provider.of<UserViewModel>(context);
     final doctor = userVM.doctor;
+    final l10n = AppLocalizations.of(context);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F3F7),
@@ -81,22 +83,26 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
                           final stats = snapshot.data ??
                               _DoctorStats(
                                 experienceYears:
-                                    int.tryParse(doctor?.experience ?? '0') ?? 0,
+                                    int.tryParse(doctor?.experience ?? '0') ??
+                                        0,
                                 patientsCount: doctor?.totalPatients ?? 0,
                               );
                           return Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
                               _StatItem(
-                                label: "Experience",
+                                label:
+                                    l10n.tr('doctor.settings.stats.experience'),
                                 value: stats.experienceYears.toString(),
-                                unit: "yrs",
+                                unit: l10n
+                                    .tr('doctor.settings.stats.years_short'),
                               ),
                               _VerticalDivider(),
                               _StatItem(
-                                label: "Patients",
+                                label:
+                                    l10n.tr('doctor.settings.stats.patients'),
                                 value: _formatCount(stats.patientsCount),
-                                unit: "Lives",
+                                unit: l10n.tr('doctor.settings.stats.lives'),
                               ),
                             ],
                           );
@@ -110,7 +116,7 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
                         Padding(
                           padding: const EdgeInsets.only(left: 12, bottom: 8),
                           child: Text(
-                            "ACCOUNT SETTINGS",
+                            l10n.tr('doctor.settings.section.account_settings'),
                             style: GoogleFonts.inter(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
@@ -137,8 +143,10 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
                                 context,
                                 icon: Icons.person_outline_rounded,
                                 color: AppColors.primary,
-                                title: "Personal Info",
-                                subtitle: "Bio, Specialization & Fee",
+                                title: l10n.tr(
+                                    'doctor.settings.tile.personal_info.title'),
+                                subtitle: l10n.tr(
+                                    'doctor.settings.tile.personal_info.subtitle'),
                                 onTap: () => Navigator.push(
                                     context,
                                     MaterialPageRoute(
@@ -150,8 +158,10 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
                                 context,
                                 icon: Icons.schedule_rounded,
                                 color: AppColors.primary,
-                                title: "Availability",
-                                subtitle: "Working Hours & Days",
+                                title: l10n.tr(
+                                    'doctor.settings.tile.availability.title'),
+                                subtitle: l10n.tr(
+                                    'doctor.settings.tile.availability.subtitle'),
                                 onTap: () {
                                   _showAvailabilityBottomSheet(context);
                                 },
@@ -161,8 +171,10 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
                                 context,
                                 icon: Icons.language,
                                 color: AppColors.primary,
-                                title: "Localization",
-                                subtitle: "Language & Region",
+                                title: l10n.tr(
+                                    'doctor.settings.tile.localization.title'),
+                                subtitle: l10n.tr(
+                                    'doctor.settings.tile.localization.subtitle'),
                                 onTap: () {},
                               ),
                               _buildDivider(),
@@ -170,8 +182,10 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
                                 context,
                                 icon: Icons.account_balance_wallet_outlined,
                                 color: AppColors.primary,
-                                title: "Consultation Earnings",
-                                subtitle: "Check Balance & Transactions",
+                                title: l10n
+                                    .tr('doctor.settings.tile.earnings.title'),
+                                subtitle: l10n.tr(
+                                    'doctor.settings.tile.earnings.subtitle'),
                                 onTap: () => Navigator.push(
                                     context,
                                     MaterialPageRoute(
@@ -188,7 +202,7 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        "ACCOUNT ACTIONS",
+                        l10n.tr('doctor.settings.section.account_actions'),
                         style: GoogleFonts.inter(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -216,8 +230,9 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
                             context,
                             icon: Icons.logout_rounded,
                             color: AppColors.primary,
-                            title: "Log Out",
-                            subtitle: "Sign out of your account",
+                            title: l10n.tr('doctor.settings.tile.logout.title'),
+                            subtitle:
+                                l10n.tr('doctor.settings.tile.logout.subtitle'),
                             onTap: () {
                               showDialog(
                                 context: context,
@@ -241,16 +256,18 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
                             context,
                             icon: Icons.person_remove_rounded,
                             color: AppColors.primary,
-                            title: "Delete Account",
-                            subtitle: "Permanently remove account",
+                            title: l10n.tr('doctor.settings.tile.delete.title'),
+                            subtitle:
+                                l10n.tr('doctor.settings.tile.delete.subtitle'),
                             onTap: () {
                               showDialog(
                                 context: context,
                                 builder: (context) => LogoutConfirmationDialog(
-                                  title: "Delete Account",
-                                  message:
-                                      "Are you sure you want to delete your account?",
-                                  confirmText: "Delete",
+                                  title: l10n
+                                      .tr('doctor.settings.tile.delete.title'),
+                                  message: l10n.tr(
+                                      'doctor.settings.dialog.delete.message'),
+                                  confirmText: l10n.tr('common.delete'),
                                   confirmColor: AppColors.primary,
                                   onConfirm: () {
                                     Navigator.pop(context);
@@ -275,6 +292,7 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
   }
 
   Future<void> _showAvailabilityBottomSheet(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
     final personalInfoVMPre =
         Provider.of<DoctorPersonalInfoViewModel>(context, listen: false);
     await personalInfoVMPre.refreshConsultationFeeRulesFromBackend();
@@ -283,8 +301,8 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
     final doctor = userVM.doctor;
 
     double duration = (doctor?.sessionDuration ?? 30).toDouble();
-    Set<String> selectedDays = doctor?.availabilityDays.toSet() ??
-        {"Mon", "Tue", "Wed", "Thu", "Fri"};
+    Set<String> selectedDays =
+        doctor?.availabilityDays.toSet() ?? {"Mon", "Tue", "Wed", "Thu", "Fri"};
     List<String> allDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
     TimeOfDay _parseTime(String timeStr) {
@@ -325,41 +343,50 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
             ),
             child: Column(
               children: [
-                _buildSheetHeader(context, "Availability & Rates",
-                    "Configure your practice details"),
+                _buildSheetHeader(
+                  context,
+                  l10n.tr('doctor.settings.sheet.title'),
+                  l10n.tr('doctor.settings.sheet.subtitle'),
+                ),
                 Expanded(
                   child: ListView(
                     padding: const EdgeInsets.all(20),
                     children: [
-                      _buildFeeCard(feeController),
+                      _buildFeeCard(context, feeController),
                       const SizedBox(height: 24),
-                      _buildSectionHeader("Active Days"),
+                      _buildSectionHeader(
+                          context, l10n.tr('doctor.settings.active_days')),
                       const SizedBox(height: 12),
                       _buildDaysRow(allDays, selectedDays, setState),
                       const SizedBox(height: 24),
-                      _buildSectionHeader("Practice Hours"),
+                      _buildSectionHeader(
+                          context, l10n.tr('doctor.settings.practice_hours')),
                       const SizedBox(height: 12),
                       _buildHoursCard(context, startTime, endTime, setState,
-                          (BuildContext ctx, bool isStart, StateSetter st) async {
+                          (BuildContext ctx, bool isStart,
+                              StateSetter st) async {
                         final TimeOfDay? picked = await showTimePicker(
                           context: ctx,
                           initialTime: isStart ? startTime : endTime,
                         );
                         if (picked != null) {
                           st(() {
-                            if (isStart) startTime = picked;
-                            else endTime = picked;
+                            if (isStart)
+                              startTime = picked;
+                            else
+                              endTime = picked;
                           });
                         }
                       }),
                       const SizedBox(height: 24),
-                      _buildSectionHeader("Session Duration"),
+                      _buildSectionHeader(
+                          context, l10n.tr('doctor.settings.session_duration')),
                       const SizedBox(height: 12),
                       _buildDurationCard(duration,
                           (val) => setState(() => duration = val), context),
                       const SizedBox(height: 32),
                       CustomButton(
-                        text: "Save Changes",
+                        text: l10n.tr('doctor.settings.save_changes'),
                         onPressed: () async {
                           final feeRaw =
                               feeController.text.trim().replaceAll(',', '');
@@ -401,7 +428,8 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-                color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2)),
           ),
           const SizedBox(height: 16),
           Row(
@@ -414,7 +442,8 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
                       style: GoogleFonts.inter(
                           fontSize: 18, fontWeight: FontWeight.bold)),
                   Text(sub,
-                      style: GoogleFonts.inter(fontSize: 12, color: Colors.grey)),
+                      style:
+                          GoogleFonts.inter(fontSize: 12, color: Colors.grey)),
                 ],
               ),
               IconButton(
@@ -427,7 +456,8 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
     );
   }
 
-  Widget _buildFeeCard(TextEditingController controller) {
+  Widget _buildFeeCard(BuildContext context, TextEditingController controller) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -437,9 +467,11 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Consultation Fee",
+          Text(l10n.tr('doctor.settings.consultation_fee'),
               style: GoogleFonts.inter(
-                  fontWeight: FontWeight.w600, fontSize: 13, color: Colors.grey)),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: Colors.grey)),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -453,7 +485,8 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
                 child: TextField(
                   controller: controller,
                   keyboardType: TextInputType.number,
-                  style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 22),
+                  style: GoogleFonts.inter(
+                      fontWeight: FontWeight.bold, fontSize: 22),
                   decoration: const InputDecoration(
                       border: InputBorder.none, hintText: "0.00"),
                 ),
@@ -482,7 +515,8 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
               decoration: BoxDecoration(
                 color: isSelected ? AppColors.primary : Colors.white,
                 shape: BoxShape.circle,
-                border: isSelected ? null : Border.all(color: Colors.grey[200]!),
+                border:
+                    isSelected ? null : Border.all(color: Colors.grey[200]!),
               ),
               child: Center(
                 child: Text(day.substring(0, 1),
@@ -499,6 +533,7 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
 
   Widget _buildHoursCard(BuildContext context, TimeOfDay start, TimeOfDay end,
       StateSetter setState, Function selectTime) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -506,11 +541,17 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
       child: Row(
         children: [
           Expanded(
-              child: _buildTimeItem(context, "Start Time", start,
+              child: _buildTimeItem(
+                  context,
+                  l10n.tr('doctor.settings.start_time'),
+                  start,
                   () => selectTime(context, true, setState))),
           const SizedBox(width: 12),
           Expanded(
-              child: _buildTimeItem(context, "End Time", end,
+              child: _buildTimeItem(
+                  context,
+                  l10n.tr('doctor.settings.end_time'),
+                  end,
                   () => selectTime(context, false, setState))),
         ],
       ),
@@ -549,6 +590,7 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
 
   Widget _buildDurationCard(
       double duration, Function(double) onChanged, BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -558,8 +600,11 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("Slot Duration", style: GoogleFonts.inter(fontSize: 13)),
-              Text("${duration.toInt()} mins",
+              Text(l10n.tr('doctor.settings.slot_duration'),
+                  style: GoogleFonts.inter(fontSize: 13)),
+              Text(
+                  l10n.tr('doctor.settings.minutes_short',
+                      params: {'minutes': duration.toInt().toString()}),
                   style: GoogleFonts.inter(
                       color: AppColors.primary, fontWeight: FontWeight.bold)),
             ],
@@ -570,11 +615,11 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
             children: [15, 30, 45, 60].map((mins) {
               final isSelected = duration.toInt() == mins;
               return ChoiceChip(
-                label: Text("${mins}m", style: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: isSelected ? Colors.white : Colors.black87
-                )),
+                label: Text("${mins}m",
+                    style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isSelected ? Colors.white : Colors.black87)),
                 selected: isSelected,
                 selectedColor: AppColors.primary,
                 backgroundColor: Colors.white,
@@ -583,7 +628,9 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
                 },
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(color: isSelected ? Colors.transparent : Colors.grey[200]!),
+                  side: BorderSide(
+                      color:
+                          isSelected ? Colors.transparent : Colors.grey[200]!),
                 ),
                 showCheckmark: false,
               );
@@ -594,13 +641,16 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
+  Widget _buildSectionHeader(BuildContext context, String title) {
     return Text(title,
         style: GoogleFonts.inter(
-            fontSize: 13, fontWeight: FontWeight.bold, color: Colors.grey[800]));
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey[800]));
   }
 
   Widget _buildHeader(DoctorModel? doctor) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       height: 300,
       width: double.infinity,
@@ -673,7 +723,7 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      doctor?.name ?? "Doctor Name",
+                      doctor?.name ?? l10n.tr('doctor.settings.name_fallback'),
                       style: GoogleFonts.inter(
                         fontSize: 21,
                         fontWeight: FontWeight.bold,
@@ -692,7 +742,8 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
                             Border.all(color: Colors.white.withOpacity(0.1)),
                       ),
                       child: Text(
-                        doctor?.specialty ?? "Specialist",
+                        doctor?.specialty ??
+                            l10n.tr('doctor.settings.specialty_fallback'),
                         style: GoogleFonts.inter(
                           fontSize: 13,
                           color: Colors.white,
@@ -854,7 +905,9 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
   String _formatCount(int count) {
     if (count >= 1000) {
       final value = count / 1000.0;
-      return value >= 10 ? "${value.toStringAsFixed(0)}k" : "${value.toStringAsFixed(1)}k";
+      return value >= 10
+          ? "${value.toStringAsFixed(0)}k"
+          : "${value.toStringAsFixed(1)}k";
     }
     return count.toString();
   }

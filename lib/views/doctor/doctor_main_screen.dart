@@ -15,6 +15,7 @@ import 'package:medlink/services/appointment_socket_service.dart';
 import 'package:medlink/core/constants/app_url.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
+import 'package:medlink/core/localization/app_localizations.dart';
 
 class DoctorMainScreen extends StatefulWidget {
   const DoctorMainScreen({super.key});
@@ -172,10 +173,10 @@ class _DoctorMainScreenState extends State<DoctorMainScreen>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _buildNavItem(0, Icons.grid_view_rounded, Icons.grid_view_outlined, "Home"),
-                  _buildNavItem(1, Icons.calendar_month_rounded, Icons.calendar_today_outlined, "Appointments"),
-                  _buildNavItem(2, Icons.people_alt_rounded, Icons.people_alt_outlined, "Patients"),
-                  _buildNavItem(3, Icons.person_rounded, Icons.person_outline, "Profile"),
+                  _buildNavItem(0, Icons.grid_view_rounded, Icons.grid_view_outlined, context.tr('doctor.main.nav.home')),
+                  _buildNavItem(1, Icons.calendar_month_rounded, Icons.calendar_today_outlined, context.tr('doctor.main.nav.appointments')),
+                  _buildNavItem(2, Icons.people_alt_rounded, Icons.people_alt_outlined, context.tr('doctor.main.nav.patients')),
+                  _buildNavItem(3, Icons.person_rounded, Icons.person_outline, context.tr('doctor.main.nav.profile')),
                 ],
               ),
             ),
@@ -189,7 +190,8 @@ class _DoctorMainScreenState extends State<DoctorMainScreen>
     final callerId = data['callerId'] is int
         ? data['callerId'] as int
         : int.tryParse(data['callerId']?.toString() ?? '');
-    final callerName = data['callerName']?.toString() ?? 'Incoming call';
+    final callerName =
+        data['callerName']?.toString() ?? context.tr('doctor.main.incoming_call');
     return Material(
       color: Colors.transparent,
       child: Container(
@@ -204,7 +206,8 @@ class _DoctorMainScreenState extends State<DoctorMainScreen>
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                '$callerName is calling — Join video call',
+                context.tr('doctor.main.calling_banner',
+                    params: {'name': callerName}),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(color: Colors.white, fontSize: 13),
@@ -223,7 +226,8 @@ class _DoctorMainScreenState extends State<DoctorMainScreen>
                       channelName: payload['channelName'],
                       token: payload['token'],
                       appId: payload['appId'],
-                      recipientName: payload['callerName'] ?? 'Patient',
+                      recipientName: payload['callerName'] ??
+                          context.tr('common.patient'),
                       recipientPhoto: payload['callerPhoto'],
                       isCaller: false,
                       recipientId: callerId,
@@ -232,7 +236,7 @@ class _DoctorMainScreenState extends State<DoctorMainScreen>
                 );
                 CallViewModel.isIncomingCallActive = false;
               },
-              child: const Text('Join'),
+              child: Text(context.tr('doctor.main.join')),
             ),
             IconButton(
               onPressed: () => setState(() => _pendingIncomingCall = null),

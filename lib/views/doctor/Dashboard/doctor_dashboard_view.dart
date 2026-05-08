@@ -18,6 +18,7 @@ import 'package:medlink/widgets/custom_network_image.dart';
 import 'package:medlink/widgets/appointment_list_shimmer.dart';
 import 'package:medlink/views/doctor/past_appointments_view.dart';
 import 'package:medlink/views/doctor/past_appointments_view_model.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 // ... other imports ...
 
 class DoctorDashboardView extends StatelessWidget {
@@ -147,7 +148,7 @@ class DoctorDashboardView extends StatelessWidget {
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          "Welcome back,",
+                                          context.tr('doctor.dashboard.welcome_back'),
                                           style: GoogleFonts.inter(
                                             color:
                                                 Colors.white.withOpacity(0.8),
@@ -155,7 +156,7 @@ class DoctorDashboardView extends StatelessWidget {
                                           ),
                                         ),
                                         Text(
-                                          doctor?.name ?? "Dr. Alex Smith",
+                                          doctor?.name ?? context.tr('doctor.dashboard.fallback_name'),
                                           style: GoogleFonts.inter(
                                               color: Colors.white,
                                               fontSize: 20,
@@ -168,7 +169,7 @@ class DoctorDashboardView extends StatelessWidget {
                                 Row(
                                   children: [
                                     Tooltip(
-                                      message: 'Notifications',
+                                      message: context.tr('home.tooltip.notifications'),
                                       child: GestureDetector(
                                         onTap: () async {
                                           await Navigator.push(
@@ -251,7 +252,7 @@ class DoctorDashboardView extends StatelessWidget {
                                     const SizedBox(width: 10),
                                     // Messages — same pattern as patient home (`msg.png` + dot)
                                     Tooltip(
-                                      message: 'Patient messages',
+                                      message: context.tr('doctor.dashboard.patient_messages'),
                                       child: GestureDetector(
                                       onTap: () async {
                                         await Navigator.push(
@@ -365,7 +366,7 @@ class DoctorDashboardView extends StatelessWidget {
                                           ),
                                           const SizedBox(width: 8),
                                           Text(
-                                            "Total Earnings",
+                                            context.tr('doctor.dashboard.total_earnings'),
                                             style: GoogleFonts.inter(
                                                 color: Colors.white70,
                                                 fontSize: 14,
@@ -383,7 +384,7 @@ class DoctorDashboardView extends StatelessWidget {
                                         ),
                                         child: Row(
                                           children: [
-                                            Text("This Month",
+                                            Text(context.tr('doctor.dashboard.this_month'),
                                                 style: GoogleFonts.inter(
                                                     color: Colors.white,
                                                     fontSize: 11,
@@ -441,7 +442,7 @@ class DoctorDashboardView extends StatelessWidget {
                               children: [
                                 Expanded(
                                   child: _buildStatCard(
-                                    "Patients",
+                                    context.tr('doctor.main.nav.patients'),
                                     "${viewModel.patientsCount}",
                                     Icons.people_alt_outlined,
                                     Colors.blue,
@@ -451,7 +452,7 @@ class DoctorDashboardView extends StatelessWidget {
                                 const SizedBox(width: 16),
                                 Expanded(
                                   child: _buildStatCard(
-                                    "Appointments",
+                                    context.tr('doctor.main.nav.appointments'),
                                     "${viewModel.appointmentsCount}",
                                     Icons.calendar_today_outlined,
                                     Colors.orange,
@@ -506,8 +507,8 @@ class DoctorDashboardView extends StatelessWidget {
                                     children: [
                                       Text(
                                         viewModel.isOnline
-                                            ? "Available for Booking"
-                                            : "Currently Unavailable",
+                                            ? context.tr('doctor.dashboard.available_booking')
+                                            : context.tr('doctor.dashboard.currently_unavailable'),
                                         style: GoogleFonts.inter(
                                             fontWeight: FontWeight.bold,
                                             fontSize: 14,
@@ -516,8 +517,8 @@ class DoctorDashboardView extends StatelessWidget {
                                       const SizedBox(height: 2),
                                       Text(
                                         viewModel.isOnline
-                                            ? "You are visible to patients"
-                                            : "You are hidden from search",
+                                            ? context.tr('doctor.dashboard.visible_to_patients')
+                                            : context.tr('doctor.dashboard.hidden_from_search'),
                                         style: GoogleFonts.inter(
                                           fontSize: 12,
                                           color: Colors.grey[500],
@@ -563,7 +564,7 @@ class DoctorDashboardView extends StatelessWidget {
                                             MainAxisAlignment.spaceBetween,
                                         children: [
                                           Text(
-                                            "Upcoming Appointments",
+                                            context.tr('doctor.dashboard.upcoming_appointments'),
                                             style: GoogleFonts.inter(
                                               fontSize: 18,
                                               fontWeight: FontWeight.bold,
@@ -572,7 +573,7 @@ class DoctorDashboardView extends StatelessWidget {
                                           ),
                                           TextButton(
                                             onPressed: null,
-                                            child: const Text("See All",
+                                            child: Text(context.tr('common.see_all'),
                                                 style: TextStyle(
                                                     color: Colors.grey)),
                                           ),
@@ -603,7 +604,7 @@ class DoctorDashboardView extends StatelessWidget {
                                           MainAxisAlignment.spaceBetween,
                                       children: [
                                         Text(
-                                          "Upcoming Appointments",
+                                          context.tr('doctor.dashboard.upcoming_appointments'),
                                           style: GoogleFonts.inter(
                                             fontSize: 18,
                                             fontWeight: FontWeight.bold,
@@ -621,7 +622,7 @@ class DoctorDashboardView extends StatelessWidget {
                                                               true)),
                                             );
                                           },
-                                          child: const Text("See All"),
+                                          child: Text(context.tr('common.see_all')),
                                         ),
                                       ],
                                     ),
@@ -652,7 +653,7 @@ class DoctorDashboardView extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 20),
                             child: Column(
                               children: [
-                                _buildSectionHeader("Quick Actions"),
+                                _buildSectionHeader(context.tr('doctor.patient.quick_actions')),
                                 const SizedBox(height: 16),
                                 _buildQuickActionsGrid(context),
                               ],
@@ -739,16 +740,16 @@ class DoctorDashboardView extends StatelessWidget {
   Widget _buildQuickActionsGrid(BuildContext context) {
     final actions = [
       {
-        "title": "Patients",
-        "subtitle": "Manage records",
+        "title": context.tr('doctor.main.nav.patients'),
+        "subtitle": context.tr('doctor.dashboard.manage_records'),
         "image": "assets/doctors.png",
         "color": const Color(0xFFCEE9F1),
         "onTap": () => Navigator.push(
             context, MaterialPageRoute(builder: (_) => const DoctorPatientsView(showBackButton: true))),
       },
       {
-        "title": "History",
-        "subtitle": "Patient records",
+        "title": context.tr('doctor.dashboard.history'),
+        "subtitle": context.tr('doctor.dashboard.patient_records'),
         "image": "assets/pres.png",
         "color": const Color(0xFFDCE8C0),
         "onTap": () => Navigator.push(
@@ -756,12 +757,14 @@ class DoctorDashboardView extends StatelessWidget {
             MaterialPageRoute(
                 builder: (_) => ChangeNotifierProvider(
                       create: (_) => PastAppointmentsViewModel(),
-                      child: const PastAppointmentsView(title: "History"),
+                      child: PastAppointmentsView(
+                        title: context.tr('doctor.dashboard.history'),
+                      ),
                     ))),
       },
       {
-        "title": "Articles",
-        "subtitle": "Health Hub",
+        "title": context.tr('patient.health_hub.tab.articles'),
+        "subtitle": context.tr('patient.health_hub.title'),
         "image": "assets/tip.png",
         "color": const Color(0xFFFFEBD2),
         "onTap": () => Navigator.push(
@@ -771,8 +774,8 @@ class DoctorDashboardView extends StatelessWidget {
                     showBackButton: true, isDoctor: true))),
       },
       {
-        "title": "Appointments",
-        "subtitle": "Schedule",
+        "title": context.tr('doctor.main.nav.appointments'),
+        "subtitle": context.tr('doctor.dashboard.schedule'),
         "image": "assets/consult.png",
         "color": const Color(0xFFE3DBF2),
         "onTap": () => Navigator.push(

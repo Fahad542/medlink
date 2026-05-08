@@ -7,6 +7,7 @@ import 'package:medlink/views/Patient%20App/emergency/emergency_viewmodel.dart';
 import 'package:medlink/utils/utils.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:provider/provider.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 
 /// Cash vs card for completed ambulance trip — can be shown from any route (e.g. [MainScreen] socket listener).
 Future<void> showTripPaymentPromptDialog(
@@ -25,7 +26,7 @@ Future<void> showTripPaymentPromptDialog(
         if (!context.mounted) return;
         Utils.toastMessage(
           context,
-          'Recorded. Please pay your driver in cash.',
+          context.tr('patient.trip_payment.cash_recorded'),
         );
       }
     } catch (e) {
@@ -52,7 +53,7 @@ Future<void> showTripPaymentPromptDialog(
     barrierDismissible: true,
     builder: (ctx) => AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Text('Trip completed'),
+      title: Text(context.tr('patient.trip_payment.trip_completed')),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -62,28 +63,33 @@ Future<void> showTripPaymentPromptDialog(
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
-                'Driver: ${event.driverName}',
+                context.tr('patient.trip_payment.driver_label',
+                    params: {'name': event.driverName}),
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
           Text(
             event.fareAmount > 0
-                ? 'Pay ${event.fareAmount.toStringAsFixed(0)} ${event.currency}'
-                : 'How would you like to settle?',
+                ? context.tr('patient.trip_payment.pay_amount',
+                    params: {
+                      'amount': event.fareAmount.toStringAsFixed(0),
+                      'currency': event.currency
+                    })
+                : context.tr('patient.trip_payment.how_settle'),
           ),
         ],
       ),
       actions: [
         TextButton(
           onPressed: cashFlow,
-          child: const Text('Cash'),
+          child: Text(context.tr('patient.trip_payment.cash')),
         ),
         FilledButton(
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.primary,
           ),
           onPressed: cardFlow,
-          child: const Text('Pay online'),
+          child: Text(context.tr('patient.trip_payment.pay_online')),
         ),
       ],
     ),
@@ -148,7 +154,7 @@ class _TripStripePaymentPageState extends State<TripStripePaymentPage> {
       final res = await ApiServices().patientTripPaymentCheckout(widget.tripId);
       final stripePayload = _extractStripePayload(res);
       if (stripePayload == null) {
-        throw Exception('Invalid checkout response');
+        throw Exception(context.tr('patient.trip_payment.invalid_checkout'));
       }
       await _presentStripe(stripePayload);
       if (mounted) Navigator.of(context).pop(true);
@@ -174,7 +180,7 @@ class _TripStripePaymentPageState extends State<TripStripePaymentPage> {
     final publishableKeyRaw = paymentData['publishableKey'];
 
     if (pIntentRaw == null || eKeyRaw == null || customerRaw == null) {
-      throw Exception('Missing Stripe payment data');
+      throw Exception(context.tr('patient.trip_payment.missing_stripe_data'));
     }
 
     final paymentIntent = pIntentRaw.toString();
@@ -210,10 +216,10 @@ class _TripStripePaymentPageState extends State<TripStripePaymentPage> {
       if (mounted) {
         await emergencyVM.markTripPaymentSettled(widget.tripId);
         if (!mounted) return;
-        Utils.toastMessage(context, 'Payment successful. Thank you!');
+        Utils.toastMessage(context, context.tr('patient.trip_payment.success'));
       }
     } else {
-      throw Exception('Could not confirm payment');
+      throw Exception(context.tr('patient.trip_payment.confirm_failed'));
     }
   }
 
@@ -230,33 +236,34 @@ class _TripStripePaymentPageState extends State<TripStripePaymentPage> {
       appBar: AppBar(
         title: Text(
           widget.titleSuffix != null
-              ? 'Pay ${widget.titleSuffix}'
-              : 'Trip payment',
+              ? context.tr('patient.trip_payment.pay_suffix',
+                  params: {'suffix': widget.titleSuffix!})
+              : context.tr('patient.trip_payment.page_title'),
         ),
       ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: _busy
-              ? const Column(
+              ? Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('Preparing secure payment…'),
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 16),
+                    Text(context.tr('patient.trip_payment.preparing')),
                   ],
                 )
               : Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      _error ?? 'Something went wrong',
+                      _error ?? context.tr('common.something_went_wrong'),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
                     FilledButton(
                       onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('Close'),
+                      child: Text(context.tr('common.close')),
                     ),
                   ],
                 ),

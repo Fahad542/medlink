@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/views/doctor/payout_settings_view.dart';
 import 'package:intl/intl.dart';
@@ -29,14 +30,17 @@ class DoctorEarningsView extends StatelessWidget {
                 ),
               ],
             ),
-            bottomNavigationBar: _buildPayoutAndWithdrawActions(context, viewModel),
+            bottomNavigationBar:
+                _buildPayoutAndWithdrawActions(context, viewModel),
           );
         },
       ),
     );
   }
 
-  Widget _buildPremiumHeader(BuildContext context, DoctorEarningsViewModel viewModel) {
+  Widget _buildPremiumHeader(
+      BuildContext context, DoctorEarningsViewModel viewModel) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -77,12 +81,13 @@ class DoctorEarningsView extends StatelessWidget {
                             color: Colors.white.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 16),
+                          child: const Icon(Icons.arrow_back_ios_new_rounded,
+                              color: Colors.white, size: 16),
                         ),
                       ),
                     ),
                   Text(
-                    "Total Balance",
+                    l10n.tr('doctor.earnings.total_balance'),
                     style: GoogleFonts.inter(
                       color: Colors.white70,
                       fontSize: 13,
@@ -176,7 +181,8 @@ class DoctorEarningsView extends StatelessWidget {
   }
 
   Widget _buildBody(BuildContext context, DoctorEarningsViewModel viewModel) {
-    final (startDateLabel, endDateLabel) = _deriveDateRange(viewModel);
+    final l10n = AppLocalizations.of(context);
+    final (startDateLabel, endDateLabel) = _deriveDateRange(context, viewModel);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
@@ -202,7 +208,7 @@ class DoctorEarningsView extends StatelessWidget {
                   Expanded(
                     child: _dateKpiItem(
                       context,
-                      "Start Date",
+                      l10n.tr('doctor.earnings.start_date'),
                       startDateLabel,
                       onTap: () => _openCalendarPicker(context),
                     ),
@@ -211,7 +217,7 @@ class DoctorEarningsView extends StatelessWidget {
                   Expanded(
                     child: _dateKpiItem(
                       context,
-                      "End Date",
+                      l10n.tr('doctor.earnings.end_date'),
                       endDateLabel,
                       onTap: () => _openCalendarPicker(context),
                     ),
@@ -225,7 +231,7 @@ class DoctorEarningsView extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
               Text(
-                "Recent Transactions",
+                l10n.tr('doctor.earnings.recent_transactions'),
                 style: GoogleFonts.inter(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -249,11 +255,13 @@ class DoctorEarningsView extends StatelessWidget {
                           physics: const AlwaysScrollableScrollPhysics(
                             parent: ClampingScrollPhysics(),
                           ),
-                          children: const [
-                            SizedBox(height: 24),
+                          children: [
+                            const SizedBox(height: 24),
                             NoDataWidget(
-                              title: "No Transactions",
-                              subTitle: "You have no recent transactions yet.",
+                              title: l10n
+                                  .tr('doctor.earnings.no_transactions_title'),
+                              subTitle: l10n.tr(
+                                  'doctor.earnings.no_transactions_subtitle'),
                               imageHeight: 120,
                             ),
                           ],
@@ -414,7 +422,8 @@ class DoctorEarningsView extends StatelessWidget {
     );
   }
 
-  (String, String) _deriveDateRange(DoctorEarningsViewModel viewModel) {
+  (String, String) _deriveDateRange(
+      BuildContext context, DoctorEarningsViewModel viewModel) {
     DateTime? minDate;
     DateTime? maxDate;
     for (final tx in viewModel.recentTransactions) {
@@ -430,13 +439,19 @@ class DoctorEarningsView extends StatelessWidget {
       if (minDate == null || dt.isBefore(minDate)) minDate = dt;
       if (maxDate == null || dt.isAfter(maxDate)) maxDate = dt;
     }
-    if (minDate == null || maxDate == null) return ("N/A", "N/A");
+    if (minDate == null || maxDate == null) {
+      return (
+        AppLocalizations.of(context).tr('common.na'),
+        AppLocalizations.of(context).tr('common.na')
+      );
+    }
     final fmt = DateFormat('MMM d, yyyy');
     return (fmt.format(minDate.toLocal()), fmt.format(maxDate.toLocal()));
   }
 
   Widget _buildPayoutAndWithdrawActions(
       BuildContext context, DoctorEarningsViewModel viewModel) {
+    final l10n = AppLocalizations.of(context);
     return SafeArea(
       top: false,
       child: Container(
@@ -456,7 +471,7 @@ class DoctorEarningsView extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "Payout Settings",
+              l10n.tr('doctor.earnings.payout_settings'),
               style: GoogleFonts.inter(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -488,14 +503,18 @@ class DoctorEarningsView extends StatelessWidget {
                   child: const Icon(Icons.account_balance_rounded,
                       color: AppColors.primary, size: 20),
                 ),
-                title: Text("Bank Account",
+                title: Text(l10n.tr('doctor.earnings.bank_account'),
                     style: GoogleFonts.inter(
                         fontWeight: FontWeight.w600, fontSize: 14)),
                 subtitle: Text(
                   viewModel.maskedPayoutCard != null
-                      ? "Card ${viewModel.maskedPayoutCard}"
-                      : "No payout card saved",
-                  style: GoogleFonts.inter(color: Colors.grey[500], fontSize: 12),
+                      ? l10n.tr(
+                          'doctor.earnings.card_label',
+                          params: {'card': viewModel.maskedPayoutCard!},
+                        )
+                      : l10n.tr('doctor.earnings.no_payout_card'),
+                  style:
+                      GoogleFonts.inter(color: Colors.grey[500], fontSize: 12),
                 ),
                 trailing: Container(
                   decoration: BoxDecoration(
@@ -504,8 +523,8 @@ class DoctorEarningsView extends StatelessWidget {
                     border: Border.all(color: Colors.grey.shade200),
                   ),
                   child: IconButton(
-                    icon:
-                        const Icon(Icons.edit_outlined, size: 18, color: Colors.grey),
+                    icon: const Icon(Icons.edit_outlined,
+                        size: 18, color: Colors.grey),
                     onPressed: () async {
                       await Navigator.push(
                         context,
@@ -532,7 +551,7 @@ class DoctorEarningsView extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12)),
                 ),
                 child: Text(
-                  "Request Withdrawal",
+                  l10n.tr('doctor.earnings.request_withdrawal'),
                   style: GoogleFonts.inter(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -548,17 +567,17 @@ class DoctorEarningsView extends StatelessWidget {
 
   void _onRequestWithdrawal(
       BuildContext context, DoctorEarningsViewModel viewModel) {
+    final l10n = AppLocalizations.of(context);
     if (!viewModel.hasPayoutAccount) {
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: const Text("Add payout account first"),
-          content: const Text(
-              "Please add your payout account information before requesting a withdrawal."),
+          title: Text(l10n.tr('doctor.earnings.add_payout_account_first')),
+          content: Text(l10n.tr('doctor.earnings.add_payout_account_message')),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Later"),
+              child: Text(l10n.tr('doctor.earnings.later')),
             ),
             ElevatedButton(
               onPressed: () {
@@ -570,7 +589,7 @@ class DoctorEarningsView extends StatelessWidget {
                   ),
                 );
               },
-              child: const Text("Add Account"),
+              child: Text(l10n.tr('doctor.earnings.add_account')),
             ),
           ],
         ),
@@ -582,6 +601,7 @@ class DoctorEarningsView extends StatelessWidget {
 
   void _showWithdrawalRequestSheet(
       BuildContext context, DoctorEarningsViewModel viewModel) {
+    final l10n = AppLocalizations.of(context);
     final amountController = TextEditingController();
     final noteController = TextEditingController();
     showModalBottomSheet(
@@ -602,8 +622,8 @@ class DoctorEarningsView extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildPayoutStyleField(
-                  label: "Amount",
-                  hint: "Enter withdrawal amount",
+                  label: l10n.tr('doctor.earnings.amount'),
+                  hint: l10n.tr('doctor.earnings.enter_amount'),
                   controller: amountController,
                   icon: Icons.payments_outlined,
                   keyboardType:
@@ -614,7 +634,13 @@ class DoctorEarningsView extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
-                      'Pending requests: you can request up to ${viewModel.formatCurrency(viewModel.availableToWithdraw)} until they are approved.',
+                      l10n.tr(
+                        'doctor.earnings.pending_notice',
+                        params: {
+                          'amount': viewModel
+                              .formatCurrency(viewModel.availableToWithdraw),
+                        },
+                      ),
                       style: GoogleFonts.inter(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w400,
@@ -624,8 +650,8 @@ class DoctorEarningsView extends StatelessWidget {
                   ),
                 const SizedBox(height: 10),
                 _buildPayoutStyleField(
-                  label: "Note (optional)",
-                  hint: "Add a short note",
+                  label: l10n.tr('doctor.earnings.note_optional'),
+                  hint: l10n.tr('doctor.earnings.add_note'),
                   controller: noteController,
                   icon: Icons.sticky_note_2_outlined,
                   maxLines: 2,
@@ -641,8 +667,9 @@ class DoctorEarningsView extends StatelessWidget {
                                 double.tryParse(amountController.text.trim());
                             if (amount == null || amount <= 0) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text("Enter a valid amount")),
+                                SnackBar(
+                                    content: Text(l10n.tr(
+                                        'doctor.earnings.enter_valid_amount'))),
                               );
                               return;
                             }
@@ -659,8 +686,10 @@ class DoctorEarningsView extends StatelessWidget {
                               SnackBar(
                                 content: Text(
                                   success
-                                      ? "Withdrawal request submitted"
-                                      : "Failed to submit withdrawal request",
+                                      ? l10n.tr(
+                                          'doctor.earnings.request_submitted')
+                                      : l10n
+                                          .tr('doctor.earnings.request_failed'),
                                 ),
                               ),
                             );
@@ -672,7 +701,7 @@ class DoctorEarningsView extends StatelessWidget {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : Text(
-                            "Submit Request",
+                            l10n.tr('doctor.earnings.submit_request'),
                             style: GoogleFonts.inter(
                               fontSize: 15,
                               fontWeight: FontWeight.w500,
@@ -771,17 +800,21 @@ class DoctorEarningsView extends StatelessWidget {
     );
   }
 
-  Widget _buildTransactionItem(dynamic transaction, DoctorEarningsViewModel viewModel) {
+  Widget _buildTransactionItem(
+      dynamic transaction, DoctorEarningsViewModel viewModel) {
     if (transaction is! Map) return const SizedBox.shrink();
     final m = Map<String, dynamic>.from(transaction);
     bool isCredit = m['isCredit'] ?? true;
     double amount = (m['amount'] is num)
         ? (m['amount'] as num).toDouble()
         : double.tryParse(m['amount']?.toString() ?? '') ?? 0.0;
-    String dateStr = (m['date'] ?? m['createdAt'] ?? m['created_at'])?.toString() ?? '';
-    String title = (m['title'] ?? m['type'] ?? m['description'] ?? 'Consultation')
-        .toString();
-    final formattedDate = dateStr.isNotEmpty ? viewModel.formatDate(dateStr) : '—';
+    String dateStr =
+        (m['date'] ?? m['createdAt'] ?? m['created_at'])?.toString() ?? '';
+    String title =
+        (m['title'] ?? m['type'] ?? m['description'] ?? 'Consultation')
+            .toString();
+    final formattedDate =
+        dateStr.isNotEmpty ? viewModel.formatDate(dateStr) : '—';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -803,11 +836,15 @@ class DoctorEarningsView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: isCredit ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+              color: isCredit
+                  ? Colors.green.withOpacity(0.1)
+                  : Colors.red.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
-              isCredit ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+              isCredit
+                  ? Icons.arrow_downward_rounded
+                  : Icons.arrow_upward_rounded,
               color: isCredit ? Colors.green : Colors.red,
               size: 18,
             ),

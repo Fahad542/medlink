@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 
 class MedicalHistoryDetailView extends StatelessWidget {
   final Map<String, dynamic> historyItem;
@@ -10,11 +11,11 @@ class MedicalHistoryDetailView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = historyItem['title'] ?? 'Medical Record';
+    final title = historyItem['title'] ?? context.tr('patient.medical_history.record');
     final subtitle = historyItem['subtitle'] ?? '';
     final date = historyItem['date'] ?? '';
     final time = historyItem['time'] ?? '';
-    final type = historyItem['type'] ?? 'Record';
+    final type = historyItem['type'] ?? context.tr('patient.medical_history.record');
     final status = historyItem['status'] ?? '';
 
     return Scaffold(
@@ -29,16 +30,26 @@ class MedicalHistoryDetailView extends StatelessWidget {
             const SizedBox(height: 20),
             _buildInfoCard(context, title, subtitle, date, time, type),
             const SizedBox(height: 30),
-            _buildSectionTitle('Notes & Details'),
+            _buildSectionTitle(context.tr('patient.medical_history.notes_details')),
             const SizedBox(height: 12),
             _buildDetailContainer(
-              'This is a $type record for $title with $subtitle on $date at $time. The status is $status.',
+              context.tr(
+                'patient.medical_history.detail_sentence',
+                params: {
+                  'type': type,
+                  'title': title,
+                  'subtitle': subtitle,
+                  'date': date,
+                  'time': time,
+                  'status': status,
+                },
+              ),
             ),
             const SizedBox(height: 30),
             if (type == 'Appointment' || type == 'Consultation') ...[
-              _buildSectionTitle('Doctor Information'),
+              _buildSectionTitle(context.tr('patient.medical_history.doctor_information')),
               const SizedBox(height: 12),
-              _buildDoctorInfoCard(subtitle),
+              _buildDoctorInfoCard(context, subtitle),
             ],
             const SizedBox(height: 30),
             SizedBox(
@@ -48,7 +59,7 @@ class MedicalHistoryDetailView extends StatelessWidget {
                   // Action for downloading report
                 },
                 icon: const Icon(Icons.download_rounded),
-                label: const Text('Download Report'),
+                label: Text(context.tr('patient.medical_history.download_report')),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -213,7 +224,7 @@ class MedicalHistoryDetailView extends StatelessWidget {
     );
   }
 
-  Widget _buildDoctorInfoCard(String doctorName) {
+  Widget _buildDoctorInfoCard(BuildContext context, String doctorName) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -247,7 +258,7 @@ class MedicalHistoryDetailView extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'Medical Specialist',
+                  context.tr('patient.medical_history.medical_specialist'),
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     color: Colors.grey[500],

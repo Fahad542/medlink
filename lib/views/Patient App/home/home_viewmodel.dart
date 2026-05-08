@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_url.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 import 'package:medlink/utils/notification_payload_utils.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/services/chat_socket_service.dart';
@@ -268,16 +269,21 @@ class HomeViewModel extends ChangeNotifier {
       if (response != null && response['success'] == true) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('SOS Alert Sent Successfully! Help is on the way.')),
+            SnackBar(content: Text(context.tr('home.sos.success'))),
           );
         }
       } else {
-        throw Exception(response['message'] ?? 'Failed to send SOS');
+        throw Exception(
+          response?['message'] ??
+              (context.mounted
+                  ? context.tr('home.sos.failed')
+                  : 'Failed to send SOS'),
+        );
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error sending SOS: $e')),
+          SnackBar(content: Text('${context.tr('home.sos.error_prefix')} $e')),
         );
       }
     }
@@ -291,29 +297,37 @@ class HomeViewModel extends ChangeNotifier {
   // Data Sources
   List<CategoryItem> get categories => _apiCategories;
 
+  /// Quick-action tiles. Titles/subtitles are localised in the view via
+  /// `context.tr(...)`; only the [QuickActionItem.type] field is used for
+  /// routing decisions, so display copy can change locale without breaking
+  /// navigation.
   List<QuickActionItem> get quickActions => [
     QuickActionItem(
-      title: "Available Doctors",
-      subtitle: "Find Specialists",
-      image: "assets/doctors.png",
+      type: 'doctors',
+      title: 'home.quick.doctors.title',
+      subtitle: 'home.quick.doctors.subtitle',
+      image: 'assets/doctors.png',
       cardColor: const Color(0xFFCEE9F1),
     ),
     QuickActionItem(
-      title: "E-Prescription",
-      subtitle: "View Doctor's Rx",
-      image: "assets/pres.png",
+      type: 'prescription',
+      title: 'home.quick.prescription.title',
+      subtitle: 'home.quick.prescription.subtitle',
+      image: 'assets/pres.png',
       cardColor: const Color(0xFFDCE8C0),
     ),
     QuickActionItem(
-      title: "Online \nConsult",
-      subtitle: "Chat with Doctors",
-      image: "assets/consult.png",
+      type: 'consult',
+      title: 'home.quick.consult.title',
+      subtitle: 'home.quick.consult.subtitle',
+      image: 'assets/consult.png',
       cardColor: const Color(0xFFE3DBF2),
     ),
     QuickActionItem(
-      title: "Health \nTips",
-      subtitle: "Stay Healthy",
-      image: "assets/tip.png",
+      type: 'health',
+      title: 'home.quick.health.title',
+      subtitle: 'home.quick.health.subtitle',
+      image: 'assets/tip.png',
       cardColor: const Color(0xFFFFEBD2),
     ),
   ];
@@ -324,37 +338,39 @@ class HomeViewModel extends ChangeNotifier {
     "Balanced Diet for Immunity",
   ];
 
+  /// Banners. Title/subtitle/buttonText hold translation keys; the view
+  /// resolves them with `context.tr(...)`.
   List<BannerItem> get banners => [
-     BannerItem(
-        type: "doctor",
-        title: "Find Your\nSpecialist",
-        subtitle: "Connect with top doctors.",
-        buttonText: "Find Now",
-        colors: [const Color(0xFF00695C), const Color(0xFF00897B)],
-        shadowColor: const Color(0xFF00695C),
-        image: "assets/doctor.png",
-        isCompact: true,
-      ),
-      BannerItem(
-        type: "emergency",
-        title: "Medical\nEmergency?",
-        subtitle: "Get instant ambulance dispatch.",
-        buttonText: "Call SOS",
-        colors: [const Color(0xFFD32F2F), const Color(0xFFEF5350)],
-        shadowColor: const Color(0xFFD32F2F),
-        image: "assets/ambulance_driver.png",
-        isCompact: true,
-      ),
-      BannerItem(
-        type: "health",
-        title: "Health\nInsights",
-        subtitle: "Daily tips for a healthy life.",
-        buttonText: "Read More",
-        colors: [const Color(0xFF0097A7), const Color(0xFF26C6DA)],
-        shadowColor: const Color(0xFF0097A7),
-        image: "assets/healthy.png",
-        isCompact: true,
-      ),
+    BannerItem(
+      type: 'doctor',
+      title: 'home.banner.doctor.title',
+      subtitle: 'home.banner.doctor.subtitle',
+      buttonText: 'home.banner.doctor.cta',
+      colors: [const Color(0xFF00695C), const Color(0xFF00897B)],
+      shadowColor: const Color(0xFF00695C),
+      image: 'assets/doctor.png',
+      isCompact: true,
+    ),
+    BannerItem(
+      type: 'emergency',
+      title: 'home.banner.emergency.title',
+      subtitle: 'home.banner.emergency.subtitle',
+      buttonText: 'home.banner.emergency.cta',
+      colors: [const Color(0xFFD32F2F), const Color(0xFFEF5350)],
+      shadowColor: const Color(0xFFD32F2F),
+      image: 'assets/ambulance_driver.png',
+      isCompact: true,
+    ),
+    BannerItem(
+      type: 'health',
+      title: 'home.banner.health.title',
+      subtitle: 'home.banner.health.subtitle',
+      buttonText: 'home.banner.health.cta',
+      colors: [const Color(0xFF0097A7), const Color(0xFF26C6DA)],
+      shadowColor: const Color(0xFF0097A7),
+      image: 'assets/healthy.png',
+      isCompact: true,
+    ),
   ];
 }
 

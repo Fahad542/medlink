@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/widgets/custom_button.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 // Needed for PathMetric
 import 'dart:ui' as ui;
 
@@ -21,7 +22,7 @@ class _PaymentMethodsViewState extends State<PaymentMethodsView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC), // Light grey bg
-      appBar: const CustomAppBar(title: "Payment Methods"),
+      appBar: CustomAppBar(title: context.tr('patient.payment_methods.title')),
       body: Column(
         children: [
           Expanded(
@@ -35,7 +36,7 @@ class _PaymentMethodsViewState extends State<PaymentMethodsView> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        "Credit Card",
+                        context.tr('patient.payment_methods.credit_card'),
                         style: GoogleFonts.inter(
                           fontSize: 16, // Reduced font
                           fontWeight: FontWeight.bold,
@@ -69,7 +70,7 @@ class _PaymentMethodsViewState extends State<PaymentMethodsView> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
-                          "or continue with",
+                          context.tr('patient.payment_methods.or_continue_with'),
                           style: GoogleFonts.inter(
                             fontSize: 12,
                             color: Colors.grey[500],
@@ -86,14 +87,14 @@ class _PaymentMethodsViewState extends State<PaymentMethodsView> {
                   // Other Payment Options
                   _buildPaymentOption(
                     index: 1,
-                    name: "Paypal",
+                    name: context.tr('patient.payment_methods.paypal'),
                     icon: Icons.paypal, // Using Icon for now, replace with asset if available
                     color: const Color(0xFF003087),
                   ),
                   const SizedBox(height: 16),
                   _buildPaymentOption(
                     index: 2,
-                    name: "Google Pay",
+                    name: context.tr('patient.payment_methods.google_pay'),
                     icon: Icons.g_mobiledata_rounded, // Placeholder
                     color: Colors.black, // Placeholder color
                     isGoogle: true,
@@ -101,7 +102,7 @@ class _PaymentMethodsViewState extends State<PaymentMethodsView> {
                   const SizedBox(height: 16),
                   _buildPaymentOption(
                     index: 3,
-                    name: "Apple Pay",
+                    name: context.tr('patient.payment_methods.apple_pay'),
                     icon: Icons.apple,
                     color: Colors.black,
                   ),
@@ -134,7 +135,7 @@ class _PaymentMethodsViewState extends State<PaymentMethodsView> {
           child: SizedBox(
               width: double.infinity,
               child: CustomButton(
-                  text: "Continue",
+                  text: context.tr('patient.payment_methods.continue'),
                   fontWeight: FontWeight.w500, // Reduced bold
                   onPressed: () {
                      // Handle Continue
@@ -197,7 +198,7 @@ class _PaymentMethodsViewState extends State<PaymentMethodsView> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                          Text(
-                          "Master Card",
+                          context.tr('patient.payment_methods.master_card'),
                           style: GoogleFonts.inter(
                             color: Colors.white,
                             fontSize: 14, // Slightly smaller
@@ -240,7 +241,7 @@ class _PaymentMethodsViewState extends State<PaymentMethodsView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Valid",
+                          context.tr('patient.payment_methods.valid'),
                           style: GoogleFonts.inter(color: Colors.white70, fontSize: 10),
                         ),
                         Text(
@@ -313,7 +314,7 @@ class _PaymentMethodsViewState extends State<PaymentMethodsView> {
                 const Icon(Icons.add_rounded, color: AppColors.primary),
                 const SizedBox(width: 8),
                 Text(
-                  "Credit Card",
+                  context.tr('patient.payment_methods.credit_card'),
                   style: GoogleFonts.inter(
                     color: AppColors.primary,
                     fontSize: 16,

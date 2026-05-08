@@ -14,6 +14,7 @@ import 'package:medlink/services/google_maps_service.dart';
 
 import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/utils/utils.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 
 class AmbulanceDashboardView extends StatefulWidget {
   const AmbulanceDashboardView({super.key});
@@ -31,8 +32,11 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
     return double.tryParse(v.toString());
   }
 
-  static String _coordLabel(double? lat, double? lng) {
-    if (lat == null || lng == null) return 'Not available';
+  static String _coordLabel(
+      BuildContext context, double? lat, double? lng) {
+    if (lat == null || lng == null) {
+      return context.tr('ambulance.dashboard.not_available');
+    }
     return '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}';
   }
 
@@ -90,14 +94,18 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
         Marker(
           markerId: const MarkerId('pickup'),
           position: pickup,
-          infoWindow: const InfoWindow(title: 'Pickup'),
+          infoWindow: InfoWindow(
+            title: context.tr('ambulance.trip.pickup'),
+          ),
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
         ),
       if (drop != null)
         Marker(
           markerId: const MarkerId('drop'),
           position: drop,
-          infoWindow: const InfoWindow(title: 'Drop-off'),
+          infoWindow: InfoWindow(
+            title: context.tr('ambulance.trip.dropoff'),
+          ),
           icon:
               BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
         ),
@@ -151,7 +159,7 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
                     if (context.mounted) {
                       Utils.toastMessage(
                         context,
-                        'You already have an active trip. Complete it before accepting another request.',
+                        context.tr('ambulance.dashboard.active_trip_exists'),
                         isError: true,
                       );
                     }
@@ -172,7 +180,7 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
                   } else if (!success && context.mounted) {
                     Utils.toastMessage(
                       context,
-                      "Failed to accept request. It may have been taken.",
+                      context.tr('ambulance.dashboard.accept_failed'),
                       isError: true,
                     );
                   }
@@ -194,7 +202,7 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
 
               return Scaffold(
                 appBar: AppBar(
-                  title: const Text('Route Preview'),
+                  title: Text(context.tr('ambulance.dashboard.route_preview')),
                   backgroundColor: Colors.white,
                 ),
                 body: SafeArea(
@@ -208,7 +216,7 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Check route before decision',
+                            context.tr('ambulance.dashboard.check_route_before_decision'),
                             style: GoogleFonts.inter(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
@@ -241,7 +249,7 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          'Showing shortest road route',
+                          context.tr('ambulance.dashboard.showing_shortest_route'),
                           style: GoogleFonts.inter(
                             fontSize: 11,
                             color: Colors.grey[600],
@@ -294,7 +302,7 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
                                     borderRadius: BorderRadius.circular(14),
                                   ),
                                   child: Text(
-                                    'Map coordinates unavailable',
+                                    context.tr('ambulance.dashboard.map_coords_unavailable'),
                                     style: GoogleFonts.inter(color: Colors.grey[700]),
                                   ),
                                 ),
@@ -303,20 +311,20 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
                         _routeInfoTile(
                       icon: Icons.place_outlined,
                       iconColor: Colors.red,
-                      title: 'Pickup',
+                      title: context.tr('ambulance.trip.pickup'),
                       subtitle:
-                          request['location']?.toString() ?? 'Location unavailable',
-                      coord: _coordLabel(pickupLat, pickupLng),
+                          request['location']?.toString() ?? context.tr('ambulance.dashboard.location_unavailable'),
+                      coord: _coordLabel(context, pickupLat, pickupLng),
                     ),
                         const SizedBox(height: 8),
                         _routeInfoTile(
                       icon: Icons.flag_outlined,
                       iconColor: Colors.blue,
-                      title: 'Drop-off',
+                      title: context.tr('ambulance.trip.dropoff'),
                       subtitle: (drop != null)
-                          ? 'Selected on map by patient'
-                          : 'Drop location not shared',
-                      coord: _coordLabel(dropLat, dropLng),
+                          ? context.tr('ambulance.dashboard.selected_on_map')
+                          : context.tr('ambulance.dashboard.drop_not_shared'),
+                      coord: _coordLabel(context, dropLat, dropLng),
                     ),
                         const SizedBox(height: 8),
                         Container(
@@ -331,7 +339,7 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
                             children: [
                               Expanded(
                                 child: Text(
-                                  'Distance: ${estimatedDistanceKm != null ? '${estimatedDistanceKm.toStringAsFixed(1)} km' : '--'}',
+                                  '${context.tr('ambulance.trip.distance')}: ${estimatedDistanceKm != null ? '${estimatedDistanceKm.toStringAsFixed(1)} km' : '--'}',
                                   style: GoogleFonts.inter(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
@@ -341,7 +349,7 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
                               ),
                               Expanded(
                                 child: Text(
-                                  'Fare: ${_moneyLabel(estimatedFareAmount, currency: currency)}',
+                                  '${context.tr('ambulance.dashboard.fare')}: ${_moneyLabel(estimatedFareAmount, currency: currency)}',
                                   textAlign: TextAlign.end,
                                   style: GoogleFonts.inter(
                                     fontSize: 12,
@@ -368,7 +376,7 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
                               ),
                             ),
                             child: Text(
-                              'Decline',
+                              context.tr('ambulance.dashboard.decline'),
                               style: GoogleFonts.inter(
                                   fontWeight: FontWeight.w700),
                             ),
@@ -396,7 +404,7 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
                                     ),
                                   )
                                 : Text(
-                                    'Accept',
+                                    context.tr('ambulance.dashboard.accept'),
                                     style: GoogleFonts.inter(
                                         fontWeight: FontWeight.w700),
                                   ),
@@ -558,7 +566,7 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
     final driverName = Provider.of<UserViewModel>(context).driver?.driverName;
     final displayName = (driverName != null && driverName.trim().isNotEmpty)
         ? driverName.trim()
-        : 'Driver';
+        : context.tr('ambulance.dashboard.driver');
     return Container(
       height: 200, // Reduced height
       padding: const EdgeInsets.only(top: 60, left: 24, right: 24),
@@ -605,7 +613,7 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "Hello, Driver",
+                        context.tr('ambulance.dashboard.hello_driver'),
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.9),
                           fontSize: 14,
@@ -687,14 +695,14 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
         child: Row(
           children: [
             _buildKPIItem(
-              "Total Earnings",
+              context.tr('doctor.earnings.total_balance'),
               "${viewModel.currency} ${viewModel.earnings}",
               Icons.account_balance_wallet_rounded,
               Colors.green,
             ),
             VerticalDivider(color: Colors.grey[200], thickness: 1, width: 24),
             _buildKPIItem(
-              "Total Trips",
+              context.tr('ambulance.dashboard.total_trips'),
               "${viewModel.completedTrips}",
               Icons.directions_car_rounded,
               AppColors.primary,
@@ -845,7 +853,7 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
                     Icon(Icons.warning_rounded, color: Colors.red, size: 14),
                     SizedBox(width: 4),
                     Text(
-                      "EMERGENCY",
+                      context.tr('ambulance.dashboard.emergency'),
                       style: GoogleFonts.inter(
                         color: Colors.red,
                         fontWeight: FontWeight.bold,
@@ -885,7 +893,7 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Accept within',
+                    context.tr('ambulance.dashboard.accept_within'),
                     style: GoogleFonts.inter(
                       color: Colors.grey[700],
                       fontSize: 11,
@@ -938,7 +946,7 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
             children: [
               Expanded(
                 child: Text(
-                  'Trip: ${estimatedDistanceKm != null ? '${estimatedDistanceKm.toStringAsFixed(1)} km' : '--'}',
+                  '${context.tr('ambulance.dashboard.trip')}: ${estimatedDistanceKm != null ? '${estimatedDistanceKm.toStringAsFixed(1)} km' : '--'}',
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -948,7 +956,7 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
               ),
               Expanded(
                 child: Text(
-                  'Fare: ${_moneyLabel(estimatedFareAmount, currency: currency)}',
+                  '${context.tr('ambulance.dashboard.fare')}: ${_moneyLabel(estimatedFareAmount, currency: currency)}',
                   textAlign: TextAlign.end,
                   style: GoogleFonts.inter(
                     fontSize: 12,
@@ -968,7 +976,7 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
                   _openRequestMapDecisionSheet(context, viewModel, request),
               icon: const Icon(Icons.map_outlined, size: 16),
               label: Text(
-                "View pickup & drop on map",
+                context.tr('ambulance.dashboard.view_pickup_drop_map'),
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -1007,14 +1015,14 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
                     ),
                     onPressed: () =>
                         _openRequestMapDecisionSheet(context, viewModel, request),
-                    child: const Text("Decline"),
+                    child: Text(context.tr('ambulance.dashboard.decline')),
                   ),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: CustomButton(
-                  text: "ACCEPT",
+                  text: context.tr('ambulance.dashboard.accept_upper'),
                   backgroundColor: AppColors.success,
                   height: 32, // Compact height
                   fontSize: 12, // Compact text
@@ -1062,8 +1070,8 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
             ],
           ),
           const SizedBox(height: 40),
-          const Text(
-            "Scanning for requests...",
+          Text(
+            context.tr('ambulance.dashboard.scanning_requests'),
             style: TextStyle(
               fontSize: 16,
               color: AppColors.textPrimary,
@@ -1073,7 +1081,7 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
           ),
           const SizedBox(height: 8),
           Text(
-            "You will be notified of nearby emergencies",
+            context.tr('ambulance.dashboard.nearby_emergencies_notice'),
             style: TextStyle(color: Colors.grey[500], fontSize: 13),
           ),
           const SizedBox(height: 100), // Spacing for bottom panel
@@ -1126,8 +1134,8 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
                 size: 60, color: Colors.grey[400]),
           ),
           const SizedBox(height: 24),
-          const Text(
-            "You are currently Offline",
+          Text(
+            context.tr('ambulance.dashboard.offline_title'),
             style: TextStyle(
               fontSize: 18,
               //color: Colors.grey[700],
@@ -1136,7 +1144,7 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
           ),
           const SizedBox(height: 8),
           Text(
-            "Go online to start receiving requests",
+            context.tr('ambulance.dashboard.go_online_notice'),
             style: TextStyle(color: Colors.grey[500]),
           ),
           const SizedBox(height: 100),

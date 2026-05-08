@@ -17,6 +17,7 @@ import 'package:medlink/utils/gps_coord.dart';
 import 'package:medlink/utils/trip_driver_location.dart';
 import 'package:medlink/utils/vehicle_map_marker.dart';
 import 'package:medlink/core/constants/sos_constants.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 
 class AmbulanceTrackingView extends StatefulWidget {
   final AmbulanceModel ambulance;
@@ -150,23 +151,28 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
     }
   }
 
-  String _trackingPhaseSubtitle(String tripPhase, String sosSt) {
+  String _trackingPhaseSubtitle(
+      BuildContext context, String tripPhase, String sosSt) {
     switch (tripPhase) {
       case 'IN_PROGRESS':
-        return 'Ambulance is taking you to the hospital';
+        return context.tr('patient.ambulance_tracking.phase.in_progress');
       case 'ARRIVED':
-        return 'Ambulance has reached your pickup point';
+        return context.tr('patient.ambulance_tracking.phase.arrived');
       case 'ACCEPTED':
-        return 'Crew is on the way to your location';
+        return context.tr('patient.ambulance_tracking.phase.accepted');
       case 'REQUESTED':
-        return 'Trip is being confirmed';
+        return context.tr('patient.ambulance_tracking.phase.requested');
       default:
         if (sosSt == 'EXPIRED') {
           return SosConstants.noAmbulanceDriverMessage;
         }
-        if (sosSt == 'OPEN') return 'Searching for the nearest ambulance';
-        if (sosSt == 'ASSIGNED') return 'Live location updates below';
-        return 'Live tracking';
+        if (sosSt == 'OPEN') {
+          return context.tr('patient.ambulance_tracking.phase.open');
+        }
+        if (sosSt == 'ASSIGNED') {
+          return context.tr('patient.ambulance_tracking.phase.assigned');
+        }
+        return context.tr('patient.ambulance_tracking.phase.default');
     }
   }
 
@@ -322,9 +328,9 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
           flat: true,
           anchor: const Offset(0.5, 0.5),
           icon: driverIcon,
-          infoWindow: const InfoWindow(
-            title: 'Ambulance',
-            snippet: 'Live position',
+          infoWindow: InfoWindow(
+            title: context.tr('patient.ambulance_tracking.marker.ambulance'),
+            snippet: context.tr('patient.ambulance_tracking.marker.live_position'),
           ),
         ),
       if (pickupPos != null)
@@ -333,9 +339,10 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
           position: pickupPos,
           icon:
               BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-          infoWindow: const InfoWindow(
-            title: 'Your pickup',
-            snippet: 'Where the crew meets you',
+          infoWindow: InfoWindow(
+            title: context.tr('patient.ambulance_tracking.marker.your_pickup'),
+            snippet:
+                context.tr('patient.ambulance_tracking.marker.pickup_snippet'),
           ),
         ),
       if (dropoffPos != null)
@@ -343,9 +350,10 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
           markerId: const MarkerId('dropoff'),
           position: dropoffPos,
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-          infoWindow: const InfoWindow(
-            title: 'Destination',
-            snippet: 'Hospital / drop-off',
+          infoWindow: InfoWindow(
+            title: context.tr('patient.ambulance_tracking.marker.destination'),
+            snippet:
+                context.tr('patient.ambulance_tracking.marker.destination_snippet'),
           ),
         ),
     };
@@ -415,7 +423,7 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
         : null;
     final isLiveFresh =
         liveAge != null && liveAge.inSeconds < 45;
-    final phaseSubtitle = _trackingPhaseSubtitle(tripPhase, sosSt);
+    final phaseSubtitle = _trackingPhaseSubtitle(context, tripPhase, sosSt);
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -486,10 +494,13 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                         children: [
                           Text(
                             isLiveFresh
-                                ? 'Live location'
+                                ? context.tr(
+                                    'patient.ambulance_tracking.live_location')
                                 : (driverPos != null
-                                    ? 'Location may be delayed'
-                                    : 'Waiting for driver GPS…'),
+                                    ? context.tr(
+                                        'patient.ambulance_tracking.location_delayed')
+                                    : context.tr(
+                                        'patient.ambulance_tracking.waiting_gps')),
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 13,
@@ -512,8 +523,18 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                               padding: const EdgeInsets.only(top: 4),
                               child: Text(
                                 liveAge.inMinutes >= 1
-                                    ? 'Last update ${liveAge.inMinutes} min ago'
-                                    : 'Last update ${liveAge.inSeconds} s ago',
+                                    ? context.tr(
+                                        'patient.ambulance_tracking.last_update_minutes',
+                                        params: {
+                                          'minutes': liveAge.inMinutes,
+                                        },
+                                      )
+                                    : context.tr(
+                                        'patient.ambulance_tracking.last_update_seconds',
+                                        params: {
+                                          'seconds': liveAge.inSeconds,
+                                        },
+                                      ),
                                 style: TextStyle(
                                   fontSize: 10,
                                   color: Colors.grey.shade500,
@@ -585,10 +606,13 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                             children: [
                               Text(
                                 tripPhase == 'IN_PROGRESS'
-                                    ? 'EN ROUTE TO HOSPITAL'
+                                    ? context.tr(
+                                        'patient.ambulance_tracking.status.en_route_hospital')
                                     : tripPhase == 'ARRIVED'
-                                        ? 'AT PICKUP POINT'
-                                        : 'ARRIVING IN',
+                                        ? context.tr(
+                                            'patient.ambulance_tracking.status.at_pickup')
+                                        : context.tr(
+                                            'patient.ambulance_tracking.status.arriving_in'),
                                 style: TextStyle(
                                   color: Colors.grey[500],
                                   fontSize: 11,
@@ -637,7 +661,11 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  isLiveFresh ? 'LIVE ETA' : 'ETA EST.',
+                                  isLiveFresh
+                                      ? context.tr(
+                                          'patient.ambulance_tracking.eta.live')
+                                      : context.tr(
+                                          'patient.ambulance_tracking.eta.estimated'),
                                   style: TextStyle(
                                     color: isLiveFresh
                                         ? const Color(0xFF10B981)
@@ -668,7 +696,10 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                               if (distanceText != null)
                                 Expanded(
                                   child: Text(
-                                    'Distance: $distanceText',
+                                    context.tr(
+                                      'patient.ambulance_tracking.distance_label',
+                                      params: {'distance': distanceText},
+                                    ),
                                     style: const TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
@@ -679,7 +710,10 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                               if (fareText != null)
                                 Expanded(
                                   child: Text(
-                                    'Fare: $fareText',
+                                    context.tr(
+                                      'patient.ambulance_tracking.fare_label',
+                                      params: {'fare': fareText},
+                                    ),
                                     textAlign: TextAlign.end,
                                     style: const TextStyle(
                                       fontSize: 12,
@@ -751,7 +785,10 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        "Paramedic • ${ambulance.plateNumber}",
+                                        context.tr(
+                                          'patient.ambulance_tracking.paramedic_plate',
+                                          params: {'plate': ambulance.plateNumber},
+                                        ),
                                         style: TextStyle(
                                             color: Colors.grey[500],
                                             fontSize: 13,
@@ -843,7 +880,8 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                     },
                                     icon: Image.asset("assets/Icons/chat-icon.png",
                                         width: 22, height: 22),
-                                    label: const Text("Message"),
+                                    label: Text(context.tr(
+                                        'patient.ambulance_tracking.message')),
                                     style: TextButton.styleFrom(
                                       backgroundColor:
                                           const Color(0xFFF1F5F9), // Slate 100
@@ -874,14 +912,16 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                       } else {
                                         Utils.toastMessage(
                                           context,
-                                          "Driver contact not available",
+                                          context.tr(
+                                              'patient.ambulance_tracking.driver_contact_unavailable'),
                                           isError: true,
                                         );
                                       }
                                     },
                                     icon: const Icon(Icons.phone_rounded,
                                         size: 22),
-                                    label: const Text("Call Driver"),
+                                    label: Text(context.tr(
+                                        'patient.ambulance_tracking.call_driver')),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(
                                           0xFF10B981), // Emerald 500
@@ -978,7 +1018,10 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
               ),
               const SizedBox(height: 8),
               Text(
-                "Calling ${widget.ambulance.phoneNumber}...",
+                context.tr(
+                  'patient.ambulance_tracking.calling_number',
+                  params: {'phone': widget.ambulance.phoneNumber},
+                ),
                 style: const TextStyle(
                   color: AppColors.primary,
                   fontSize: 18,

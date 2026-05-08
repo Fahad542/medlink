@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:medlink/main.dart';
 
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/Patient App/profile/personal_info_view.dart';
@@ -23,6 +25,69 @@ class ProfileView extends StatefulWidget {
 }
 
 class _ProfileViewState extends State<ProfileView> {
+  void _showLocalizationSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        final currentLocale = Localizations.localeOf(sheetContext).languageCode;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  sheetContext.tr('profile.localization.sheet.title'),
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF1E293B),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  sheetContext.tr('profile.localization.sheet.subtitle'),
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(sheetContext.tr('profile.localization.french')),
+                  trailing: currentLocale == 'fr'
+                      ? const Icon(Icons.check_circle, color: AppColors.primary)
+                      : const Icon(Icons.circle_outlined),
+                  onTap: () {
+                    MedLinkApp.setLocale(context, const Locale('fr'));
+                    Navigator.pop(sheetContext);
+                  },
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(sheetContext.tr('profile.localization.english')),
+                  trailing: currentLocale == 'en'
+                      ? const Icon(Icons.check_circle, color: AppColors.primary)
+                      : const Icon(Icons.circle_outlined),
+                  onTap: () {
+                    MedLinkApp.setLocale(context, const Locale('en'));
+                    Navigator.pop(sheetContext);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -60,7 +125,7 @@ class _ProfileViewState extends State<ProfileView> {
         child: Column(
           children: [
             // 1. Premium Header (Standard Widget)
-            _buildHeader(user),
+            _buildHeader(context, user),
 
             // 2. Overlapping Content & Settings
             Transform.translate(
@@ -89,19 +154,19 @@ class _ProfileViewState extends State<ProfileView> {
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           _StatItem(
-                              label: "Age",
+                              label: context.tr('profile.stat.age'),
                               value: "${user?.age ?? '-'}",
-                              unit: "yrs"),
+                              unit: context.tr('profile.stat.age.unit')),
                           _VerticalDivider(),
                           _StatItem(
-                              label: "Blood",
+                              label: context.tr('profile.stat.blood'),
                               value: "${user?.bloodGroup ?? '-'}",
-                              unit: "Type"),
+                              unit: context.tr('profile.stat.blood.unit')),
                           _VerticalDivider(),
                           _StatItem(
-                              label: "Weight",
+                              label: context.tr('profile.stat.weight'),
                               value: "${user?.weight ?? '-'}",
-                              unit: "kg"),
+                              unit: context.tr('profile.stat.weight.unit')),
                         ],
                       ),
                     ),
@@ -113,10 +178,10 @@ class _ProfileViewState extends State<ProfileView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Padding(
-                          padding: EdgeInsets.only(
+                          padding: const EdgeInsets.only(
                               left: 12, bottom: 8), // Reduced bottom
                           child: Text(
-                            "ACCOUNT SETTINGS",
+                            context.tr('profile.section.account_settings'),
                             style: GoogleFonts.inter(
                               fontSize: 11, // Smaller title
                               fontWeight: FontWeight.bold,
@@ -144,8 +209,10 @@ class _ProfileViewState extends State<ProfileView> {
                                 context,
                                 icon: Icons.person_outline_rounded,
                                 color: AppColors.primary,
-                                title: "Personal Info",
-                                subtitle: "Details & Password",
+                                title: context
+                                    .tr('profile.tile.personal_info.title'),
+                                subtitle: context
+                                    .tr('profile.tile.personal_info.subtitle'),
                                 onTap: () => Navigator.push(
                                     context,
                                     MaterialPageRoute(
@@ -157,8 +224,10 @@ class _ProfileViewState extends State<ProfileView> {
                                 context,
                                 icon: Icons.contact_phone_outlined,
                                 color: AppColors.primary,
-                                title: "Emergency Contacts",
-                                subtitle: "SOS & Family",
+                                title: context.tr(
+                                    'profile.tile.emergency_contacts.title'),
+                                subtitle: context.tr(
+                                    'profile.tile.emergency_contacts.subtitle'),
                                 onTap: () => Navigator.push(
                                     context,
                                     MaterialPageRoute(
@@ -170,8 +239,10 @@ class _ProfileViewState extends State<ProfileView> {
                                 context,
                                 icon: Icons.history_rounded,
                                 color: AppColors.primary,
-                                title: "Emergency history",
-                                subtitle: "Past SOS requests & ambulance trips",
+                                title: context.tr(
+                                    'profile.tile.emergency_history.title'),
+                                subtitle: context.tr(
+                                    'profile.tile.emergency_history.subtitle'),
                                 onTap: () => Navigator.push(
                                     context,
                                     MaterialPageRoute(
@@ -183,9 +254,11 @@ class _ProfileViewState extends State<ProfileView> {
                                 context,
                                 icon: Icons.language_rounded,
                                 color: AppColors.primary,
-                                title: "Localization",
-                                subtitle: "Language & Region",
-                                onTap: () {},
+                                title: context
+                                    .tr('profile.tile.localization.title'),
+                                subtitle: context
+                                    .tr('profile.tile.localization.subtitle'),
+                                onTap: _showLocalizationSheet,
                               ),
                             ],
                           ),
@@ -197,7 +270,7 @@ class _ProfileViewState extends State<ProfileView> {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        "ACCOUNT ACTIONS",
+                        context.tr('profile.section.account_actions'),
                         style: GoogleFonts.inter(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -225,8 +298,9 @@ class _ProfileViewState extends State<ProfileView> {
                             context,
                             icon: Icons.logout_rounded,
                             color: AppColors.primary,
-                            title: "Log Out",
-                            subtitle: "Sign out of your account",
+                            title: context.tr('profile.tile.logout.title'),
+                            subtitle:
+                                context.tr('profile.tile.logout.subtitle'),
                             onTap: () {
                               showDialog(
                                 context: context,
@@ -250,19 +324,22 @@ class _ProfileViewState extends State<ProfileView> {
                             context,
                             icon: Icons.person_remove_rounded,
                             color: AppColors.primary,
-                            title: "Delete Account",
-                            subtitle: "Permanently remove account",
+                            title: context.tr('profile.tile.delete.title'),
+                            subtitle:
+                                context.tr('profile.tile.delete.subtitle'),
                             onTap: () {
                               showDialog(
                                 context: context,
-                                builder: (context) => LogoutConfirmationDialog(
-                                  title: "Delete Account",
-                                  message:
-                                      "Are you sure you want to delete your account?",
-                                  confirmText: "Delete",
+                                builder: (dialogContext) =>
+                                    LogoutConfirmationDialog(
+                                  title: context
+                                      .tr('profile.tile.delete.title'),
+                                  message: context
+                                      .tr('profile.dialog.delete.message'),
+                                  confirmText: context.tr('common.delete'),
                                   confirmColor: AppColors.primary,
                                   onConfirm: () {
-                                    Navigator.pop(context);
+                                    Navigator.pop(dialogContext);
                                     DeleteAccountSheet.show(context);
                                   },
                                 ),
@@ -283,7 +360,7 @@ class _ProfileViewState extends State<ProfileView> {
     );
   }
 
-  Widget _buildHeader(dynamic user) {
+  Widget _buildHeader(BuildContext context, dynamic user) {
     return Container(
       height: 300,
       width: double.infinity,
@@ -366,7 +443,7 @@ class _ProfileViewState extends State<ProfileView> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      user?.name ?? "Guest User",
+                      user?.name ?? context.tr('common.guest_user'),
                       style: GoogleFonts.inter(
                         fontSize: 21,
                         fontWeight: FontWeight.bold,
@@ -387,7 +464,8 @@ class _ProfileViewState extends State<ProfileView> {
                       child: Text(
                         (user?.email != null && user!.email!.isNotEmpty)
                             ? user!.email!
-                            : (user?.phoneNumber ?? "No Email/Phone"),
+                            : (user?.phoneNumber ??
+                                context.tr('common.no_email_phone')),
                         style: GoogleFonts.inter(
                           fontSize: 13, // Reduced font size
                           color: Colors.white,

@@ -13,6 +13,7 @@ import 'package:medlink/widgets/custom_button.dart';
 import 'package:provider/provider.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_payment_view.dart';
 import 'package:medlink/utils/utils.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 
 class AppointmentBookingView extends StatefulWidget {
   final DoctorModel doctor;
@@ -73,7 +74,9 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: CustomAppBar(
-          title: _showPayment ? "Complete Payment" : "Book Appointment"),
+          title: _showPayment
+              ? context.tr('patient.appointment_payment.complete')
+              : context.tr('patient.booking.title')),
       body: _showPayment ? _buildPaymentSection() : _buildBookingForm(dates),
     );
   }
@@ -148,7 +151,8 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
                 const SizedBox(height: 30),
 
                 // 2. Calendar (Horizontal Scroll)
-                Text("Select Date", style: _sectionTitleStyle),
+                Text(context.tr('patient.booking.select_date'),
+                    style: _sectionTitleStyle),
                 const SizedBox(height: 16),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -166,7 +170,10 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
                           if (isOffDay) {
                             Utils.toastMessage(
                               context,
-                              "Doctor is not available on ${DateFormat('EEEE').format(date)}",
+                              context.tr('patient.booking.unavailable_on',
+                                  params: {
+                                    'day': DateFormat('EEEE').format(date)
+                                  }),
                               isError: true,
                             );
                             return;
@@ -226,7 +233,8 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
                 const SizedBox(height: 30),
 
                 // 3. Time Slots (Chips)
-                Text("Available Times", style: _sectionTitleStyle),
+                Text(context.tr('patient.booking.available_times'),
+                    style: _sectionTitleStyle),
                 const SizedBox(height: 16),
                 Consumer<AppointmentViewModel>(
                   builder: (context, appointmentVM, _) {
@@ -261,7 +269,7 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
                             if (isBooked) {
                               Utils.toastMessage(
                                 context,
-                                "This slot is already booked",
+                                context.tr('patient.booking.slot_booked'),
                                 isError: true,
                               );
                               return;
@@ -310,13 +318,14 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
                 const SizedBox(height: 28),
 
                 // 4. Reason for visit
-                Text("Reason for Visit", style: _sectionTitleStyle),
+                Text(context.tr('patient.booking.reason_label'),
+                    style: _sectionTitleStyle),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _reasonController,
                   maxLines: 3,
                   decoration: InputDecoration(
-                    hintText: "E.g., Headache and nausea since 2 days",
+                    hintText: context.tr('patient.booking.reason_hint'),
                     fillColor: Colors.white,
                     filled: true,
                     border: OutlineInputBorder(
@@ -356,7 +365,7 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
           ),
           child: SafeArea(
             child: CustomButton(
-              text: "Continue to Payment",
+              text: context.tr('patient.booking.continue_payment'),
               onPressed: _handleInitialBooking,
             ),
           ),
@@ -379,7 +388,7 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
     if (_selectedTime == null) {
       Utils.toastMessage(
         context,
-        "Please select a time slot",
+        context.tr('patient.booking.select_time_error'),
         isError: true,
       );
       return;
@@ -391,7 +400,7 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
     if (patientId == null) {
       Utils.toastMessage(
         context,
-        "User session not found. Please login again.",
+        context.tr('patient.booking.session_missing'),
         isError: true,
       );
       return;
@@ -427,7 +436,7 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
     } else {
       Utils.toastMessage(
         context,
-        result['message'] ?? "Failed to initiate booking.",
+        result['message'] ?? context.tr('patient.booking.initiate_failed'),
         isError: true,
       );
     }

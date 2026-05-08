@@ -12,6 +12,7 @@ import 'package:medlink/views/Patient%20App/consultation/appointment_details_vie
 import 'package:medlink/utils/utils.dart';
 import 'package:medlink/views/doctor/Doctor%20profile/doctor_profile_view_model.dart'; // Import local VM
 import 'package:medlink/views/Patient App/consultation/waiting_room_view.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 
 class DoctorProfileView extends StatelessWidget {
   final DoctorModel doctor;
@@ -278,7 +279,7 @@ class _DoctorProfileContentState extends State<_DoctorProfileContent>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 16),
-                        Text("About", style: _sectionTitleStyle),
+                        Text(context.tr('doctor.profile.about'), style: _sectionTitleStyle),
                         const SizedBox(height: 8),
                         Text(
                           widget.doctor.about,
@@ -293,7 +294,7 @@ class _DoctorProfileContentState extends State<_DoctorProfileContent>
                             Expanded(
                               child: _buildInfoCard(
                                 Icons.local_hospital_rounded,
-                                "Hospital",
+                                context.tr('doctor.profile.hospital'),
                                 widget.doctor.hospital,
                                 AppColors.primary,
                               ),
@@ -302,8 +303,11 @@ class _DoctorProfileContentState extends State<_DoctorProfileContent>
                             Expanded(
                               child: _buildInfoCard(
                                 Icons.attach_money_rounded,
-                                "Consultation",
-                                "KES ${widget.doctor.consultationFee}",
+                                context.tr('doctor.profile.consultation'),
+                                context.tr(
+                                  'doctor.profile.consultation_fee',
+                                  params: {'fee': widget.doctor.consultationFee},
+                                ),
                                 AppColors.primary,
                               ),
                             ),
@@ -315,9 +319,9 @@ class _DoctorProfileContentState extends State<_DoctorProfileContent>
                             Expanded(
                               child: _buildInfoCard(
                                 Icons.calendar_today_outlined,
-                                "Available",
+                                context.tr('doctor.profile.available'),
                                 widget.doctor.availabilityDays.isEmpty
-                                    ? "Not set"
+                                    ? context.tr('doctor.profile.not_set')
                                     : widget.doctor.availabilityDays.join(", "),
                                 AppColors.primary,
                               ),
@@ -326,7 +330,7 @@ class _DoctorProfileContentState extends State<_DoctorProfileContent>
                             Expanded(
                               child: _buildInfoCard(
                                 Icons.timer_outlined,
-                                "Time",
+                                context.tr('doctor.profile.time'),
                                 "${widget.doctor.startTime} - ${widget.doctor.endTime}",
                                 AppColors.primary,
                               ),
@@ -376,7 +380,7 @@ class _DoctorProfileContentState extends State<_DoctorProfileContent>
           child: SizedBox(
             width: double.infinity,
             child: CustomButton(
-              text: "Confirm Appointment",
+              text: context.tr('doctor.profile.confirm_appointment'),
               onPressed: () => _openConfirmAppointment(viewModel),
             ),
           ),
@@ -411,9 +415,9 @@ class _DoctorProfileContentState extends State<_DoctorProfileContent>
           fontSize: 12,
           fontWeight: FontWeight.w600,
         ),
-        tabs: const [
-          Tab(text: "Details"),
-          Tab(text: "Appointment"),
+        tabs: [
+          Tab(text: context.tr('doctor.profile.tab.details')),
+          Tab(text: context.tr('doctor.profile.tab.appointment')),
         ],
       ),
     );
@@ -424,7 +428,7 @@ class _DoctorProfileContentState extends State<_DoctorProfileContent>
       _tabController.animateTo(1);
       Utils.toastMessage(
         context,
-        "Please choose date and time in Appointment tab",
+        context.tr('doctor.profile.choose_date_time'),
         isError: true,
       );
       return;
@@ -433,7 +437,7 @@ class _DoctorProfileContentState extends State<_DoctorProfileContent>
     if (viewModel.selectedTime == null) {
       Utils.toastMessage(
         context,
-        "Please select a time slot",
+        context.tr('patient.booking.select_time_error'),
         isError: true,
       );
       return;
@@ -467,7 +471,7 @@ class _DoctorProfileContentState extends State<_DoctorProfileContent>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "Create Schedule",
+                  context.tr('doctor.profile.create_schedule'),
                   style: GoogleFonts.inter(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
@@ -476,7 +480,7 @@ class _DoctorProfileContentState extends State<_DoctorProfileContent>
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  "Plan your appointment at a time",
+                  context.tr('doctor.profile.plan_appointment'),
                   style: GoogleFonts.inter(
                     fontSize: 13,
                     color: Colors.grey[600],
@@ -538,7 +542,7 @@ class _DoctorProfileContentState extends State<_DoctorProfileContent>
               child: _buildConsultationPill(
                 AppointmentType.inPerson,
                 Icons.location_on_outlined,
-                "In-Clinic",
+                context.tr('doctor.profile.in_clinic'),
               ),
             ),
             const SizedBox(width: 10),
@@ -546,7 +550,7 @@ class _DoctorProfileContentState extends State<_DoctorProfileContent>
               child: _buildConsultationPill(
                 AppointmentType.online,
                 Icons.videocam_outlined,
-                "Virtual",
+                context.tr('doctor.profile.virtual'),
               ),
             ),
           ],
@@ -560,7 +564,7 @@ class _DoctorProfileContentState extends State<_DoctorProfileContent>
             height: 72,
             alignment: Alignment.centerLeft,
             child: Text(
-              "No availability in this month",
+              context.tr('doctor.profile.no_availability_month'),
               style: GoogleFonts.inter(
                 fontSize: 13,
                 color: Colors.grey[600],
@@ -695,7 +699,7 @@ class _DoctorProfileContentState extends State<_DoctorProfileContent>
                   ),
                   const SizedBox(height: 14),
                   Text(
-                    "Select Month",
+                    context.tr('doctor.profile.select_month'),
                     style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -704,7 +708,7 @@ class _DoctorProfileContentState extends State<_DoctorProfileContent>
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    "Past months are not available",
+                    context.tr('doctor.profile.past_months_unavailable'),
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       color: Colors.grey[600],
@@ -761,7 +765,7 @@ class _DoctorProfileContentState extends State<_DoctorProfileContent>
     if (monthDates.isNotEmpty) {
       viewModel.selectDate(monthDates.first, widget.doctor);
     } else {
-      Utils.toastMessage(context, "No availability in selected month", isError: true);
+      Utils.toastMessage(context, context.tr('doctor.profile.no_availability_selected_month'), isError: true);
     }
   }
 
@@ -876,7 +880,7 @@ class _DoctorProfileContentState extends State<_DoctorProfileContent>
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 20),
           child: Text(
-            "No available slots",
+            context.tr('doctor.profile.no_available_slots'),
             style: GoogleFonts.inter(color: Colors.grey),
           ),
         ),

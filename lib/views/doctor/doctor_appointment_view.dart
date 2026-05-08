@@ -22,6 +22,7 @@ import 'package:medlink/widgets/appointment_cancel_reason_dialog.dart';
 import 'package:medlink/services/notification_services.dart';
 import 'package:medlink/services/appointment_socket_service.dart';
 import 'package:intl/intl.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 
 class DoctorAppointmentView extends StatelessWidget {
   final bool showBackButton;
@@ -49,19 +50,31 @@ class DoctorAppointmentView extends StatelessWidget {
                     onRefresh: () => docApptVM.fetchAllAppointments(),
                     child: docApptVM.isLoading
                         ? const AppointmentListShimmer(itemCount: 6)
-                        : _buildAppointmentList(upcoming, "No upcoming visits"),
+                        : _buildAppointmentList(
+                            context,
+                            upcoming,
+                            context.tr('doctor.appointment.no_upcoming'),
+                          ),
                   ),
                   RefreshIndicator(
                     onRefresh: () => docApptVM.fetchAllAppointments(),
                     child: docApptVM.isLoading
                         ? const AppointmentListShimmer(itemCount: 6)
-                        : _buildAppointmentList(completed, "No past visits"),
+                        : _buildAppointmentList(
+                            context,
+                            completed,
+                            context.tr('doctor.appointment.no_past'),
+                          ),
                   ),
                   RefreshIndicator(
                     onRefresh: () => docApptVM.fetchAllAppointments(),
                     child: docApptVM.isLoading
                         ? const AppointmentListShimmer(itemCount: 6)
-                        : _buildAppointmentList(cancelled, "No cancelled visits"),
+                        : _buildAppointmentList(
+                            context,
+                            cancelled,
+                            context.tr('doctor.appointment.no_cancelled'),
+                          ),
                   ),
                 ],
               ),
@@ -111,7 +124,7 @@ class DoctorAppointmentView extends StatelessWidget {
                 ),
               Expanded(
                 child: Text(
-                  "My Appointments",
+                  context.tr('patient.appointments.title'),
                   textAlign: TextAlign.center,
                   style: GoogleFonts.inter(
                     fontSize: 20,
@@ -131,7 +144,7 @@ class DoctorAppointmentView extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const TabBar(
+            child: TabBar(
               dividerColor: Colors.transparent,
               indicator: BoxDecoration(
                 color: Colors.white,
@@ -145,9 +158,9 @@ class DoctorAppointmentView extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
               tabs: [
-                Tab(text: "Upcoming"),
-                Tab(text: "Past"),
-                Tab(text: "Canceled"),
+                Tab(text: context.tr('patient.appointments.tab.upcoming')),
+                Tab(text: context.tr('patient.appointments.tab.past')),
+                Tab(text: context.tr('patient.appointments.tab.cancelled')),
               ],
             ),
           ),
@@ -157,7 +170,7 @@ class DoctorAppointmentView extends StatelessWidget {
   }
 
   Widget _buildAppointmentList(
-      List<AppointmentModel> appointments, String emptyMessage) {
+      BuildContext context, List<AppointmentModel> appointments, String emptyMessage) {
     if (appointments.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -166,7 +179,7 @@ class DoctorAppointmentView extends StatelessWidget {
             height: 420,
             child: NoDataWidget(
               title: emptyMessage,
-              subTitle: "You have no appointments in this category.",
+              subTitle: context.tr('doctor.appointment.no_appointments_category'),
             ),
           ),
         ],
@@ -223,7 +236,7 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
       } catch (_) {}
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
-            ok ? 'Booking approved' : 'Could not approve. Try again.'),
+            ok ? context.tr('doctor.appointment.booking_approved') : context.tr('doctor.appointment.approve_failed')),
         backgroundColor: ok ? Colors.green.shade700 : Colors.red.shade700,
       ));
     } finally {
@@ -235,9 +248,8 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
     if (_actionBusy) return;
     final reason = await showAppointmentCancelReasonDialog(
       context,
-      title: 'Reject this booking?',
-      subtitle:
-          'The patient will be notified. Please give a short reason (at least 3 characters).',
+      title: context.tr('doctor.appointment.reject_booking_title'),
+      subtitle: context.tr('doctor.appointment.reject_booking_subtitle'),
     );
     if (!context.mounted || reason == null) return;
     setState(() => _actionBusy = true);
@@ -258,7 +270,7 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(
-            ok ? 'Booking rejected' : 'Could not reject. Try again.'),
+            ok ? context.tr('doctor.appointment.booking_rejected') : context.tr('doctor.appointment.reject_failed')),
         backgroundColor: ok ? Colors.orange.shade800 : Colors.red.shade700,
       ));
     } finally {
@@ -273,7 +285,8 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
         appointment.status == AppointmentStatus.pending ||
         appointment.status == AppointmentStatus.confirmed ||
         appointment.status == AppointmentStatus.rescheduled);
-    final String patientName = appointment.user?.name ?? "Unknown Patient";
+    final String patientName =
+        appointment.user?.name ?? context.tr('doctor.chat_list.unknown_patient');
     final String patientInitials = patientName.isNotEmpty
         ? patientName.trim().split(' ').map((l) => l[0]).take(2).join()
         : "??";
@@ -287,7 +300,7 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
     final subtitle = (appointment.reason != null &&
             appointment.reason!.trim().isNotEmpty)
         ? appointment.reason!.trim()
-        : 'Consultation';
+        : context.tr('doctor.patient.consultation');
     final feeAmount = appointment.feeAmount ??
         (appointment.doctor?.consultationFee != null &&
                 appointment.doctor!.consultationFee > 0
@@ -345,8 +358,8 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
                       )),
             );
           } else if (appointment.status == AppointmentStatus.pending) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Approve or reject this booking using the actions below.'),
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(context.tr('doctor.appointment.approve_or_reject_hint')),
             ));
           } else if (appointment.status == AppointmentStatus.confirmed ||
               appointment.status == AppointmentStatus.upcoming ||
@@ -357,8 +370,8 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
                   builder: (_) => SubmitConsultationView(appointment: appointment)),
             );
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text("Cannot start consultation for this visit")));
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(context.tr('doctor.appointment.cannot_start_consultation'))));
           }
         },
         borderRadius: BorderRadius.circular(16),
@@ -406,7 +419,10 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${appointment.type.shortLabel} Consultation',
+                          context.tr(
+                            'doctor.appointment.type_consultation',
+                            params: {'type': appointment.type.shortLabel},
+                          ),
                           style: GoogleFonts.inter(
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
@@ -461,7 +477,7 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
                   ),
                   if (showCancelledBadge)
                     _statusBadge(
-                      label: 'Canceled',
+                      label: context.tr('patient.appointments.tab.cancelled'),
                       foreground: AppColors.error,
                       background: AppColors.error.withValues(alpha: 0.12),
                     )
@@ -533,7 +549,7 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
                                   ),
                                 )
                               : Text(
-                                  'Approve',
+                                  context.tr('doctor.appointment.approve'),
                                   style: GoogleFonts.inter(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
@@ -557,7 +573,7 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
                             ),
                           ),
                           child: Text(
-                            'Reject',
+                            context.tr('doctor.appointment.reject'),
                             style: GoogleFonts.inter(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
@@ -581,7 +597,13 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                           content: Text(
-                              "Confirmation request sent to ${appointment.user?.name ?? 'patient'}")));
+                              context.tr(
+                                'doctor.appointment.confirmation_request_sent',
+                                params: {
+                                  'name': appointment.user?.name ??
+                                      context.tr('common.patient').toLowerCase(),
+                                },
+                              ))));
                     },
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: AppColors.primary.withOpacity(0.5)),
@@ -590,7 +612,7 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       backgroundColor: AppColors.primary.withOpacity(0.05),
                     ),
-                    child: Text("Request Confirmation",
+                    child: Text(context.tr('doctor.appointment.request_confirmation'),
                         style: GoogleFonts.inter(
                             color: AppColors.primary,
                             fontSize: 12,
@@ -677,7 +699,7 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
               child: Column(
                 children: [
                   Text(
-                    "Appointment Options",
+                    context.tr('doctor.appointment.options_title'),
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -686,7 +708,7 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    "Choose an action for this appointment",
+                    context.tr('doctor.appointment.options_subtitle'),
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey.shade500,
@@ -699,9 +721,8 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
             if (appointment.status == AppointmentStatus.pending) ...[
               _appointmentBottomSheetActionItem(
                 iconData: Icons.check_circle_outline_rounded,
-                title: "Approve",
-                subtitle:
-                    "Confirm the visit on your schedule; payout when patient completes the visit",
+                title: context.tr('doctor.appointment.approve'),
+                subtitle: context.tr('doctor.appointment.approve_subtitle'),
                 color: AppColors.primary,
                 onTap: () {
                   Navigator.pop(sheetContext);
@@ -710,8 +731,8 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
               ),
               _appointmentBottomSheetActionItem(
                 iconData: Icons.cancel_outlined,
-                title: "Reject",
-                subtitle: "Decline this booking; patient is notified",
+                title: context.tr('doctor.appointment.reject'),
+                subtitle: context.tr('doctor.appointment.reject_subtitle'),
                 color: Colors.red,
                 onTap: () {
                   Navigator.pop(sheetContext);
@@ -723,8 +744,8 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
               iconData: Icons.chat_bubble_outline_rounded,
               assetPath: "assets/Icons/chat-icon.png",
               iconSize: 18,
-              title: "Message Patient",
-              subtitle: "Start a chat related to this visit",
+              title: context.tr('doctor.appointment.message_patient'),
+              subtitle: context.tr('doctor.appointment.message_patient_subtitle'),
               color: AppColors.primary,
               onTap: () {
                 Navigator.pop(sheetContext);
@@ -744,8 +765,8 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
               iconData: Icons.videocam_outlined,
               assetPath: "assets/Icons/video.png",
               iconSize: 24,
-              title: "Video Call",
-              subtitle: "Start video consultation",
+              title: context.tr('doctor.appointment.video_call'),
+              subtitle: context.tr('doctor.appointment.video_call_subtitle'),
               color: AppColors.primary,
               onTap: () {
                 Navigator.pop(sheetContext);
@@ -762,8 +783,8 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
             if (AppointmentModel.doctorCanCancel(appointment.status))
               _appointmentBottomSheetActionItem(
               iconData: Icons.edit_calendar_outlined,
-              title: "Reschedule",
-              subtitle: "Change appointment date or time",
+              title: context.tr('doctor.appointment.reschedule'),
+              subtitle: context.tr('doctor.appointment.reschedule_subtitle'),
               color: AppColors.primary,
               onTap: () {
                 Navigator.pop(sheetContext);
@@ -790,8 +811,8 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
                 appointment.status != AppointmentStatus.pending)
               _appointmentBottomSheetActionItem(
               iconData: Icons.cancel_outlined,
-              title: "Cancel Appointment",
-              subtitle: "Cancel this scheduled visit",
+              title: context.tr('doctor.appointment.cancel_appointment'),
+              subtitle: context.tr('doctor.appointment.cancel_appointment_subtitle'),
               color: Colors.red,
               showBorder: false,
               isLoading: _actionBusy,
@@ -801,9 +822,8 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
 
                 final reason = await showAppointmentCancelReasonDialog(
                   cardContext,
-                  title: 'Cancel appointment?',
-                  subtitle:
-                      'The patient will be notified. Please give a short reason for cancellation.',
+                  title: context.tr('doctor.appointment.cancel_dialog_title'),
+                  subtitle: context.tr('doctor.appointment.cancel_dialog_subtitle'),
                 );
                 if (!cardContext.mounted || reason == null) return;
 
@@ -838,7 +858,7 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
                         ? '${reason.substring(0, 157)}...'
                         : reason;
                     await NotificationServices.app?.showLocalBanner(
-                      title: 'Appointment cancelled',
+                      title: context.tr('doctor.appointment.banner_cancelled_title'),
                       body: bannerBody,
                     );
                   } catch (e) {
@@ -848,11 +868,13 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
 
                 if (!cardContext.mounted) return;
                 if (success) {
-                  ScaffoldMessenger.of(cardContext).showSnackBar(const SnackBar(
-                      content: Text("Appointment cancelled successfully")));
+                  ScaffoldMessenger.of(cardContext).showSnackBar(SnackBar(
+                      content: Text(
+                          context.tr('doctor.appointment.cancel_success'))));
                 } else {
-                  ScaffoldMessenger.of(cardContext).showSnackBar(const SnackBar(
-                      content: Text("Failed to cancel appointment")));
+                  ScaffoldMessenger.of(cardContext).showSnackBar(SnackBar(
+                      content:
+                          Text(context.tr('doctor.appointment.cancel_failed'))));
                 }
               },
             ),
