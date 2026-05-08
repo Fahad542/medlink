@@ -525,23 +525,25 @@ class _VideoCallViewState extends State<VideoCallView> {
                     _onToggleCamera,
                   ),
 
-                  // Add Prescription Button (Doctor Only)
-                  if (widget.isDoctor)
-                    _buildControlBtn(
-                      Icons.post_add_rounded,
-                      Colors.white,
-                      Colors.grey.withOpacity(0.3),
-                      () {
-                        showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          builder: (context) => PrescriptionBottomSheet(
-                            appointmentId: widget.appointmentId ?? "",
-                          ),
-                        );
-                      },
-                    ),
+                  // Prescription (Doctor can edit, Patient can view)
+                  _buildControlBtn(
+                    Icons.receipt_long_rounded,
+                    Colors.white,
+                    Colors.grey.withOpacity(0.3),
+                    () {
+                      final apptId = widget.appointmentId ?? "";
+                      if (apptId.trim().isEmpty) return;
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => PrescriptionBottomSheet(
+                          appointmentId: apptId,
+                          readOnly: !widget.isDoctor,
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
             ),

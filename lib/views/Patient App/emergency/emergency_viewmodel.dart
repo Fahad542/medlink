@@ -49,6 +49,8 @@ class EmergencyViewModel extends ChangeNotifier {
   AmbulanceModel? _assignedAmbulance;
   String? _sosStatus;
   String? _sosId;
+  String? _emergencyType;
+  String? _severity;
   String? get sosId => _sosId;
   Map<String, dynamic>? _activeTrip;
   String? _lastCompletedTripId;
@@ -104,8 +106,20 @@ class EmergencyViewModel extends ChangeNotifier {
   bool get isSosActive => _isSosActive;
   AmbulanceModel? get assignedAmbulance => _assignedAmbulance;
   String? get sosStatus => _sosStatus;
+  String? get emergencyType => _emergencyType;
+  String? get severity => _severity;
   Map<String, dynamic>? get activeTrip => _activeTrip;
   String? get tripStatus => _normEnum(_activeTrip?['status']);
+
+  /// Show "EMERGENCY" badge only for true emergency SOS/trips (not "normal"/routine).
+  bool get isEmergencySos {
+    final sev = _severity?.trim().toUpperCase();
+    if (sev == 'HIGH' || sev == 'CRITICAL') return true;
+    final t = (_emergencyType ?? '').trim().toLowerCase();
+    if (t.isEmpty) return false;
+    if (t == 'normal' || t == 'routine') return false;
+    return true;
+  }
 
   bool get hasPendingTripPayment => _pendingTripPaymentIds.isNotEmpty;
   int get pendingTripPaymentCount => _pendingTripPaymentIds.length;
@@ -153,6 +167,20 @@ class EmergencyViewModel extends ChangeNotifier {
   bool get canRetrySearch => _canRetrySearch;
   int get driversViewingCount => _driversViewingCount;
   List<Map<String, dynamic>> get driversViewingProfiles => _driversViewingProfiles;
+
+  /// Patient can cancel only for the first 2 minutes after SOS search starts.
+  /// We hide the UI afterwards (server enforces it too).
+  bool get canCancelActiveSos {
+    if (!_isSosActive) return false;
+    if (_sosId == null || _sosId!.isEmpty) return false;
+    if (_sosStatus != 'OPEN') return false;
+    if (_assignedAmbulance != null) return false;
+    final start = _searchWindowStartedAt;
+    if (start == null) return false;
+    const window = Duration(minutes: 2);
+    final endsAt = start.add(window);
+    return DateTime.now().isBefore(endsAt);
+  }
 
   /// Progress 0→1 while OPEN and unassigned; null when not applicable.
   double? get searchWindowProgressFraction {
@@ -271,6 +299,8 @@ class EmergencyViewModel extends ChangeNotifier {
   void _ingestSosRecord(Map<String, dynamic> sos) {
     _sosId = sos['id']?.toString() ?? _sosId;
     _sosStatus = _normEnum(sos['status']) ?? _sosStatus;
+    _emergencyType = sos['emergencyType']?.toString() ?? _emergencyType;
+    _severity = sos['severity']?.toString() ?? _severity;
     _mergeSosTimingFromMap(sos);
     _activeTrip = sos['trip'] is Map
         ? Map<String, dynamic>.from(sos['trip'])
@@ -328,6 +358,8 @@ class EmergencyViewModel extends ChangeNotifier {
     }
     final d = trip['driver'];
     if (d is! Map) return;
+    _emergencyType = trip['emergencyType']?.toString() ?? _emergencyType;
+    _severity = trip['severity']?.toString() ?? _severity;
     _assignedAmbulance = AmbulanceModel.fromJson({
       'driver': Map<String, dynamic>.from(d),
       if (trip['latestLocation'] is Map)
@@ -1067,6 +1099,30 @@ class EmergencyViewModel extends ChangeNotifier {
     return _assignedAmbulance?.estimatedArrival ?? '...';
   }
 
+  /// Cancels the active SOS on the server (within cancel window) then clears local state.
+  Future<void> cancelActiveSosOnServer(BuildContext context) async {
+    final id = _sosId;
+    if (id == null || id.isEmpty) return;
+    if (!canCancelActiveSos) return;
+    try {
+      final res = await _apiServices.cancelPatientSos(id);
+      cancelSos();
+      if (context.mounted) {
+        final msg = res is Map ? res['message']?.toString() : null;
+        Utils.toastMessage(
+          context,
+          (msg != null && msg.trim().isNotEmpty)
+              ? msg.trim()
+              : 'Emergency request cancelled',
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Utils.toastError(context, e);
+      }
+    }
+  }
+
   void cancelSos() {
     _isSosActive = false;
     _assignedAmbulance = null;
@@ -1074,6 +1130,8 @@ class EmergencyViewModel extends ChangeNotifier {
     _sosId = null;
     _activeTrip = null;
     _trackedTripIdKey = null;
+    _emergencyType = null;
+    _severity = null;
     _lastSosStatusById.clear();
     _lastTripStatusById.clear();
     _searchWindowStartedAt = null;

@@ -503,33 +503,55 @@ class _MainScreenState extends State<MainScreen>
                   ),
 
                   // Close Button
-                  Positioned(
-                    top: -16,
-                    right: -8,
-                    child: GestureDetector(
-                      onTap: () {
-                        emergencyVM.cancelSos();
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                              color: Colors.grey.shade300, width: 1.5),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
+                  if (emergencyVM.canCancelActiveSos)
+                    Positioned(
+                      top: -16,
+                      right: -8,
+                      child: GestureDetector(
+                        onTap: () async {
+                          final ok = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Cancel SOS?'),
+                              content: const Text(
+                                'This will cancel your emergency request. You can only cancel within 2 minutes after sending.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text('No'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('Yes, cancel'),
+                                ),
+                              ],
                             ),
-                          ],
+                          );
+                          if (ok == true && context.mounted) {
+                            await emergencyVM.cancelActiveSosOnServer(context);
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                                color: Colors.grey.shade300, width: 1.5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(Icons.close,
+                              size: 16, color: Colors.grey),
                         ),
-                        child: const Icon(Icons.close,
-                            size: 16, color: Colors.grey),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),

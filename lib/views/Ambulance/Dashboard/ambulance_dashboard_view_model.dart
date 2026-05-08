@@ -283,6 +283,11 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
       'estimatedFareAmount': estimatedFare,
       'currency': _currency,
       'incident': m['emergencyType'] ?? 'Emergency',
+      'severity': m['severity']?.toString(),
+      'isEmergency': _isEmergencyPayload(
+        emergencyType: m['emergencyType']?.toString(),
+        severity: m['severity']?.toString(),
+      ),
       'time': _formatTime(
         (m['searchWindowStartedAt'] ?? m['createdAt'])?.toString(),
       ),
@@ -329,11 +334,25 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
       'estimatedFareAmount': estimatedFare,
       'currency': _currency,
       'incident': payload['emergencyType'] ?? 'Emergency',
+      'severity': payload['severity']?.toString(),
+      'isEmergency': _isEmergencyPayload(
+        emergencyType: payload['emergencyType']?.toString(),
+        severity: payload['severity']?.toString(),
+      ),
       'time': _formatTime(
         (payload['searchWindowStartedAt'] ?? payload['createdAt'])
             ?.toString(),
       ),
     };
+  }
+
+  static bool _isEmergencyPayload({String? emergencyType, String? severity}) {
+    final sev = severity?.trim().toUpperCase();
+    if (sev == 'HIGH' || sev == 'CRITICAL') return true;
+    final t = (emergencyType ?? '').trim().toLowerCase();
+    if (t.isEmpty) return false;
+    if (t == 'normal' || t == 'routine') return false;
+    return true;
   }
 
   bool get isOnline => _isOnline;

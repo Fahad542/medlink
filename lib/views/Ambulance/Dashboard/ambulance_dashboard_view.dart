@@ -842,30 +842,34 @@ class _AmbulanceDashboardViewState extends State<AmbulanceDashboardView>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.warning_rounded, color: Colors.red, size: 14),
-                    SizedBox(width: 4),
-                    Text(
-                      context.tr('ambulance.dashboard.emergency'),
-                      style: GoogleFonts.inter(
-                        color: Colors.red,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 10,
+              if (request['isEmergency'] == true)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning_rounded,
+                          color: Colors.red, size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        context.tr('ambulance.dashboard.emergency'),
+                        style: GoogleFonts.inter(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 10,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
               Text(
                 request['time'],
-                style: GoogleFonts.inter(color: Colors.grey[500], fontSize: 11),
+                style:
+                    GoogleFonts.inter(color: Colors.grey[500], fontSize: 11),
               ),
             ],
           ),

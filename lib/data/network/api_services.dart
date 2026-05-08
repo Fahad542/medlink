@@ -178,6 +178,18 @@ class ApiServices {
     }
   }
 
+  /// Cancel an OPEN SOS within the first 2 minutes. Backend: `PATCH /patient/sos/:id/cancel`
+  Future<dynamic> cancelPatientSos(String sosId) async {
+    try {
+      return await _apiServices.getPatchApiResponse(
+        '${AppUrl.createSos}/$sosId/cancel',
+        <String, dynamic>{},
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   /// Stripe Payment Sheet client params for trip fare (after driver completes trip).
   Future<dynamic> patientTripPaymentCheckout(String tripId) async {
     try {
