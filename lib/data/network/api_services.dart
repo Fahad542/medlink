@@ -132,23 +132,27 @@ class ApiServices {
   }
 
   Future<dynamic> createSos(double latitude, double longitude,
-      {String incidentType = "Medical Emergency",
-      String severity = "High",
+      {String? incidentType,
+      String? severity,
       double? destinationLat,
       double? destinationLng,
       String? addressText}) async {
     try {
-      final payload = {
+      final Map<String, dynamic> payload = {
         "lat": latitude,
         "lng": longitude,
-        "emergencyType": incidentType,
-        "severity": severity,
       };
-      
+
+      if (incidentType != null && incidentType.trim().isNotEmpty) {
+        payload["emergencyType"] = incidentType.trim();
+      }
+      if (severity != null && severity.trim().isNotEmpty) {
+        payload["severity"] = severity.trim();
+      }
       if (destinationLat != null) payload["destinationLat"] = destinationLat;
       if (destinationLng != null) payload["destinationLng"] = destinationLng;
       if (addressText != null) payload["addressText"] = addressText;
-      
+
       return await _apiServices.getPostApiResponse(
         AppUrl.createSos,
         jsonEncode(payload),
@@ -1537,6 +1541,16 @@ class ApiServices {
           "${AppUrl.uploadTestReport}/$prescriptionId/tests/$testId/report";
       return await _apiServices.getPatchMultipartApiResponse(url, {}, file,
           fileKey: 'report');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> removeTestReport(String prescriptionId, String testId) async {
+    try {
+      final url =
+          "${AppUrl.uploadTestReport}/$prescriptionId/tests/$testId/report";
+      return await _apiServices.getDeleteApiResponse(url);
     } catch (e) {
       rethrow;
     }

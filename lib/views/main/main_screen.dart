@@ -217,7 +217,7 @@ class _MainScreenState extends State<MainScreen>
             ),
 
           // 3. Floating SOS Status (Fixed Position above Navbar)
-          if (emergencyVM.isSosActive)
+          if (emergencyVM.shouldShowSosStatusCard)
             Positioned(
               left: 16,
               right: 16,
@@ -502,35 +502,44 @@ class _MainScreenState extends State<MainScreen>
                     ),
                   ),
 
-                  // Close Button
-                  if (emergencyVM.canCancelActiveSos)
+                  if (emergencyVM.canCancelActiveSos || emergencyVM.canRetrySearch)
                     Positioned(
                       top: -16,
                       right: -8,
                       child: GestureDetector(
                         onTap: () async {
-                          final ok = await showDialog<bool>(
-                            context: context,
-                            builder: (ctx) => AlertDialog(
-                              title: const Text('Cancel SOS?'),
-                              content: const Text(
-                                'This will cancel your emergency request. You can only cancel within 2 minutes after sending.',
+                          if (emergencyVM.canCancelActiveSos) {
+                            final ok = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Cancel SOS?'),
+                                content: const Text(
+                                  'This will cancel your emergency request. You can only cancel within 2 minutes after sending.',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, false),
+                                    child: const Text('No'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    child: const Text('Yes, cancel'),
+                                  ),
+                                ],
                               ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, false),
-                                  child: const Text('No'),
-                                ),
-                                TextButton(
-                                  onPressed: () => Navigator.pop(ctx, true),
-                                  child: const Text('Yes, cancel'),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (ok == true && context.mounted) {
-                            await emergencyVM.cancelActiveSosOnServer(context);
+                            );
+                            if (ok == true && context.mounted) {
+                              await emergencyVM.cancelActiveSosOnServer(context);
+                            }
+                            return;
                           }
+
+                          if (emergencyVM.canRetrySearch) {
+                            emergencyVM.dismissRetrySosCard();
+                            return;
+                          }
+
+                          emergencyVM.cancelSos();
                         },
                         child: Container(
                           padding: const EdgeInsets.all(6),

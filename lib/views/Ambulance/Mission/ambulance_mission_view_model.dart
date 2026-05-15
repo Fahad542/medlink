@@ -44,6 +44,15 @@ class AmbulanceMissionViewModel extends ChangeNotifier {
   double? get dropoffLng => _dropoffLng;
   String? get apiTripStatus => _apiTripStatus;
 
+  static bool _isEmergencyPayload({String? emergencyType, String? severity}) {
+    final sev = severity?.trim().toUpperCase();
+    if (sev == 'HIGH' || sev == 'CRITICAL') return true;
+    final t = (emergencyType ?? '').trim().toLowerCase();
+    if (t.isEmpty) return false;
+    if (t == 'normal' || t == 'routine') return false;
+    return true;
+  }
+
   AmbulanceMissionViewModel() {
     _loadCurrentTrip();
   }
@@ -188,6 +197,8 @@ class AmbulanceMissionViewModel extends ChangeNotifier {
 
     final sosId = data['sosId']?.toString();
     final tripId = data['id']?.toString();
+    final emergencyType = data['emergencyType']?.toString();
+    final severity = data['severity']?.toString();
 
     _missionData = {
       'sosId': sosId,
@@ -204,6 +215,12 @@ class AmbulanceMissionViewModel extends ChangeNotifier {
       'eta': data['timeMinutes'] != null
           ? '${data['timeMinutes']} mins'
           : '${data['distanceKm'] ?? '--'} km',
+      'emergencyType': emergencyType,
+      'severity': severity,
+      'isEmergency': _isEmergencyPayload(
+        emergencyType: emergencyType,
+        severity: severity,
+      ),
     };
     notifyListeners();
   }

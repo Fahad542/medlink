@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:medlink/data/network/api_services.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 import 'package:medlink/utils/utils.dart';
 
 class PrescriptionViewModel extends ChangeNotifier {
@@ -68,6 +69,30 @@ class PrescriptionViewModel extends ChangeNotifier {
       if (response != null && response['success'] == true) {
         Utils.toastMessage(context, "Report uploaded successfully");
         await fetchPrescriptions(); // Refresh list
+        return true;
+      }
+      return false;
+    } catch (e) {
+      Utils.toastError(context, e);
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> removeReport(
+      String prescriptionId, String testId, BuildContext context) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final response =
+          await _apiServices.removeTestReport(prescriptionId, testId);
+      if (response != null && response['success'] == true) {
+        Utils.toastMessage(
+            context, context.tr('prescription.remove_success'));
+        await fetchPrescriptions();
         return true;
       }
       return false;

@@ -16,6 +16,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:medlink/utils/gps_coord.dart';
 import 'package:medlink/utils/vehicle_map_marker.dart';
 import 'package:medlink/utils/utils.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 
 class AmbulanceMissionView extends StatefulWidget {
   const AmbulanceMissionView({super.key});
@@ -467,6 +468,39 @@ class _AmbulanceMissionViewState extends State<AmbulanceMissionView> {
                                             color: AppColors.textPrimary,
                                           ),
                                         ),
+                                        if (viewModel.missionData['isEmergency'] ==
+                                            true) ...[
+                                          const SizedBox(height: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.red.withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(
+                                                  Icons.warning_rounded,
+                                                  color: Colors.red,
+                                                  size: 14,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  context.tr(
+                                                      'ambulance.dashboard.emergency'),
+                                                  style: GoogleFonts.inter(
+                                                    color: Colors.red,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 10,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
                                         const SizedBox(height: 4),
                                         Row(
                                           children: [

@@ -501,32 +501,39 @@ class DoctorDashboardView extends StatelessWidget {
                                     ),
                                   ),
                                   const SizedBox(width: 16),
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        viewModel.isOnline
-                                            ? context.tr('doctor.dashboard.available_booking')
-                                            : context.tr('doctor.dashboard.currently_unavailable'),
-                                        style: GoogleFonts.inter(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 14,
-                                            color: AppColors.textPrimary),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        viewModel.isOnline
-                                            ? context.tr('doctor.dashboard.visible_to_patients')
-                                            : context.tr('doctor.dashboard.hidden_from_search'),
-                                        style: GoogleFonts.inter(
-                                          fontSize: 12,
-                                          color: Colors.grey[500],
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          viewModel.isOnline
+                                              ? context.tr('doctor.dashboard.available_booking')
+                                              : context.tr('doctor.dashboard.currently_unavailable'),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.inter(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                              color: AppColors.textPrimary),
                                         ),
-                                      ),
-                                    ],
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          viewModel.isOnline
+                                              ? context.tr('doctor.dashboard.visible_to_patients')
+                                              : context.tr('doctor.dashboard.hidden_from_search'),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12,
+                                            color: Colors.grey[500],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                  const Spacer(),
+                                  const SizedBox(width: 8),
                                   Transform.scale(
                                     scale: 0.8,
                                     child: Switch(

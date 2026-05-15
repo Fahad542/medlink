@@ -10,6 +10,7 @@ import 'package:medlink/views/Login/login_view.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:medlink/widgets/delete_account_sheet.dart';
 import 'package:medlink/widgets/logout_confirmation_dialog.dart';
+import 'package:medlink/main.dart';
 import 'package:provider/provider.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/models/doctor_model.dart';
@@ -26,6 +27,69 @@ class DoctorSettingsProfileView extends StatefulWidget {
 class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
   late Future<_DoctorStats> _statsFuture;
   String _statsSeed = '';
+
+  void _showLocalizationSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        final currentLocale = Localizations.localeOf(sheetContext).languageCode;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  sheetContext.tr('profile.localization.sheet.title'),
+                  style: GoogleFonts.inter(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF1E293B),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  sheetContext.tr('profile.localization.sheet.subtitle'),
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(sheetContext.tr('profile.localization.french')),
+                  trailing: currentLocale == 'fr'
+                      ? const Icon(Icons.check_circle, color: AppColors.primary)
+                      : const Icon(Icons.circle_outlined),
+                  onTap: () {
+                    MedLinkApp.setLocale(context, const Locale('fr'));
+                    Navigator.pop(sheetContext);
+                  },
+                ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(sheetContext.tr('profile.localization.english')),
+                  trailing: currentLocale == 'en'
+                      ? const Icon(Icons.check_circle, color: AppColors.primary)
+                      : const Icon(Icons.circle_outlined),
+                  onTap: () {
+                    MedLinkApp.setLocale(context, const Locale('en'));
+                    Navigator.pop(sheetContext);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   void initState() {
@@ -175,7 +239,7 @@ class _DoctorSettingsProfileViewState extends State<DoctorSettingsProfileView> {
                                     'doctor.settings.tile.localization.title'),
                                 subtitle: l10n.tr(
                                     'doctor.settings.tile.localization.subtitle'),
-                                onTap: () {},
+                                onTap: _showLocalizationSheet,
                               ),
                               _buildDivider(),
                               _buildPremiumTile(

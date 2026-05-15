@@ -77,6 +77,7 @@ class EmergencyViewModel extends ChangeNotifier {
   bool _canRetrySearch = false;
   int _driversViewingCount = 0;
   List<Map<String, dynamic>> _driversViewingProfiles = [];
+  String? _dismissedRetrySosId;
 
   /// Trip id (string) for `trip:locationUpdated` / `joinTrip` — supports int ids and UUIDs.
   String? _trackedTripIdKey;
@@ -167,6 +168,32 @@ class EmergencyViewModel extends ChangeNotifier {
   bool get canRetrySearch => _canRetrySearch;
   int get driversViewingCount => _driversViewingCount;
   List<Map<String, dynamic>> get driversViewingProfiles => _driversViewingProfiles;
+  bool get isRetrySosDismissed {
+    final currentSosId = _sosId?.trim();
+    if (currentSosId == null || currentSosId.isEmpty) return false;
+    return _canRetrySearch && currentSosId == _dismissedRetrySosId;
+  }
+  bool get shouldShowSosStatusCard => _isSosActive && !isRetrySosDismissed;
+  bool get shouldShowSosCreateSection => !_isSosActive || isRetrySosDismissed;
+
+  void dismissRetrySosCard() {
+    final currentSosId = _sosId?.trim();
+    if (!_canRetrySearch ||
+        currentSosId == null ||
+        currentSosId.isEmpty) {
+      return;
+    }
+    _dismissedRetrySosId = currentSosId;
+    notifyListeners();
+  }
+
+  void _resetDismissedRetryIfNewSos(String? nextSosId) {
+    final normalized = nextSosId?.trim();
+    if (normalized == null || normalized.isEmpty) return;
+    if (_dismissedRetrySosId != null && _dismissedRetrySosId != normalized) {
+      _dismissedRetrySosId = null;
+    }
+  }
 
   /// Patient can cancel only for the first 2 minutes after SOS search starts.
   /// We hide the UI afterwards (server enforces it too).
@@ -298,6 +325,7 @@ class EmergencyViewModel extends ChangeNotifier {
 
   void _ingestSosRecord(Map<String, dynamic> sos) {
     _sosId = sos['id']?.toString() ?? _sosId;
+    _resetDismissedRetryIfNewSos(_sosId);
     _sosStatus = _normEnum(sos['status']) ?? _sosStatus;
     _emergencyType = sos['emergencyType']?.toString() ?? _emergencyType;
     _severity = sos['severity']?.toString() ?? _severity;
@@ -870,7 +898,11 @@ class EmergencyViewModel extends ChangeNotifier {
 
   Future<void> triggerSos(BuildContext context) async {
     // Basic SOS trigger
-    _triggerSosInternal(context);
+    _triggerSosInternal(
+      context,
+      incidentType: 'Medical Emergency',
+      severity: 'High',
+    );
   }
 
   Future<void> triggerSosWithDestination(BuildContext context, double destLat, double destLng) async {
@@ -929,6 +961,8 @@ class EmergencyViewModel extends ChangeNotifier {
     double? destLat,
     double? destLng,
     String? addressText,
+    String? incidentType,
+    String? severity,
   }) async {
     _isSosActive = true;
     notifyListeners();
@@ -961,6 +995,8 @@ class EmergencyViewModel extends ChangeNotifier {
       final response = await _apiServices.createSos(
         latitude,
         longitude,
+        incidentType: incidentType,
+        severity: severity,
         destinationLat: destLat,
         destinationLng: destLng,
         addressText: addressText,
@@ -1137,6 +1173,7 @@ class EmergencyViewModel extends ChangeNotifier {
     _searchWindowStartedAt = null;
     _searchWindowEndsAt = null;
     _noDriverFoundMessage = null;
+    _dismissedRetrySosId = null;
     _canRetrySearch = false;
     _driversViewingCount = 0;
     _driversViewingProfiles = [];

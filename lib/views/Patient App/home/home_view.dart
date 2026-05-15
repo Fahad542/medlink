@@ -394,7 +394,8 @@ class _HomeViewState extends State<HomeView> {
                           const SizedBox(height: 24),
 
                           // 2. SOS Button (Upper Position as requested)
-                          if (!emergencyVM.isSosActive && homeVM.isSosVisible)
+                          if (emergencyVM.shouldShowSosCreateSection &&
+                              homeVM.isSosVisible)
                             Center(
                               child: Container(
                                 margin: const EdgeInsets.only(

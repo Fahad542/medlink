@@ -28,6 +28,8 @@ class PrescriptionView extends StatefulWidget {
   State<PrescriptionView> createState() => _PrescriptionViewState();
 }
 
+enum _TestReportAction { remove, reupload }
+
 class _PrescriptionViewState extends State<PrescriptionView> {
   static const MethodChannel _androidDownloadsChannel =
       MethodChannel('com.medlink/downloads');
@@ -401,6 +403,41 @@ class _PrescriptionViewState extends State<PrescriptionView> {
           backgroundColor: const Color(0xFF00897B),
         ),
       );
+    }
+  }
+
+  Future<void> _removeTestReport(
+      BuildContext ctx, String prescriptionId, String testId) async {
+    showDialog(
+      context: ctx,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    final vm = Provider.of<PrescriptionViewModel>(ctx, listen: false);
+    final success = await vm.removeReport(prescriptionId, testId, ctx);
+
+    if (!ctx.mounted) return;
+    Navigator.of(ctx).pop();
+
+    if (success) {
+      Navigator.of(ctx).pop();
+    }
+  }
+
+  Future<void> _handleTestReportAction(
+    BuildContext ctx,
+    _TestReportAction action,
+    String prescriptionId,
+    String testId,
+  ) async {
+    switch (action) {
+      case _TestReportAction.remove:
+        await _removeTestReport(ctx, prescriptionId, testId);
+        break;
+      case _TestReportAction.reupload:
+        await _uploadTestReport(ctx, prescriptionId, testId);
+        break;
     }
   }
 
@@ -885,7 +922,8 @@ class _PrescriptionViewState extends State<PrescriptionView> {
                                 const SizedBox(height: 12),
                                 ...tests.map((test) {
                                   final testName = test['testName'] ?? test['name'] ?? test['test'] ?? '';
-                                  final hasReport = test['reportUrl'] != null || test['reportId'] != null;
+                                  final reportUrl = test['reportUrl']?.toString() ?? '';
+                                  final hasReport = reportUrl.isNotEmpty || test['reportId'] != null;
                                   final prescriptionId = (prescription['id'] ?? '').toString();
                                   final testId = (test['id'] ?? '').toString();
                                   return Padding(
@@ -898,7 +936,41 @@ class _PrescriptionViewState extends State<PrescriptionView> {
                                         ),
                                         const SizedBox(width: 12),
                                         if (hasReport)
-                                          const Icon(Icons.check_circle, size: 20, color: Color(0xFF00897B))
+                                          PopupMenuButton<_TestReportAction>(
+                                            tooltip: '',
+                                            onSelected: (action) => _handleTestReportAction(
+                                              ctx,
+                                              action,
+                                              prescriptionId,
+                                              testId,
+                                            ),
+                                            itemBuilder: (_) => [
+                                              PopupMenuItem(
+                                                value: _TestReportAction.reupload,
+                                                child: Text(context.tr('common.reupload')),
+                                              ),
+                                              PopupMenuItem(
+                                                value: _TestReportAction.remove,
+                                                child: Text(context.tr('common.remove')),
+                                              ),
+                                            ],
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFECFDF5),
+                                                borderRadius: BorderRadius.circular(20),
+                                                border: Border.all(color: const Color(0xFF10B981).withOpacity(0.25)),
+                                              ),
+                                              child: const Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(Icons.check_circle, size: 16, color: Color(0xFF00897B)),
+                                                  SizedBox(width: 4),
+                                                  Icon(Icons.more_horiz, size: 16, color: Color(0xFF00897B)),
+                                                ],
+                                              ),
+                                            ),
+                                          )
                                         else
                                           SizedBox(
                                             height: 32,

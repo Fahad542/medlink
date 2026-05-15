@@ -67,17 +67,38 @@ class DoctorModel {
 
     dynamic getField(String key) => json[key] ?? profile[key];
 
-    String parsedSpecialty = 'General';
-    if (json['doctorSpecialties'] is List &&
-        (json['doctorSpecialties'] as List).isNotEmpty) {
-      var firstSpec = json['doctorSpecialties'][0];
-      if (firstSpec['specialty'] is Map &&
-          firstSpec['specialty']['name'] != null) {
-        parsedSpecialty = firstSpec['specialty']['name'];
+    String? readSpecialtyName(dynamic raw) {
+      if (raw == null) return null;
+      if (raw is String) {
+        final value = raw.trim();
+        return value.isEmpty ? null : value;
       }
-    } else {
-      parsedSpecialty = getField('specialty') ?? 'General';
+      if (raw is Map) {
+        final direct = raw['name'] ?? raw['title'] ?? raw['label'];
+        if (direct is String && direct.trim().isNotEmpty) {
+          return direct.trim();
+        }
+        return readSpecialtyName(
+          raw['specialty'] ?? raw['specialisation'] ?? raw['specialization'],
+        );
+      }
+      if (raw is List) {
+        for (final item in raw) {
+          final parsed = readSpecialtyName(item);
+          if (parsed != null) return parsed;
+        }
+      }
+      return null;
     }
+
+    final parsedSpecialty = readSpecialtyName(json['doctorSpecialties']) ??
+        readSpecialtyName(profile['doctorSpecialties']) ??
+        readSpecialtyName(json['specialties']) ??
+        readSpecialtyName(profile['specialties']) ??
+        readSpecialtyName(getField('specialty')) ??
+        readSpecialtyName(getField('specialisation')) ??
+        readSpecialtyName(getField('specialization')) ??
+        'General';
 
     final rawAvailability = (getField('availability') as List<dynamic>?) ?? [];
     final parsedRecentReviewsRaw =

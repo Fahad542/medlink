@@ -5,8 +5,8 @@ class AppUrl {
 
   static const String baseUrl =
       'https://www.medlink-africa.com';
-  // static const String baseUrl =
-  //     'http://192.168.100.8:3000'; // Emulator Magic IP (points to your machine)
+//   static const String baseUrl =
+//       'http://192.168.100.8:3000'; // Emulator Magic IP (points to your machine)
 
   /// Common Auth Endpoints
   static const String loginEndPoint = '${baseUrl}/auth/login';

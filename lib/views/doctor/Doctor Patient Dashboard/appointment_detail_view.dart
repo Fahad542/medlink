@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/models/prescription_detail_model.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/widgets/no_data_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:medlink/views/doctor/Doctor%20Patient%20Dashboard/prescription_detail_view_model.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class AppointmentDetailView extends StatefulWidget {
   final String title;
@@ -148,6 +150,7 @@ class _AppointmentDetailViewState extends State<AppointmentDetailView> {
                               test.testName ?? "N/A",
                               "Ordered on ${widget.date}",
                               test.status ?? "Pending",
+                              test.reportUrl,
                               isLast: isLast,
                             );
                           }).toList(),
@@ -391,7 +394,27 @@ class _AppointmentDetailViewState extends State<AppointmentDetailView> {
     );
   }
 
-  Widget _buildTestItem(String name, String date, String status, {bool isLast = false}) {
+  Future<void> _openReportUrl(BuildContext context, String reportUrl) async {
+    final resolved = AppUrl.getFullUrl(reportUrl);
+    final uri = Uri.tryParse(resolved);
+    if (uri == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid report link')),
+      );
+      return;
+    }
+
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open report')),
+      );
+    }
+  }
+
+  Widget _buildTestItem(String name, String date, String status, String? reportUrl,
+      {bool isLast = false}) {
+    final hasReport = (reportUrl ?? '').trim().isNotEmpty;
     return Column(
       children: [
         Padding(
@@ -411,11 +434,9 @@ class _AppointmentDetailViewState extends State<AppointmentDetailView> {
                   ],
                 ),
               ),
-              status == "submitted"
+              hasReport
                   ? GestureDetector(
-                      onTap: () {
-                        // Handle view result
-                      },
+                      onTap: () => _openReportUrl(context, reportUrl!),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(

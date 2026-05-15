@@ -168,6 +168,30 @@ class AppointmentModel {
           clinicName = doctorObj['doctorProfile']['clinicName'] ?? '';
         }
 
+        String? readSpecialtyName(dynamic raw) {
+          if (raw == null) return null;
+          if (raw is String) {
+            final value = raw.trim();
+            return value.isEmpty ? null : value;
+          }
+          if (raw is Map) {
+            final direct = raw['name'] ?? raw['title'] ?? raw['label'];
+            if (direct is String && direct.trim().isNotEmpty) {
+              return direct.trim();
+            }
+            return readSpecialtyName(
+              raw['specialty'] ?? raw['specialisation'] ?? raw['specialization'],
+            );
+          }
+          if (raw is List) {
+            for (final item in raw) {
+              final parsed = readSpecialtyName(item);
+              if (parsed != null) return parsed;
+            }
+          }
+          return null;
+        }
+
         String photoUrl = AppUrl.getFullUrl(
             doctorObj['profilePhotoUrl']?.toString() ??
                 doctorObj['profile_image_url']?.toString());
@@ -175,7 +199,13 @@ class AppointmentModel {
         doctorModel = DoctorModel(
           id: doctorId,
           name: doctorObj['fullName'] ?? doctorObj['full_name'] ?? 'Unknown',
-          specialty: doctorObj['specialty'] ?? 'Specialist',
+          specialty: readSpecialtyName(doctorObj['doctorSpecialties']) ??
+              readSpecialtyName(doctorObj['specialties']) ??
+              readSpecialtyName(doctorObj['specialty']) ??
+              readSpecialtyName(doctorObj['specialisation']) ??
+              readSpecialtyName(doctorObj['specialization']) ??
+              readSpecialtyName(doctorObj['doctorProfile']) ??
+              'Specialist',
           hospital: clinicName,
           rating: 0.0,
           imageUrl: photoUrl,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/models/appointment_model.dart';
 import 'package:medlink/views/doctor/Consultation/submit_consultation_view_model.dart';
 import 'package:medlink/views/doctor/doctor_appointments_view_model.dart';
@@ -9,6 +10,7 @@ import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:provider/provider.dart';
 import 'package:medlink/core/localization/app_localizations.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SubmitConsultationView extends StatelessWidget {
   final AppointmentModel appointment;
@@ -97,7 +99,7 @@ class SubmitConsultationView extends StatelessWidget {
                           _buildSectionTitle(context.tr('prescription.section.tests_required')),
                           if (!isCompleted) _buildTestForm(context, viewModel),
                           const SizedBox(height: 12),
-                          _buildTestList(viewModel, readOnly: isCompleted),
+                          _buildTestList(context, viewModel, readOnly: isCompleted),
                         ],
                         const SizedBox(height: 100),
                       ],
@@ -335,23 +337,54 @@ class SubmitConsultationView extends StatelessWidget {
     );
   }
 
-  Widget _buildTestList(SubmitConsultationViewModel viewModel,
+  Widget _buildTestList(BuildContext context, SubmitConsultationViewModel viewModel,
       {bool readOnly = false}) {
     return Column(
       children: List.generate(viewModel.tests.length, (index) {
         final test = viewModel.tests[index];
+        final reportUrl = (test['reportUrl'] ?? '').trim();
         return ListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(test['testName']!,
               style: const TextStyle(fontWeight: FontWeight.bold)),
           subtitle: test['notes']!.isNotEmpty ? Text(test['notes']!) : null,
           trailing: readOnly
-              ? null
+              ? (reportUrl.isNotEmpty
+                  ? TextButton(
+                      onPressed: () => _openReportUrl(context, reportUrl),
+                      child: const Text('See Result'),
+                    )
+                  : Text(
+                      'Pending',
+                      style: TextStyle(
+                        color: Colors.orange.shade700,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ))
               : IconButton(
                   icon: const Icon(Icons.delete_outline, color: Colors.red),
                   onPressed: () => viewModel.removeTest(index)),
         );
       }),
     );
+  }
+
+  Future<void> _openReportUrl(BuildContext context, String reportUrl) async {
+    final resolved = AppUrl.getFullUrl(reportUrl);
+    final uri = Uri.tryParse(resolved);
+    if (uri == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid report link')),
+      );
+      return;
+    }
+
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open report')),
+      );
+    }
   }
 }

@@ -6,6 +6,7 @@
 // @dart = 3.4
 
 import 'dart:io'; // flutter_ignore: dart_io_import.
+import 'package:flutter_inappwebview_android/flutter_inappwebview_android.dart' as flutter_inappwebview_android;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart' as flutter_local_notifications;
 import 'package:geocoding_android/geocoding_android.dart' as geocoding_android;
 import 'package:geolocator_android/geolocator_android.dart' as geolocator_android;
@@ -17,6 +18,8 @@ import 'package:shared_preferences_android/shared_preferences_android.dart' as s
 import 'package:sqflite_android/sqflite_android.dart' as sqflite_android;
 import 'package:url_launcher_android/url_launcher_android.dart' as url_launcher_android;
 import 'package:video_player_android/video_player_android.dart' as video_player_android;
+import 'package:webview_flutter_android/webview_flutter_android.dart' as webview_flutter_android;
+import 'package:flutter_inappwebview_ios/flutter_inappwebview_ios.dart' as flutter_inappwebview_ios;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart' as flutter_local_notifications;
 import 'package:geocoding_ios/geocoding_ios.dart' as geocoding_ios;
 import 'package:geolocator_apple/geolocator_apple.dart' as geolocator_apple;
@@ -28,6 +31,7 @@ import 'package:shared_preferences_foundation/shared_preferences_foundation.dart
 import 'package:sqflite_darwin/sqflite_darwin.dart' as sqflite_darwin;
 import 'package:url_launcher_ios/url_launcher_ios.dart' as url_launcher_ios;
 import 'package:video_player_avfoundation/video_player_avfoundation.dart' as video_player_avfoundation;
+import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart' as webview_flutter_wkwebview;
 import 'package:file_picker/file_picker.dart' as file_picker;
 import 'package:file_selector_linux/file_selector_linux.dart' as file_selector_linux;
 import 'package:flutter_local_notifications_linux/flutter_local_notifications_linux.dart' as flutter_local_notifications_linux;
@@ -38,6 +42,7 @@ import 'package:shared_preferences_linux/shared_preferences_linux.dart' as share
 import 'package:url_launcher_linux/url_launcher_linux.dart' as url_launcher_linux;
 import 'package:file_picker/file_picker.dart' as file_picker;
 import 'package:file_selector_macos/file_selector_macos.dart' as file_selector_macos;
+import 'package:flutter_inappwebview_macos/flutter_inappwebview_macos.dart' as flutter_inappwebview_macos;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart' as flutter_local_notifications;
 import 'package:geolocator_apple/geolocator_apple.dart' as geolocator_apple;
 import 'package:google_sign_in_ios/google_sign_in_ios.dart' as google_sign_in_ios;
@@ -47,8 +52,10 @@ import 'package:shared_preferences_foundation/shared_preferences_foundation.dart
 import 'package:sqflite_darwin/sqflite_darwin.dart' as sqflite_darwin;
 import 'package:url_launcher_macos/url_launcher_macos.dart' as url_launcher_macos;
 import 'package:video_player_avfoundation/video_player_avfoundation.dart' as video_player_avfoundation;
+import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart' as webview_flutter_wkwebview;
 import 'package:file_picker/file_picker.dart' as file_picker;
 import 'package:file_selector_windows/file_selector_windows.dart' as file_selector_windows;
+import 'package:flutter_inappwebview_windows/flutter_inappwebview_windows.dart' as flutter_inappwebview_windows;
 import 'package:flutter_local_notifications_windows/flutter_local_notifications_windows.dart' as flutter_local_notifications_windows;
 import 'package:image_picker_windows/image_picker_windows.dart' as image_picker_windows;
 import 'package:path_provider_windows/path_provider_windows.dart' as path_provider_windows;
@@ -62,6 +69,15 @@ class _PluginRegistrant {
   @pragma('vm:entry-point')
   static void register() {
     if (Platform.isAndroid) {
+      try {
+        flutter_inappwebview_android.AndroidInAppWebViewPlatform.registerWith();
+      } catch (err) {
+        print(
+          '`flutter_inappwebview_android` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
       try {
         flutter_local_notifications.AndroidFlutterLocalNotificationsPlugin.registerWith();
       } catch (err) {
@@ -161,7 +177,25 @@ class _PluginRegistrant {
         );
       }
 
+      try {
+        webview_flutter_android.AndroidWebViewPlatform.registerWith();
+      } catch (err) {
+        print(
+          '`webview_flutter_android` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
     } else if (Platform.isIOS) {
+      try {
+        flutter_inappwebview_ios.IOSInAppWebViewPlatform.registerWith();
+      } catch (err) {
+        print(
+          '`flutter_inappwebview_ios` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
       try {
         flutter_local_notifications.IOSFlutterLocalNotificationsPlugin.registerWith();
       } catch (err) {
@@ -261,6 +295,15 @@ class _PluginRegistrant {
         );
       }
 
+      try {
+        webview_flutter_wkwebview.WebKitWebViewPlatform.registerWith();
+      } catch (err) {
+        print(
+          '`webview_flutter_wkwebview` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
     } else if (Platform.isLinux) {
       try {
         file_picker.FilePickerLinux.registerWith();
@@ -354,6 +397,15 @@ class _PluginRegistrant {
       }
 
       try {
+        flutter_inappwebview_macos.MacOSInAppWebViewPlatform.registerWith();
+      } catch (err) {
+        print(
+          '`flutter_inappwebview_macos` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
+      try {
         flutter_local_notifications.MacOSFlutterLocalNotificationsPlugin.registerWith();
       } catch (err) {
         print(
@@ -434,6 +486,15 @@ class _PluginRegistrant {
         );
       }
 
+      try {
+        webview_flutter_wkwebview.WebKitWebViewPlatform.registerWith();
+      } catch (err) {
+        print(
+          '`webview_flutter_wkwebview` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
     } else if (Platform.isWindows) {
       try {
         file_picker.FilePickerWindows.registerWith();
@@ -449,6 +510,15 @@ class _PluginRegistrant {
       } catch (err) {
         print(
           '`file_selector_windows` threw an error: $err. '
+          'The app may not function as expected until you remove this plugin from pubspec.yaml'
+        );
+      }
+
+      try {
+        flutter_inappwebview_windows.WindowsInAppWebViewPlatform.registerWith();
+      } catch (err) {
+        print(
+          '`flutter_inappwebview_windows` threw an error: $err. '
           'The app may not function as expected until you remove this plugin from pubspec.yaml'
         );
       }

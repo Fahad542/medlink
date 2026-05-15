@@ -49,6 +49,7 @@ class SubmitConsultationViewModel extends ChangeNotifier {
             .map((test) => {
                   "testName": test['testName']?.toString() ?? '',
                   "notes": test['notes']?.toString() ?? '',
+                  "reportUrl": test['reportUrl']?.toString() ?? '',
                 })
             .toList();
       }

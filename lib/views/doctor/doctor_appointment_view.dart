@@ -357,11 +357,8 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
                         ),
                       )),
             );
-          } else if (appointment.status == AppointmentStatus.pending) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(context.tr('doctor.appointment.approve_or_reject_hint')),
-            ));
-          } else if (appointment.status == AppointmentStatus.confirmed ||
+          } else if (appointment.status == AppointmentStatus.pending ||
+              appointment.status == AppointmentStatus.confirmed ||
               appointment.status == AppointmentStatus.upcoming ||
               appointment.status == AppointmentStatus.rescheduled) {
             Navigator.push(
@@ -524,41 +521,41 @@ class _DoctorAppointmentCardState extends State<DoctorAppointmentCard> {
                 const SizedBox(height: 14),
                 Row(
                   children: [
-                    Expanded(
-                      child: SizedBox(
-                        height: 30,
-                        child: ElevatedButton(
-                          onPressed:
-                              _actionBusy ? null : () => _approveBooking(context),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            padding: EdgeInsets.zero,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: _actionBusy
-                              ? const SizedBox(
-                                  height: 16,
-                                  width: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : Text(
-                                  context.tr('doctor.appointment.approve'),
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
+                    // Expanded(
+                    //   child: SizedBox(
+                    //     height: 30,
+                    //     child: ElevatedButton(
+                    //       onPressed:
+                    //           _actionBusy ? null : () => _approveBooking(context),
+                    //       style: ElevatedButton.styleFrom(
+                    //         backgroundColor: AppColors.primary,
+                    //         foregroundColor: Colors.white,
+                    //         padding: EdgeInsets.zero,
+                    //         shape: RoundedRectangleBorder(
+                    //           borderRadius: BorderRadius.circular(10),
+                    //         ),
+                    //         elevation: 0,
+                    //       ),
+                    //       child: _actionBusy
+                    //           ? const SizedBox(
+                    //               height: 16,
+                    //               width: 16,
+                    //               child: CircularProgressIndicator(
+                    //                 strokeWidth: 2,
+                    //                 color: Colors.white,
+                    //               ),
+                    //             )
+                    //           : Text(
+                    //               context.tr('doctor.appointment.approve'),
+                    //               style: GoogleFonts.inter(
+                    //                 fontSize: 12,
+                    //                 fontWeight: FontWeight.w600,
+                    //               ),
+                    //             ),
+                    //     ),
+                    //   ),
+                    // ),
+                    // const SizedBox(width: 8),
                     Expanded(
                       child: SizedBox(
                         height: 30,
