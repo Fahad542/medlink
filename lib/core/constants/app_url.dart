@@ -3,9 +3,10 @@ class AppUrl {
   /// Base URL
   ///static const String baseUrl = 'https://medlink-be-production.up.railway.app';
 
-  //static const String baseUrl = 'https://www.medlink-africa.com';
   static const String baseUrl =
-      'https://www.medlink-africa.com'; // Emulator Magic IP (points to your machine)
+      'https://www.medlink-africa.com';
+//   static const String baseUrl =
+//       'http://192.168.100.8:3000'; // Emulator Magic IP (points to your machine)
 
   /// Common Auth Endpoints
   static const String loginEndPoint = '${baseUrl}/auth/login';
@@ -14,21 +15,18 @@ class AppUrl {
   static const String resetPassword = '${baseUrl}/auth/password/reset';
   static const String deleteAccountSendOtp =
       '${baseUrl}/auth/account/delete/send-otp';
-  static const String deleteAccountVerifyOtp =
-      '${baseUrl}/auth/account/delete/verify-otp';
+  static const String deleteAccountVerifyOtp = '${baseUrl}/auth/account/delete/verify-otp';
   static const String socialLogin = '${baseUrl}/auth/social-login';
+  /// POST JSON `{ "access_token": "<jwt>" }` — validates session for patient / doctor / driver.
+  static const String checkLogin = '${baseUrl}/auth/check-login';
 
-  static const String getChatMessages =
-      '${baseUrl}/chat/user'; // /{recipientId}/messages
-  static const String sendChatMessage =
-      '${baseUrl}/chat/user'; // /{recipientId}/messages
+  static const String getChatMessages = '${baseUrl}/chat/user'; // /{recipientId}/messages
+  static const String sendChatMessage = '${baseUrl}/chat/user'; // /{recipientId}/messages
   static const String sendSosChat = '${baseUrl}/chat/sos'; // /{sosId}/send
   static const String getAppointments = '${baseUrl}/appointments/patient';
-  static const String getSosChatMessages =
-      '${baseUrl}/chat/sos'; // /{sosId}/messages
+  static const String getSosChatMessages = '${baseUrl}/chat/sos'; // /{sosId}/messages
   static const String sendTripChat = '${baseUrl}/chat/trip'; // /{tripId}/send
-  static const String getTripChatMessages =
-      '${baseUrl}/chat/trip'; // /{tripId}/messages
+  static const String getTripChatMessages = '${baseUrl}/chat/trip'; // /{tripId}/messages
   static const String register = '${baseUrl}/auth/register';
   static const String registerStep1 = '$register/step1';
   static const String registerStep2 = '$register/step2';
@@ -39,7 +37,7 @@ class AppUrl {
     if (path == null || path.isEmpty) return '';
     if (path.startsWith('http')) return path;
 
-
+    // Ensure path starts with a single slash
     final cleanPath = path.startsWith('/') ? path : '/$path';
     return '$baseUrl$cleanPath';
   }
@@ -50,6 +48,10 @@ class AppUrl {
   static const String patientRegisterStep3 = '${baseUrl}/auth/patient/register';
   static const String getPatientProfile = '${baseUrl}/patient/profile';
   static const String updatePatientProfile = '${baseUrl}/patient/profile';
+  static const String patientNotifications = '${baseUrl}/patient/notifications';
+  /// POST — mark every notification read (clears unread badge server-side).
+  static const String patientNotificationsReadAll =
+      '${baseUrl}/patient/notifications/read-all';
   static const String getDoctors = '${baseUrl}/patient/doctors/available';
   static const String getDoctorsCategories =
       '${baseUrl}/patient/doctors/categories';
@@ -60,6 +62,9 @@ class AppUrl {
   static const String bookAppointments = '${baseUrl}/patient/appointments';
   static const String getBookedSlots =
       '${baseUrl}/patient/doctors'; // /{id}/booked-slots
+  /// GET …/patient/doctors/{id}/weekly-schedule — session length + active weekly rows.
+  static const String patientDoctorWeeklySchedule =
+      '${baseUrl}/patient/doctors'; // /{id}/weekly-schedule
   static const String getUpcomingAppointments =
       '${baseUrl}/patient/appointments/upcoming';
   static const String getCancelledAppointments =
@@ -78,6 +83,8 @@ class AppUrl {
   static const String getChatHistory =
       '${baseUrl}/chat/history/patient'; // /{patientId}/doctors
   static const String getChatConversations = '${baseUrl}/chat/conversations';
+  static const String markChatConversationRead =
+      '${baseUrl}/chat/conversations/read';
   static const String uploadImage = '${baseUrl}/upload/image';
   static const String getUnifiedChatHistory =
       '${baseUrl}/chat/history'; // /doctor/{doctorId}/patient/{patientId}
@@ -92,8 +99,13 @@ class AppUrl {
   static const String doctorRegisterStep1 = '${baseUrl}/auth/doctor/send-otp';
   static const String doctorRegisterStep2 = verifyOtp;
   static const String doctorRegisterStep3 = '${baseUrl}/auth/doctor/register';
+  static const String doctorCheckEmailAvailability =
+      '${baseUrl}/auth/doctor/check-email';
   static const String getDoctorProfile = '${baseUrl}/doctor/profile-details';
   static const String updateDoctorProfile = '${baseUrl}/doctor/profile-details';
+  static const String doctorNotifications = '${baseUrl}/doctor/notifications';
+  static const String doctorNotificationsReadAll =
+      '${baseUrl}/doctor/notifications/read-all';
   static const String getDoctorPatients = '${baseUrl}/doctor/patients';
   static const String getDoctorEarningsByMonth =
       '${baseUrl}/doctor/earnings/by-month';
@@ -110,6 +122,7 @@ class AppUrl {
       '${baseUrl}/doctor/appointments';
   static const String getDoctorArticles = '${baseUrl}/doctor/my-articles';
   static const String uploadArticle = '${baseUrl}/doctor/articles';
+  static const String doctorArticleById = '${baseUrl}/doctor/articles';
   static const String getPatientProfileForDoctor =
       '${baseUrl}/doctor/patient'; // /{id}/profile
   static const String getDoctorChatHistory =
@@ -172,5 +185,22 @@ class AppUrl {
   static const String reviewDriver =
       '${baseUrl}/patient/trips'; // /{tripId}/review-driver
 
-  static const String systemSettings = '${baseUrl}/common/settings';
+  static String patientTripPaymentCheckout(String tripId) =>
+      '${baseUrl}/patient/trips/$tripId/payment/checkout';
+  static String patientTripPaymentCash(String tripId) =>
+      '${baseUrl}/patient/trips/$tripId/payment/cash';
+  static String patientTripPaymentConfirmOnline(String tripId) =>
+      '${baseUrl}/patient/trips/$tripId/payment/confirm-online';
+
+  /// Org whose `OrganizationSettings.minimumDoctorConsultationFee` applies app-wide (change to your DB org id).
+  static const int defaultOrganizationIdForFeeRules = 1;
+
+  static String organizationSettingsById(int organizationId) =>
+      '$baseUrl/common/organization-settings/$organizationId';
+
+  /// App-wide settings (e.g. default currency) — `GET` returns `{ success, settings: { currency, ... } }`.
+  static const String systemSettings = '${baseUrl}/common/system-settings';
+
+  /// `PATCH` body `{ "fcmToken": "..." }` — requires Bearer (patient / doctor / driver).
+  static const String updateFcmToken = '${baseUrl}/common/fcm-token';
 }

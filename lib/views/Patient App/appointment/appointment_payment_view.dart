@@ -8,8 +8,11 @@ import 'package:medlink/widgets/custom_button.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:medlink/views/main/main_screen.dart';
-import 'package:medlink/views/services/settings_view_model.dart';
 import 'package:provider/provider.dart';
+import 'package:medlink/services/appointment_socket_service.dart';
+import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
+import 'package:medlink/views/services/session_view_model.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 
 class AppointmentPaymentView extends StatefulWidget {
   final DoctorModel doctor;
@@ -44,7 +47,7 @@ class _AppointmentPaymentViewState extends State<AppointmentPaymentView> {
       final dynamic publishableKeyRaw = widget.paymentData['publishableKey'];
 
       if (pIntentRaw == null || eKeyRaw == null || customerRaw == null) {
-        throw Exception("Missing required payment data from server");
+        throw Exception(context.tr('patient.appointment_payment.error.missing_data'));
       }
 
       final String paymentIntent = pIntentRaw.toString();
@@ -81,13 +84,27 @@ class _AppointmentPaymentViewState extends State<AppointmentPaymentView> {
 
       if (confirmResponse != null && confirmResponse['success'] == true) {
         if (mounted) {
+          final patientId = Provider.of<UserViewModel>(context, listen: false)
+              .patient
+              ?.id
+              .toString();
+          AppointmentSocketService.instance.emitAfterBookingCreated(
+            appointmentId: widget.appointmentId,
+            doctorId: widget.doctor.id,
+            patientId: patientId,
+          );
+          try {
+            Provider.of<AppointmentViewModel>(context, listen: false)
+                .loadUpcomingAppointments();
+          } catch (_) {}
           setState(() =>
               _isProcessing = false); // Stop loading before success dialog
           _showSuccessDialog();
         }
       } else {
         throw Exception(
-            confirmResponse?['message'] ?? "Payment confirmation failed");
+            confirmResponse?['message'] ??
+                context.tr('patient.appointment_payment.error.confirm_failed'));
       }
     } catch (e) {
       if (mounted) {
@@ -95,29 +112,22 @@ class _AppointmentPaymentViewState extends State<AppointmentPaymentView> {
       }
       if (e is StripeException) {
         if (e.error.code == FailureCode.Canceled) {
-          debugPrint("User cancelled payment sheet");
+          debugPrint(context.tr('patient.appointment_payment.debug.cancelled'));
           return;
         }
-
-        // Specific handling for -1005 (Network connection lost)
-        final String errorMsg = e.error.localizedMessage ?? "Unknown payment error";
-        final bool isNetworkError = errorMsg.contains('-1005') || 
-                                    errorMsg.toLowerCase().contains('connection was lost');
-
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(isNetworkError 
-                  ? "Network connection lost. Please check your internet and try again."
-                  : "Payment failed: $errorMsg"),
-              backgroundColor: isNetworkError ? Colors.orange : Colors.red,
-            ),
+                content: Text(context.tr('patient.appointment_payment.error.failed',
+                    params: {'error': e.error.localizedMessage ?? ''}))),
           );
         }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Error: $e")),
+            SnackBar(
+                content: Text(context.tr('patient.appointment_payment.error.generic',
+                    params: {'error': e.toString()}))),
           );
         }
       }
@@ -145,19 +155,20 @@ class _AppointmentPaymentViewState extends State<AppointmentPaymentView> {
             ),
             const SizedBox(height: 24),
             Text(
-              "Payment Successful!",
+              context.tr('patient.appointment_payment.success.title'),
               style:
                   GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
-              "Your appointment with Dr. ${widget.doctor.name} has been confirmed.",
+              context.tr('patient.appointment_payment.success.subtitle',
+                  params: {'doctor': widget.doctor.name}),
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(color: Colors.grey[600]),
             ),
             const SizedBox(height: 32),
             CustomButton(
-              text: "Go to Appointments",
+              text: context.tr('patient.appointment_payment.go_appointments'),
               onPressed: () {
                 Navigator.of(context).pushAndRemoveUntil(
                   MaterialPageRoute(
@@ -176,7 +187,7 @@ class _AppointmentPaymentViewState extends State<AppointmentPaymentView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      appBar: const CustomAppBar(title: "Complete Payment"),
+      appBar: CustomAppBar(title: context.tr('patient.appointment_payment.complete')),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -210,13 +221,13 @@ class _AppointmentPaymentViewState extends State<AppointmentPaymentView> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    "Appointment Fee",
+                    context.tr('patient.appointment_payment.fee_label'),
                     style: GoogleFonts.inter(
                         fontSize: 16, color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    "${context.watch<SettingsViewModel>().currency} ${widget.doctor.consultationFee}",
+                    "CFA ${widget.doctor.consultationFee}",
                     style: GoogleFonts.inter(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,
@@ -227,15 +238,18 @@ class _AppointmentPaymentViewState extends State<AppointmentPaymentView> {
             ),
 
             const SizedBox(height: 32),
-            Text("Appointment Details",
+            Text(context.tr('patient.appointment_payment.details'),
                 style: GoogleFonts.inter(
                     fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
 
-            _buildDetailRow(Icons.person_outline, "Doctor", widget.doctor.name),
-            _buildDetailRow(Icons.calendar_today_outlined, "Date",
+            _buildDetailRow(Icons.person_outline,
+                context.tr('patient.appointment_payment.doctor'), widget.doctor.name),
+            _buildDetailRow(Icons.calendar_today_outlined,
+                context.tr('patient.appointment_payment.date'),
                 DateFormat('EEEE, MMM d, yyyy').format(widget.date)),
-            _buildDetailRow(Icons.access_time_outlined, "Time", widget.time),
+            _buildDetailRow(Icons.access_time_outlined,
+                context.tr('patient.appointment_payment.time'), widget.time),
 
             const Spacer(),
 
@@ -245,21 +259,21 @@ class _AppointmentPaymentViewState extends State<AppointmentPaymentView> {
                   children: [
                     const CircularProgressIndicator(color: AppColors.primary),
                     const SizedBox(height: 16),
-                    Text("Processing payment securely...",
+                    Text(context.tr('patient.appointment_payment.processing'),
                         style: GoogleFonts.inter(color: Colors.grey)),
                   ],
                 ),
               )
             else
               CustomButton(
-                text: "Complete Secure Payment",
+                text: context.tr('patient.appointment_payment.complete_secure'),
                 onPressed: _launchPayment,
               ),
 
             const SizedBox(height: 16),
             Center(
               child: Text(
-                "Secure payment powered by Stripe",
+                context.tr('patient.appointment_payment.powered_by'),
                 style: GoogleFonts.inter(fontSize: 12, color: Colors.grey[500]),
               ),
             ),

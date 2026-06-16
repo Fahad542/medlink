@@ -12,11 +12,12 @@ import 'package:medlink/views/Patient App/emergency/emergency_viewmodel.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:medlink/services/google_maps_service.dart';
-import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/utils/utils.dart';
 import 'package:medlink/utils/gps_coord.dart';
 import 'package:medlink/utils/trip_driver_location.dart';
 import 'package:medlink/utils/vehicle_map_marker.dart';
+import 'package:medlink/core/constants/sos_constants.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 
 class AmbulanceTrackingView extends StatefulWidget {
   final AmbulanceModel ambulance;
@@ -35,7 +36,6 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
   final Completer<GoogleMapController> _mapController = Completer();
   bool hasInitialFit = false;
   bool _isNavigatingBack = false;
-  bool _reviewPromptShown = false;
 
   List<LatLng> _routePoints = [];
   List<LatLng> _pickupToDestinationLeg = [];
@@ -151,20 +151,28 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
     }
   }
 
-  String _trackingPhaseSubtitle(String tripPhase, String sosSt) {
+  String _trackingPhaseSubtitle(
+      BuildContext context, String tripPhase, String sosSt) {
     switch (tripPhase) {
       case 'IN_PROGRESS':
-        return 'Ambulance is taking you to the hospital';
+        return context.tr('patient.ambulance_tracking.phase.in_progress');
       case 'ARRIVED':
-        return 'Ambulance has reached your pickup point';
+        return context.tr('patient.ambulance_tracking.phase.arrived');
       case 'ACCEPTED':
-        return 'Crew is on the way to your location';
+        return context.tr('patient.ambulance_tracking.phase.accepted');
       case 'REQUESTED':
-        return 'Trip is being confirmed';
+        return context.tr('patient.ambulance_tracking.phase.requested');
       default:
-        if (sosSt == 'OPEN') return 'Searching for the nearest ambulance';
-        if (sosSt == 'ASSIGNED') return 'Live location updates below';
-        return 'Live tracking';
+        if (sosSt == 'EXPIRED') {
+          return SosConstants.noAmbulanceDriverMessage;
+        }
+        if (sosSt == 'OPEN') {
+          return context.tr('patient.ambulance_tracking.phase.open');
+        }
+        if (sosSt == 'ASSIGNED') {
+          return context.tr('patient.ambulance_tracking.phase.assigned');
+        }
+        return context.tr('patient.ambulance_tracking.phase.default');
     }
   }
 
@@ -240,7 +248,7 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
   @override
   Widget build(BuildContext context) {
     final emergencyVM = Provider.of<EmergencyViewModel>(context);
-    final ambulance = emergencyVM.assignedAmbulance ?? widget.ambulance;
+    final ambulance = emergencyVM.trackingAmbulance ?? widget.ambulance;
     final etaText = _etaText.isNotEmpty ? _etaText : (emergencyVM.sosEtaText.isNotEmpty
         ? emergencyVM.sosEtaText
         : ambulance.estimatedArrival);
@@ -260,8 +268,8 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
         driverLng = GpsCoord.tryParse(fromTrip['lng']);
       }
     }
-    driverLat ??= emergencyVM.assignedAmbulance?.currentLat ?? ambulance.currentLat;
-    driverLng ??= emergencyVM.assignedAmbulance?.currentLng ?? ambulance.currentLng;
+    driverLat ??= emergencyVM.trackingAmbulance?.currentLat ?? ambulance.currentLat;
+    driverLng ??= emergencyVM.trackingAmbulance?.currentLng ?? ambulance.currentLng;
 
     // Pickup Pos (where the patient is)
     final pickupLat = _toDouble(trip?['pickupLat']) ?? _toDouble(trip?['sos']?['latitude']);
@@ -273,6 +281,16 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
 
     final sosSt = emergencyVM.sosStatus?.toUpperCase() ?? '';
     final tripPhase = (trip?['status']?.toString() ?? '').toUpperCase();
+    final distanceKm = _toDouble(trip?['distanceKm']);
+    final fareAmount = _toDouble(trip?['fareAmount']);
+    final currency = (trip?['currency']?.toString().trim().isNotEmpty ?? false)
+        ? trip!['currency'].toString()
+        : 'CFA';
+    final distanceText =
+        distanceKm != null && distanceKm > 0 ? '${distanceKm.toStringAsFixed(1)} km' : null;
+    final fareText = fareAmount != null && fareAmount > 0
+        ? '$currency ${fareAmount.toStringAsFixed(fareAmount % 1 == 0 ? 0 : 2)}'
+        : null;
 
     LatLng? driverPos = GpsCoord.isValidPair(driverLat, driverLng)
         ? LatLng(driverLat!, driverLng!)
@@ -310,9 +328,9 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
           flat: true,
           anchor: const Offset(0.5, 0.5),
           icon: driverIcon,
-          infoWindow: const InfoWindow(
-            title: 'Ambulance',
-            snippet: 'Live position',
+          infoWindow: InfoWindow(
+            title: context.tr('patient.ambulance_tracking.marker.ambulance'),
+            snippet: context.tr('patient.ambulance_tracking.marker.live_position'),
           ),
         ),
       if (pickupPos != null)
@@ -321,9 +339,10 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
           position: pickupPos,
           icon:
               BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-          infoWindow: const InfoWindow(
-            title: 'Your pickup',
-            snippet: 'Where the crew meets you',
+          infoWindow: InfoWindow(
+            title: context.tr('patient.ambulance_tracking.marker.your_pickup'),
+            snippet:
+                context.tr('patient.ambulance_tracking.marker.pickup_snippet'),
           ),
         ),
       if (dropoffPos != null)
@@ -331,9 +350,10 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
           markerId: const MarkerId('dropoff'),
           position: dropoffPos,
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-          infoWindow: const InfoWindow(
-            title: 'Destination',
-            snippet: 'Hospital / drop-off',
+          infoWindow: InfoWindow(
+            title: context.tr('patient.ambulance_tracking.marker.destination'),
+            snippet:
+                context.tr('patient.ambulance_tracking.marker.destination_snippet'),
           ),
         ),
     };
@@ -371,13 +391,7 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
         _isNavigatingBack = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
-            final tripId = emergencyVM.lastCompletedTripId;
-            if (!_reviewPromptShown && tripId != null && tripId.isNotEmpty) {
-              _reviewPromptShown = true;
-              _showDriverReviewBottomSheet(context, tripId);
-            } else {
-              Navigator.of(context).pop();
-            }
+            Navigator.of(context).pop();
           }
         });
       }
@@ -409,7 +423,7 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
         : null;
     final isLiveFresh =
         liveAge != null && liveAge.inSeconds < 45;
-    final phaseSubtitle = _trackingPhaseSubtitle(tripPhase, sosSt);
+    final phaseSubtitle = _trackingPhaseSubtitle(context, tripPhase, sosSt);
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -480,10 +494,13 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                         children: [
                           Text(
                             isLiveFresh
-                                ? 'Live location'
+                                ? context.tr(
+                                    'patient.ambulance_tracking.live_location')
                                 : (driverPos != null
-                                    ? 'Location may be delayed'
-                                    : 'Waiting for driver GPS…'),
+                                    ? context.tr(
+                                        'patient.ambulance_tracking.location_delayed')
+                                    : context.tr(
+                                        'patient.ambulance_tracking.waiting_gps')),
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 13,
@@ -506,8 +523,18 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                               padding: const EdgeInsets.only(top: 4),
                               child: Text(
                                 liveAge.inMinutes >= 1
-                                    ? 'Last update ${liveAge.inMinutes} min ago'
-                                    : 'Last update ${liveAge.inSeconds} s ago',
+                                    ? context.tr(
+                                        'patient.ambulance_tracking.last_update_minutes',
+                                        params: {
+                                          'minutes': liveAge.inMinutes,
+                                        },
+                                      )
+                                    : context.tr(
+                                        'patient.ambulance_tracking.last_update_seconds',
+                                        params: {
+                                          'seconds': liveAge.inSeconds,
+                                        },
+                                      ),
                                 style: TextStyle(
                                   fontSize: 10,
                                   color: Colors.grey.shade500,
@@ -579,10 +606,13 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                             children: [
                               Text(
                                 tripPhase == 'IN_PROGRESS'
-                                    ? 'EN ROUTE TO HOSPITAL'
+                                    ? context.tr(
+                                        'patient.ambulance_tracking.status.en_route_hospital')
                                     : tripPhase == 'ARRIVED'
-                                        ? 'AT PICKUP POINT'
-                                        : 'ARRIVING IN',
+                                        ? context.tr(
+                                            'patient.ambulance_tracking.status.at_pickup')
+                                        : context.tr(
+                                            'patient.ambulance_tracking.status.arriving_in'),
                                 style: TextStyle(
                                   color: Colors.grey[500],
                                   fontSize: 11,
@@ -631,7 +661,11 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  isLiveFresh ? 'LIVE ETA' : 'ETA EST.',
+                                  isLiveFresh
+                                      ? context.tr(
+                                          'patient.ambulance_tracking.eta.live')
+                                      : context.tr(
+                                          'patient.ambulance_tracking.eta.estimated'),
                                   style: TextStyle(
                                     color: isLiveFresh
                                         ? const Color(0xFF10B981)
@@ -646,6 +680,86 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                           ),
                         ],
                       ),
+                      if (emergencyVM.isEmergencySos) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: Colors.red.withOpacity(0.18),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.warning_rounded,
+                                color: Colors.red,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                context.tr('ambulance.dashboard.emergency'),
+                                style: const TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      if (distanceText != null || fareText != null) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Row(
+                            children: [
+                              if (distanceText != null)
+                                Expanded(
+                                  child: Text(
+                                    context.tr(
+                                      'patient.ambulance_tracking.distance_label',
+                                      params: {'distance': distanceText},
+                                    ),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF334155),
+                                    ),
+                                  ),
+                                ),
+                              if (fareText != null)
+                                Expanded(
+                                  child: Text(
+                                    context.tr(
+                                      'patient.ambulance_tracking.fare_label',
+                                      params: {'fare': fareText},
+                                    ),
+                                    textAlign: TextAlign.end,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
 
                       // Collapsible Content
                       AnimatedCrossFade(
@@ -705,12 +819,34 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        "Paramedic • ${ambulance.plateNumber}",
+                                        context.tr(
+                                          'patient.ambulance_tracking.paramedic_plate',
+                                          params: {'plate': ambulance.plateNumber},
+                                        ),
                                         style: TextStyle(
                                             color: Colors.grey[500],
                                             fontSize: 13,
                                             fontWeight: FontWeight.w500),
                                       ),
+                                      if (ambulance.phoneNumber.trim().isNotEmpty) ...[
+                                        const SizedBox(height: 3),
+                                        Row(
+                                          children: [
+                                            Icon(Icons.phone_outlined,
+                                                size: 13,
+                                                color: Colors.grey[500]),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              ambulance.phoneNumber.trim(),
+                                              style: TextStyle(
+                                                color: Colors.grey[700],
+                                                fontSize: 12.5,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                       const SizedBox(height: 4),
                                       Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -767,8 +903,8 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                         MaterialPageRoute(
                                           builder: (context) => ChatView(
                                             recipientName:
-                                                widget.ambulance.driverName,
-                                            doctorId: widget.ambulance.id,
+                                                ambulance.driverName,
+                                            doctorId: ambulance.id,
                                             patientId: currentUserId,
                                             sosId: sosId,
                                             tripId: tripId,
@@ -776,9 +912,10 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                         ),
                                       );
                                     },
-                                    icon: Image.asset("assets/Icons/chat.png",
+                                    icon: Image.asset("assets/Icons/chat-icon.png",
                                         width: 22, height: 22),
-                                    label: const Text("Message"),
+                                    label: Text(context.tr(
+                                        'patient.ambulance_tracking.message')),
                                     style: TextButton.styleFrom(
                                       backgroundColor:
                                           const Color(0xFFF1F5F9), // Slate 100
@@ -797,28 +934,28 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
                                   child: ElevatedButton.icon(
                                     onPressed: () {
                                       final driverId =
-                                          int.tryParse(widget.ambulance.id);
+                                          int.tryParse(ambulance.id);
                                       if (driverId != null) {
                                         Provider.of<CallViewModel>(context,
                                                 listen: false)
                                             .initiateCall(
                                                 context,
                                                 driverId,
-                                                widget.ambulance.driverName,
-                                                widget
-                                                    .ambulance.profilePhotoUrl);
+                                                ambulance.driverName,
+                                                ambulance.profilePhotoUrl);
                                       } else {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          const SnackBar(
-                                              content: Text(
-                                                  "Driver contact not available")),
+                                        Utils.toastMessage(
+                                          context,
+                                          context.tr(
+                                              'patient.ambulance_tracking.driver_contact_unavailable'),
+                                          isError: true,
                                         );
                                       }
                                     },
                                     icon: const Icon(Icons.phone_rounded,
                                         size: 22),
-                                    label: const Text("Call Driver"),
+                                    label: Text(context.tr(
+                                        'patient.ambulance_tracking.call_driver')),
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: const Color(
                                           0xFF10B981), // Emerald 500
@@ -915,7 +1052,10 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
               ),
               const SizedBox(height: 8),
               Text(
-                "Calling ${widget.ambulance.phoneNumber}...",
+                context.tr(
+                  'patient.ambulance_tracking.calling_number',
+                  params: {'phone': widget.ambulance.phoneNumber},
+                ),
                 style: const TextStyle(
                   color: AppColors.primary,
                   fontSize: 18,
@@ -985,118 +1125,6 @@ class _AmbulanceTrackingViewState extends State<AmbulanceTrackingView>
     );
   }
 
-  void _showDriverReviewBottomSheet(BuildContext context, String tripId) {
-    final api = ApiServices();
-    final emergencyVM = Provider.of<EmergencyViewModel>(context, listen: false);
-    final commentController = TextEditingController();
-    int rating = 0;
-    showModalBottomSheet(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      isScrollControlled: true,
-      builder: (ctx) {
-        bool submitting = false;
-        return StatefulBuilder(
-          builder: (ctx, setState) => WillPopScope(
-            onWillPop: () async => false,
-            child: Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 16,
-                bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Rate your driver",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: List.generate(
-                      5,
-                      (index) => IconButton(
-                        onPressed: () => setState(() => rating = index + 1),
-                        icon: Icon(
-                          index < rating ? Icons.star : Icons.star_border,
-                          color: Colors.amber,
-                        ),
-                      ),
-                    ),
-                  ),
-                  TextField(
-                    controller: commentController,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      hintText: "Write optional feedback",
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: submitting
-                          ? null
-                          : () async {
-                              if (rating <= 0) {
-                                Utils.toastMessage(
-                                  context,
-                                  "Please select a star rating first",
-                                  isError: true,
-                                );
-                                return;
-                              }
-                              setState(() => submitting = true);
-                              bool ok = false;
-                              try {
-                                final res = await api.submitDriverReview(
-                                  tripId,
-                                  rating: rating,
-                                  comment: commentController.text.trim(),
-                                );
-                                ok = res != null && res['success'] == true;
-                              } catch (_) {}
-
-                              if (!context.mounted) return;
-                              if (ok) {
-                                emergencyVM.clearCompletedTripReviewPrompt();
-                                Navigator.pop(ctx);
-                                Navigator.of(context).pop();
-                                Utils.toastMessage(
-                                  context,
-                                  "Thanks for reviewing your driver",
-                                );
-                              } else {
-                                setState(() => submitting = false);
-                                Utils.toastMessage(
-                                  context,
-                                  "Unable to submit review",
-                                  isError: true,
-                                );
-                              }
-                            },
-                      child: submitting
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text("Submit Review"),
-                    ),
-                  )
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 }
 
 class _RoutePainter extends CustomPainter {

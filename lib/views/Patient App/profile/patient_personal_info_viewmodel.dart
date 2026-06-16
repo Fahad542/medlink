@@ -5,6 +5,7 @@ import 'package:medlink/models/user_model.dart';
 import 'package:medlink/models/user_login_model.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/data/network/api_services.dart';
+import 'package:medlink/utils/utils.dart';
 
 class PatientPersonalInfoViewModel extends ChangeNotifier {
   final UserViewModel _userViewModel;
@@ -85,9 +86,17 @@ class PatientPersonalInfoViewModel extends ChangeNotifier {
           // IMPORTANT: The backend might return 'fullName' but User model expects 'fullName'
           // and UserModel.fromJson expects 'fullName' or 'name'.
           // We ensure 'role' is preserved because the backend might not return it in the profile call.
+          final previousUserId = _userViewModel.loginSession!.data!.user?.id;
+          final dynamic rawId = data['id'] ?? data['_id'];
+          final int? idFromResponse = rawId is int
+              ? rawId
+              : int.tryParse(rawId?.toString() ?? '');
+          final int? mergedUserId = idFromResponse ?? previousUserId;
+
           final Map<String, dynamic> updatedUserJson = {
             ...data,
             'role': currentRole ?? 'PATIENT',
+            if (mergedUserId != null) 'id': mergedUserId,
           };
 
           // Wrap in the structure UserLoginModel expects
@@ -143,17 +152,13 @@ class PatientPersonalInfoViewModel extends ChangeNotifier {
         await fetchPatientProfile();
 
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Profile updated successfully")),
-          );
+          Utils.toastMessage(context, "Profile updated successfully");
           Navigator.pop(context);
         }
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error updating profile: $e")),
-        );
+        Utils.toastError(context, e);
       }
     } finally {
       _isLoading = false;

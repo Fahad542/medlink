@@ -10,6 +10,8 @@ import 'package:medlink/services/waiting_room_socket_service.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:provider/provider.dart';
 import 'dart:async';
+import 'package:medlink/utils/utils.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 
 class WaitingRoomView extends StatefulWidget {
   final String? callTargetName;
@@ -66,9 +68,10 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
         if (cameraStatus.isPermanentlyDenied || micStatus.isPermanentlyDenied) {
           _showSettingsDialog();
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text("Camera and Mic permissions are required.")),
+          Utils.toastMessage(
+            context,
+            context.tr('patient.waiting.permissions_required'),
+            isError: true,
           );
         }
       }
@@ -79,18 +82,18 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Permissions Required"),
-        content: const Text(
-            "This app needs camera and microphone access to make video calls. Please enable them in settings."),
+        title: Text(context.tr('patient.waiting.permissions_title')),
+        content: Text(context.tr('patient.waiting.permissions_body')),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(context.tr('common.cancel'))),
           TextButton(
               onPressed: () {
                 Navigator.pop(ctx);
                 openAppSettings();
               },
-              child: const Text("Open Settings")),
+              child: Text(context.tr('patient.waiting.open_settings'))),
         ],
       ),
     );
@@ -182,7 +185,7 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
       if (response != null && response['status'] == 'JOINED') {
          if (mounted) {
            setState(() {
-             _joinedParticipantName = widget.callTargetName ?? 'Doctor';
+             _joinedParticipantName = widget.callTargetName ?? context.tr('patient.waiting.doctor_fallback');
            });
          }
       }
@@ -212,6 +215,7 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
           builder: (context) => VideoCallView(
             isDoctor: widget.isDoctor,
             appointmentId: widget.appointmentId,
+            otherPartyName: widget.callTargetName,
             initialMicOn: isMicOn,
             initialCameraOn: isCameraOn,
           ),
@@ -253,7 +257,7 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF1E1E1E),
-      appBar: const CustomAppBar(title: "Waiting Room"),
+      appBar: CustomAppBar(title: context.tr('patient.waiting.title')),
       body: Column(
         children: [
           const SizedBox(height: 20),
@@ -298,8 +302,8 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
                           const SizedBox(height: 12),
                           Text(
                             _permissionsGranted
-                                ? "Camera is off"
-                                : "Camera permission needed",
+                                ? context.tr('patient.waiting.camera_off')
+                                : context.tr('patient.waiting.camera_permission_needed'),
                             style: GoogleFonts.inter(
                                 color: Colors.white38.withOpacity(0.5)),
                           ),
@@ -334,21 +338,26 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
           // Info Text
           if (_joinedParticipantName != null)
              Text(
-              "$_joinedParticipantName has joined the call!",
+              context.tr('patient.waiting.joined_call',
+                  params: {'name': _joinedParticipantName ?? ''}),
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                   color: AppColors.primary, fontSize: 18, fontWeight: FontWeight.bold),
             )
           else
             Text(
-              "Waiting for ${widget.callTargetName ?? 'Doctor'}...",
+              context.tr('patient.waiting.waiting_for',
+                  params: {
+                    'name': widget.callTargetName ??
+                        context.tr('patient.waiting.doctor_fallback')
+                  }),
               style: GoogleFonts.inter(
                   color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
             ),
           const SizedBox(height: 8),
           // TODO: Implement Real-time status check from Backend (isUserInCall?)
           Text(
-            "Ready to join?",
+            context.tr('patient.waiting.ready_to_join'),
             style: GoogleFonts.inter(color: Colors.white54, fontSize: 13),
           ),
 
@@ -363,13 +372,13 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
                 _buildControlBtn(
                   isMicOn ? Icons.mic : Icons.mic_off,
                   isMicOn ? Colors.white : Colors.red,
-                  "Mic",
+                  context.tr('patient.waiting.mic'),
                   () => setState(() => isMicOn = !isMicOn),
                 ),
                 _buildControlBtn(
                   isCameraOn ? Icons.videocam : Icons.videocam_off,
                   isCameraOn ? Colors.white : Colors.red,
-                  "Camera",
+                  context.tr('patient.waiting.camera'),
                   _onToggleCamera,
                 ),
               ],
@@ -401,7 +410,7 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
                             builder: (context) => VideoCallView(
                               isDoctor: widget.isDoctor,
                               appointmentId: widget.appointmentId,
-                              // Pass the initial states
+                              otherPartyName: widget.callTargetName,
                               initialMicOn: isMicOn,
                               initialCameraOn: isCameraOn,
                             ),
@@ -418,7 +427,7 @@ class _WaitingRoomViewState extends State<WaitingRoomView> {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16)),
               ),
-              child: Text("Join Now",
+              child: Text(context.tr('patient.waiting.join_now'),
                   style: GoogleFonts.inter(
                       fontSize: 16, fontWeight: FontWeight.bold)),
             ),

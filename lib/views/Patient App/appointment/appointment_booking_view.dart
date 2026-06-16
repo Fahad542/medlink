@@ -2,13 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/core/utils/doctor_schedule_slot_labels.dart';
 import 'package:medlink/models/doctor_model.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
+import 'package:medlink/models/appointment_model.dart';
+import 'package:medlink/widgets/consultation_type_selector.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:provider/provider.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_payment_view.dart';
+import 'package:medlink/utils/utils.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 
 class AppointmentBookingView extends StatefulWidget {
   final DoctorModel doctor;
@@ -22,6 +27,7 @@ class AppointmentBookingView extends StatefulWidget {
 class _AppointmentBookingViewState extends State<AppointmentBookingView> {
   DateTime _selectedDate = DateTime.now();
   String? _selectedTime;
+  AppointmentType _consultationType = AppointmentType.inPerson;
   final TextEditingController _reasonController = TextEditingController();
   bool _showPayment = false;
   Map<String, dynamic>? _paymentData;
@@ -68,7 +74,9 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: CustomAppBar(
-          title: _showPayment ? "Complete Payment" : "Book Appointment"),
+          title: _showPayment
+              ? context.tr('patient.appointment_payment.complete')
+              : context.tr('patient.booking.title')),
       body: _showPayment ? _buildPaymentSection() : _buildBookingForm(dates),
     );
   }
@@ -143,7 +151,8 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
                 const SizedBox(height: 30),
 
                 // 2. Calendar (Horizontal Scroll)
-                Text("Select Date", style: _sectionTitleStyle),
+                Text(context.tr('patient.booking.select_date'),
+                    style: _sectionTitleStyle),
                 const SizedBox(height: 16),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -152,14 +161,20 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
                     children: dates.map((date) {
                       final isSelected =
                           DateUtils.isSameDay(_selectedDate, date);
-                      final isOffDay =
-                          !widget.doctor.availabilityDays.contains(DateFormat('E').format(date));
+                      final isOffDay = buildDoctorSlotLabelsForDay(
+                              widget.doctor, date)
+                          .isEmpty;
                       
                       return GestureDetector(
                         onTap: () {
                           if (isOffDay) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text("Doctor is not available on ${DateFormat('EEEE').format(date)}")),
+                            Utils.toastMessage(
+                              context,
+                              context.tr('patient.booking.unavailable_on',
+                                  params: {
+                                    'day': DateFormat('EEEE').format(date)
+                                  }),
+                              isError: true,
                             );
                             return;
                           }
@@ -218,7 +233,8 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
                 const SizedBox(height: 30),
 
                 // 3. Time Slots (Chips)
-                Text("Available Times", style: _sectionTitleStyle),
+                Text(context.tr('patient.booking.available_times'),
+                    style: _sectionTitleStyle),
                 const SizedBox(height: 16),
                 Consumer<AppointmentViewModel>(
                   builder: (context, appointmentVM, _) {
@@ -227,13 +243,34 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
                       runSpacing: 12,
                       children: _timeSlots.map((time) {
                         final isSelected = _selectedTime == time;
-                        final isBooked = appointmentVM.bookedSlots.contains(time);
+                        bool isBooked = false;
+                        try {
+                          final slotParsed =
+                              DateFormat('hh:mm a').parse(time);
+                          final slotStart = DateTime(
+                            _selectedDate.year,
+                            _selectedDate.month,
+                            _selectedDate.day,
+                            slotParsed.hour,
+                            slotParsed.minute,
+                          );
+                          final slotEnd = slotStart.add(Duration(
+                              minutes: widget.doctor.sessionDuration));
+                          isBooked = appointmentVM.bookedRanges.any((range) =>
+                              slotStart.isBefore(range.end) &&
+                              slotEnd.isAfter(range.start));
+                        } catch (_) {
+                          isBooked =
+                              appointmentVM.bookedSlots.contains(time);
+                        }
 
                         return InkWell(
                           onTap: () {
                             if (isBooked) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text("This slot is already booked")),
+                              Utils.toastMessage(
+                                context,
+                                context.tr('patient.booking.slot_booked'),
+                                isError: true,
                               );
                               return;
                             }
@@ -270,16 +307,25 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
                     );
                   }
                 ),
-                const SizedBox(height: 30),
+                const SizedBox(height: 28),
+
+                ConsultationTypeSelector(
+                  value: _consultationType,
+                  onChanged: (t) => setState(() => _consultationType = t),
+                  titleStyle: _sectionTitleStyle,
+                ),
+
+                const SizedBox(height: 28),
 
                 // 4. Reason for visit
-                Text("Reason for Visit", style: _sectionTitleStyle),
+                Text(context.tr('patient.booking.reason_label'),
+                    style: _sectionTitleStyle),
                 const SizedBox(height: 16),
                 TextField(
                   controller: _reasonController,
                   maxLines: 3,
                   decoration: InputDecoration(
-                    hintText: "E.g., Headache and nausea since 2 days",
+                    hintText: context.tr('patient.booking.reason_hint'),
                     fillColor: Colors.white,
                     filled: true,
                     border: OutlineInputBorder(
@@ -319,7 +365,7 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
           ),
           child: SafeArea(
             child: CustomButton(
-              text: "Continue to Payment",
+              text: context.tr('patient.booking.continue_payment'),
               onPressed: _handleInitialBooking,
             ),
           ),
@@ -340,8 +386,10 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
 
   Future<void> _handleInitialBooking() async {
     if (_selectedTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please select a time slot")),
+      Utils.toastMessage(
+        context,
+        context.tr('patient.booking.select_time_error'),
+        isError: true,
       );
       return;
     }
@@ -350,10 +398,10 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
     final patientId = userViewModel.patient?.id;
 
     if (patientId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content:
-                Text("Error: User session not found. Please login again.")),
+      Utils.toastMessage(
+        context,
+        context.tr('patient.booking.session_missing'),
+        isError: true,
       );
       return;
     }
@@ -373,6 +421,7 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
       time: _selectedTime!,
       patientId: patientId,
       description: _reasonController.text.trim(),
+      consultationType: _consultationType,
     );
 
     if (!context.mounted) return;
@@ -385,9 +434,10 @@ class _AppointmentBookingViewState extends State<AppointmentBookingView> {
         _showPayment = true;
       });
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text(result['message'] ?? "Failed to initiate booking.")),
+      Utils.toastMessage(
+        context,
+        result['message'] ?? context.tr('patient.booking.initiate_failed'),
+        isError: true,
       );
     }
   }

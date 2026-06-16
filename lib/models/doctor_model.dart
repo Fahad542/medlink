@@ -19,8 +19,8 @@ class DoctorModel {
   final int sessionDuration;
   final List<dynamic> rawAvailability;
   final int totalReviews;
+  final int totalPatients;
   final List<Map<String, dynamic>> recentReviews;
-  final int patientsCount;
 
   DoctorModel({
     required this.id,
@@ -40,8 +40,8 @@ class DoctorModel {
     this.sessionDuration = 30,
     this.rawAvailability = const [],
     this.totalReviews = 0,
+    this.totalPatients = 0,
     this.recentReviews = const [],
-    this.patientsCount = 0,
   });
   factory DoctorModel.fromJson(Map<String, dynamic> json) {
     String getImageUrl(String? path) {
@@ -67,23 +67,45 @@ class DoctorModel {
 
     dynamic getField(String key) => json[key] ?? profile[key];
 
-    String parsedSpecialty = 'General';
-    if (json['doctorSpecialties'] is List &&
-        (json['doctorSpecialties'] as List).isNotEmpty) {
-      var firstSpec = json['doctorSpecialties'][0];
-      if (firstSpec['specialty'] is Map &&
-          firstSpec['specialty']['name'] != null) {
-        parsedSpecialty = firstSpec['specialty']['name'];
+    String? readSpecialtyName(dynamic raw) {
+      if (raw == null) return null;
+      if (raw is String) {
+        final value = raw.trim();
+        return value.isEmpty ? null : value;
       }
-    } else {
-      parsedSpecialty = getField('specialty') ?? 'General';
+      if (raw is Map) {
+        final direct = raw['name'] ?? raw['title'] ?? raw['label'];
+        if (direct is String && direct.trim().isNotEmpty) {
+          return direct.trim();
+        }
+        return readSpecialtyName(
+          raw['specialty'] ?? raw['specialisation'] ?? raw['specialization'],
+        );
+      }
+      if (raw is List) {
+        for (final item in raw) {
+          final parsed = readSpecialtyName(item);
+          if (parsed != null) return parsed;
+        }
+      }
+      return null;
     }
 
+    final parsedSpecialty = readSpecialtyName(json['doctorSpecialties']) ??
+        readSpecialtyName(profile['doctorSpecialties']) ??
+        readSpecialtyName(json['specialties']) ??
+        readSpecialtyName(profile['specialties']) ??
+        readSpecialtyName(getField('specialty')) ??
+        readSpecialtyName(getField('specialisation')) ??
+        readSpecialtyName(getField('specialization')) ??
+        'General';
+
     final rawAvailability = (getField('availability') as List<dynamic>?) ?? [];
-    final parsedRecentReviewsRaw = (json['recentReviews'] ??
-        json['reviews'] ??
-        getField('recentReviews') ??
-        getField('reviews')) as List<dynamic>?;
+    final parsedRecentReviewsRaw =
+        (json['recentReviews'] ??
+            json['reviews'] ??
+            getField('recentReviews') ??
+            getField('reviews')) as List<dynamic>?;
     final parsedRecentReviews = (parsedRecentReviewsRaw ?? [])
         .whereType<Map>()
         .map((e) => Map<String, dynamic>.from(e))
@@ -92,18 +114,20 @@ class DoctorModel {
     double parsedRating =
         double.tryParse(getField('rating')?.toString() ?? '0') ?? 0.0;
     if (parsedRating == 0) {
-      parsedRating = double.tryParse(getField('averageRating')?.toString() ??
-              getField('avgRating')?.toString() ??
-              '0') ??
+      parsedRating = double.tryParse(
+              getField('averageRating')?.toString() ??
+                  getField('avgRating')?.toString() ??
+                  '0') ??
           0.0;
     }
 
     int parsedTotalReviews =
         int.tryParse(getField('reviewCount')?.toString() ?? '0') ?? 0;
     if (parsedTotalReviews == 0) {
-      parsedTotalReviews = int.tryParse(getField('totalReviews')?.toString() ??
-              getField('reviewsCount')?.toString() ??
-              '0') ??
+      parsedTotalReviews = int.tryParse(
+              getField('totalReviews')?.toString() ??
+                  getField('reviewsCount')?.toString() ??
+                  '0') ??
           0;
     }
     if (parsedTotalReviews == 0 && parsedRecentReviews.isNotEmpty) {
@@ -113,9 +137,15 @@ class DoctorModel {
       parsedTotalReviews = parsedRecentReviewsRaw.length;
     }
 
-    int parsedPatientsCount = int.tryParse(getField('patientsCount')?.toString() ?? 
-        getField('totalPatients')?.toString() ?? 
-        getField('patientCount')?.toString() ?? '0') ?? 0;
+    int parsedTotalPatients =
+        int.tryParse(getField('totalPatients')?.toString() ?? '0') ?? 0;
+    if (parsedTotalPatients == 0) {
+      parsedTotalPatients = int.tryParse(
+              getField('patientsCount')?.toString() ??
+                  getField('totalPatientCount')?.toString() ??
+                  '0') ??
+          0;
+    }
 
     String extractTime(bool isStart) {
       if (rawAvailability.isEmpty) return isStart ? "09:00 AM" : "05:00 PM";
@@ -129,7 +159,7 @@ class DoctorModel {
       if (val.contains('T')) {
         return DateFormat("hh:mm a").format(DateTime.parse(val).toLocal());
       }
-
+      
       try {
         final parts = val.split(':');
         final hr = int.parse(parts[0]);
@@ -158,10 +188,9 @@ class DoctorModel {
           getField('profilePhotoUrl') ??
           getField('imageUrl')),
       isAvailable: getField('isAvailable') ?? getField('isActive') ?? true,
-      consultationFee: double.tryParse(
-              getField('consultation_fee')?.toString() ??
-                  getField('consultationFee')?.toString() ??
-                  '0') ??
+      consultationFee: double.tryParse(getField('consultation_fee')?.toString() ??
+              getField('consultationFee')?.toString() ??
+              '0') ??
           0.0,
       about: getField('about') ??
           getField('bio') ??
@@ -191,19 +220,18 @@ class DoctorModel {
                 6: "Sat"
               }[e['dayOfWeek']])
           .whereType<String>()
-          .toSet()
+          .toSet() 
           .toList(),
       startTime: extractTime(true),
       endTime: extractTime(false),
-      sessionDuration: int.tryParse(
-              getField('sessionDurationMin')?.toString() ??
-                  getField('sessionDuration')?.toString() ??
-                  '30') ??
+      sessionDuration: int.tryParse(getField('sessionDurationMin')?.toString() ??
+              getField('sessionDuration')?.toString() ??
+              '30') ??
           30,
       rawAvailability: rawAvailability,
       totalReviews: parsedTotalReviews,
+      totalPatients: parsedTotalPatients,
       recentReviews: parsedRecentReviews,
-      patientsCount: parsedPatientsCount,
     );
   }
 
@@ -226,8 +254,8 @@ class DoctorModel {
       'sessionDuration': sessionDuration,
       'rawAvailability': rawAvailability,
       'totalReviews': totalReviews,
+      'totalPatients': totalPatients,
       'recentReviews': recentReviews,
-      'patientsCount': patientsCount,
     };
   }
 }

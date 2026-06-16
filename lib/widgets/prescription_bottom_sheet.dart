@@ -5,7 +5,13 @@ import 'package:medlink/utils/utils.dart';
 
 class PrescriptionBottomSheet extends StatefulWidget {
   final String appointmentId;
-  const PrescriptionBottomSheet({super.key, required this.appointmentId});
+  /// If true, shows existing prescription/consultation data but disables editing.
+  final bool readOnly;
+  const PrescriptionBottomSheet({
+    super.key,
+    required this.appointmentId,
+    this.readOnly = false,
+  });
 
   @override
   State<PrescriptionBottomSheet> createState() => _PrescriptionBottomSheetState();
@@ -32,6 +38,126 @@ class _PrescriptionBottomSheetState extends State<PrescriptionBottomSheet> {
   final TextEditingController _weightCtrl = TextEditingController();
 
   bool _isLoading = false;
+  bool _hasLoadedExisting = false;
+
+  bool get _isReadOnly => widget.readOnly;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExistingPrescription();
+  }
+
+  Future<void> _loadExistingPrescription() async {
+    // Avoid double-load in rebuild edge cases.
+    if (_hasLoadedExisting) return;
+    _hasLoadedExisting = true;
+    if (widget.appointmentId.trim().isEmpty) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final api = ApiServices();
+      dynamic res;
+      if (_isReadOnly) {
+        res = await api.getPrescriptionByAppointment(widget.appointmentId);
+        final ok = res != null && res['success'] == true;
+        if (!ok) {
+          // Fallback: some builds/roles expose doctor-shaped details payload.
+          res = await api.getPrescriptionDetails(widget.appointmentId);
+        }
+      } else {
+        // Doctor flow (edit mode) should prefer doctor endpoint.
+        res = await api.getPrescriptionDetails(widget.appointmentId);
+        final ok = res != null && res['success'] == true;
+        if (!ok) {
+          // Fallback for older payload shape.
+          res = await api.getPrescriptionByAppointment(widget.appointmentId);
+        }
+      }
+      final ok = res != null && res['success'] == true;
+      final data = ok ? (res['data'] as Map<String, dynamic>?) : null;
+      if (data == null) return;
+
+      _medicines.clear();
+      _labTests.clear();
+
+      final nestedRx = data['prescription'];
+      final Map<String, dynamic>? prescription =
+          nestedRx is Map<String, dynamic> ? nestedRx : null;
+
+      // Notes/Diagnosis (API sometimes uses notes/diagnosis; older builds use chiefComplaint/provisionalDiagnosis)
+      final notes =
+          data['notes']?.toString() ?? prescription?['notes']?.toString();
+      final diagnosis =
+          data['diagnosis']?.toString() ?? prescription?['diagnosis']?.toString();
+      _complaintCtrl.text =
+          (notes ?? data['chiefComplaint']?.toString() ?? '').trim();
+      _diagnosisCtrl.text =
+          (diagnosis ?? data['provisionalDiagnosis']?.toString() ?? '').trim();
+      _remarksCtrl.text =
+          (data['remarks']?.toString() ??
+                  data['doctorsRemark']?.toString() ??
+                  prescription?['remarks']?.toString() ??
+                  '')
+              .trim();
+
+      // Vitals
+      final vitals = data['vitals'];
+      if (vitals is Map) {
+        _bpSystolicCtrl.text = vitals['bpSystolic']?.toString() ?? '';
+        _bpDiastolicCtrl.text = vitals['bpDiastolic']?.toString() ?? '';
+        _pulseCtrl.text = vitals['heartRate']?.toString() ?? vitals['pulse']?.toString() ?? '';
+        _tempCtrl.text = vitals['temperatureC']?.toString() ?? '';
+        _weightCtrl.text = vitals['weightKg']?.toString() ?? '';
+      } else {
+        // Doctor endpoint may flatten vitals like `bps: "120/80"`, `heartRate`, `temperature`
+        final bps = data['bps']?.toString();
+        if (bps != null && bps.contains('/')) {
+          final parts = bps.split('/');
+          if (parts.isNotEmpty) _bpSystolicCtrl.text = parts[0].trim();
+          if (parts.length > 1) _bpDiastolicCtrl.text = parts[1].trim();
+        }
+        _pulseCtrl.text = data['heartRate']?.toString() ?? _pulseCtrl.text;
+        _tempCtrl.text =
+            data['temperature']?.toString() ?? data['temperatureC']?.toString() ?? _tempCtrl.text;
+      }
+
+      // Medications
+      final items = (data['items'] is List)
+          ? data['items']
+          : (data['medications'] is List)
+              ? data['medications']
+              : prescription?['items'];
+      if (items is List) {
+        for (final it in items) {
+          if (it is! Map) continue;
+          _medicines.add({
+            "name": it['medicineName']?.toString() ?? '',
+            "dosage": it['dosage']?.toString() ?? '',
+            "duration": it['duration']?.toString() ?? '',
+            "frequency": it['frequency']?.toString() ?? '',
+            "instruction": it['instructions']?.toString() ?? it['instruction']?.toString() ?? '',
+          });
+        }
+      }
+
+      // Tests
+      final tests = (data['tests'] is List) ? data['tests'] : prescription?['tests'];
+      if (tests is List) {
+        for (final t in tests) {
+          if (t is! Map) continue;
+          final name = t['testName']?.toString();
+          if (name != null && name.trim().isNotEmpty) {
+            _labTests.add(name.trim());
+          }
+        }
+      }
+    } catch (_) {
+      // Silent: the call screen should remain usable even if prescription fetch fails.
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   // Controllers for Medicine
   final TextEditingController _medNameCtrl = TextEditingController();
@@ -86,6 +212,10 @@ class _PrescriptionBottomSheetState extends State<PrescriptionBottomSheet> {
   }
 
   Future<void> _submitConsultation() async {
+    if (_isReadOnly) {
+      Navigator.pop(context);
+      return;
+    }
     if (_complaintCtrl.text.isEmpty || _diagnosisCtrl.text.isEmpty) {
       Utils.toastMessage(context, "Please fill clinical assessment details",
           isError: true);
@@ -95,15 +225,44 @@ class _PrescriptionBottomSheetState extends State<PrescriptionBottomSheet> {
     setState(() => _isLoading = true);
 
     try {
+      final bpSystolic = int.tryParse(_bpSystolicCtrl.text.trim());
+      final bpDiastolic = int.tryParse(_bpDiastolicCtrl.text.trim());
+      final pulse = int.tryParse(_pulseCtrl.text.trim());
+      final temperature = double.tryParse(_tempCtrl.text.trim());
+      final weight = double.tryParse(_weightCtrl.text.trim());
+
+      final errors = <String>[];
+      if (bpSystolic != null && (bpSystolic < 50 || bpSystolic > 250)) {
+        errors.add('Systolic BP must be between 50 and 250');
+      }
+      if (bpDiastolic != null && (bpDiastolic < 30 || bpDiastolic > 160)) {
+        errors.add('Diastolic BP must be between 30 and 160');
+      }
+      if (pulse != null && (pulse < 30 || pulse > 250)) {
+        errors.add('Pulse must be between 30 and 250');
+      }
+      if (temperature != null && (temperature < 25 || temperature > 115)) {
+        errors.add('Temperature must be between 25 and 115');
+      }
+      if (weight != null && (weight < 1 || weight > 500)) {
+        errors.add('Weight must be between 1 and 500');
+      }
+      if (errors.isNotEmpty) {
+        if (mounted) {
+          Utils.toastMessage(context, errors.join(', '), isError: true);
+        }
+        return;
+      }
+
       final Map<String, dynamic> data = {
         "chiefComplaint": _complaintCtrl.text.trim(),
         "provisionalDiagnosis": _diagnosisCtrl.text.trim(),
         "vitals": {
-          "bpSystolic": int.tryParse(_bpSystolicCtrl.text),
-          "bpDiastolic": int.tryParse(_bpDiastolicCtrl.text),
-          "pulse": int.tryParse(_pulseCtrl.text),
-          "temperatureC": double.tryParse(_tempCtrl.text),
-          "weightKg": double.tryParse(_weightCtrl.text),
+          "bpSystolic": bpSystolic,
+          "bpDiastolic": bpDiastolic,
+          "pulse": pulse,
+          "temperatureC": temperature,
+          "weightKg": weight,
         },
         "tests": _labTests.map((test) => {"testName": test, "notes": null}).toList(),
         "medications": _medicines.map((med) => {
@@ -127,7 +286,7 @@ class _PrescriptionBottomSheetState extends State<PrescriptionBottomSheet> {
       }
     } catch (e) {
       if (mounted) {
-        Utils.toastMessage(context, e.toString(), isError: true);
+        Utils.toastError(context, e);
       }
     } finally {
       if (mounted) {
@@ -219,11 +378,18 @@ class _PrescriptionBottomSheetState extends State<PrescriptionBottomSheet> {
                 ]
               ),
               child: InkWell(
-                onTap: _submitConsultation,
+                onTap: _isReadOnly ? null : _submitConsultation,
                 borderRadius: BorderRadius.circular(30),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  child: Text("Finalize", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 13)),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  child: Text(
+                    _isReadOnly ? "Close" : "Finalize",
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                      fontSize: 13,
+                    ),
+                  ),
                 ),
               ),
             )
@@ -244,9 +410,9 @@ class _PrescriptionBottomSheetState extends State<PrescriptionBottomSheet> {
                     children: [
                       _buildSectionHeader("Clinical Assessment", Icons.assignment_ind_outlined),
                       const SizedBox(height: 12),
-                      _buildTransparentField("Chief Complaint", _complaintCtrl),
+                      _buildTransparentField("Chief Complaint", _complaintCtrl, readOnly: _isReadOnly),
                       const Divider(height: 24, thickness: 0.5, color: Color(0xFFEEEEEE)),
-                      _buildTransparentField("Provisional Diagnosis", _diagnosisCtrl),
+                      _buildTransparentField("Provisional Diagnosis", _diagnosisCtrl, readOnly: _isReadOnly),
                     ],
                   ),
                 ),
@@ -260,23 +426,23 @@ class _PrescriptionBottomSheetState extends State<PrescriptionBottomSheet> {
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          Expanded(child: _buildVitalItem("BP Systolic", "mmHg", _bpSystolicCtrl)),
+                          Expanded(child: _buildVitalItem("BP Systolic", "mmHg", _bpSystolicCtrl, readOnly: _isReadOnly)),
                           Container(width: 1, height: 30, color: Colors.grey[200], margin: const EdgeInsets.symmetric(horizontal: 12)),
-                          Expanded(child: _buildVitalItem("BP Diastolic", "mmHg", _bpDiastolicCtrl)),
+                          Expanded(child: _buildVitalItem("BP Diastolic", "mmHg", _bpDiastolicCtrl, readOnly: _isReadOnly)),
                         ],
                       ),
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          Expanded(child: _buildVitalItem("Pulse", "bpm", _pulseCtrl)),
+                          Expanded(child: _buildVitalItem("Pulse", "bpm", _pulseCtrl, readOnly: _isReadOnly)),
                           Container(width: 1, height: 30, color: Colors.grey[200], margin: const EdgeInsets.symmetric(horizontal: 12)),
-                          Expanded(child: _buildVitalItem("Temp", "°C", _tempCtrl)),
+                          Expanded(child: _buildVitalItem("Temp", "°C", _tempCtrl, readOnly: _isReadOnly)),
                         ],
                       ),
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          Expanded(child: _buildVitalItem("Weight", "kg", _weightCtrl)),
+                          Expanded(child: _buildVitalItem("Weight", "kg", _weightCtrl, readOnly: _isReadOnly)),
                         ],
                       ),
                     ],
@@ -290,7 +456,7 @@ class _PrescriptionBottomSheetState extends State<PrescriptionBottomSheet> {
                   children: [
                     _buildSectionTitle("MEDICATIONS"),
                     InkWell(
-                      onTap: () => setState(() => _currentView = 1),
+                      onTap: _isReadOnly ? null : () => setState(() => _currentView = 1),
                       borderRadius: BorderRadius.circular(8),
                       child: Padding(
                         padding: const EdgeInsets.all(4.0),
@@ -325,7 +491,7 @@ class _PrescriptionBottomSheetState extends State<PrescriptionBottomSheet> {
                   children: [
                     _buildSectionTitle("LAB INVESTIGATIONS"),
                     InkWell(
-                      onTap: () => setState(() => _currentView = 2),
+                      onTap: _isReadOnly ? null : () => setState(() => _currentView = 2),
                       borderRadius: BorderRadius.circular(8),
                       child: Padding(
                         padding: const EdgeInsets.all(4.0),
@@ -352,7 +518,7 @@ class _PrescriptionBottomSheetState extends State<PrescriptionBottomSheet> {
                       backgroundColor: Colors.white,
                       elevation: 0,
                       deleteIcon: Icon(Icons.close, size: 14, color: Colors.grey[400]),
-                      onDeleted: () => setState(() => _labTests.remove(test)),
+                      onDeleted: _isReadOnly ? null : () => setState(() => _labTests.remove(test)),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                         side: BorderSide(color: Colors.grey[200]!)
@@ -379,6 +545,7 @@ class _PrescriptionBottomSheetState extends State<PrescriptionBottomSheet> {
                     controller: _remarksCtrl,
                     maxLines: 3,
                     style: const TextStyle(fontSize: 14),
+                    readOnly: _isReadOnly,
                     decoration: const InputDecoration(
                       hintText: "Add any additional private notes...",
                       hintStyle: TextStyle(fontSize: 13, color: Colors.grey),
@@ -669,7 +836,11 @@ class _PrescriptionBottomSheetState extends State<PrescriptionBottomSheet> {
     );
   }
 
-  Widget _buildTransparentField(String title, TextEditingController controller) {
+  Widget _buildTransparentField(
+    String title,
+    TextEditingController controller, {
+    bool readOnly = false,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -677,6 +848,7 @@ class _PrescriptionBottomSheetState extends State<PrescriptionBottomSheet> {
         const SizedBox(height: 4),
         TextField(
           controller: controller,
+          readOnly: readOnly,
           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
           decoration: InputDecoration(
             isDense: true,
@@ -690,7 +862,12 @@ class _PrescriptionBottomSheetState extends State<PrescriptionBottomSheet> {
     );
   }
   
-  Widget _buildVitalItem(String label, String unit, TextEditingController controller) {
+  Widget _buildVitalItem(
+    String label,
+    String unit,
+    TextEditingController controller, {
+    bool readOnly = false,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -703,6 +880,7 @@ class _PrescriptionBottomSheetState extends State<PrescriptionBottomSheet> {
              Expanded(
                child: TextField(
                 controller: controller,
+                readOnly: readOnly,
                 style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                 decoration: InputDecoration(
                   isDense: true,
@@ -784,7 +962,9 @@ class _PrescriptionBottomSheetState extends State<PrescriptionBottomSheet> {
                           )
                         ),
                         InkWell(
-                          onTap: () => setState(() => _medicines.removeAt(index)),
+                          onTap: _isReadOnly
+                              ? null
+                              : () => setState(() => _medicines.removeAt(index)),
                           child: const Icon(Icons.close, size: 16, color: Color(0xFF9CA3AF)), // Grey 400
                         )
                       ],

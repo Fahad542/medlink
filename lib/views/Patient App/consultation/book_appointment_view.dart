@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/core/utils/doctor_schedule_slot_labels.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:medlink/models/appointment_model.dart';
 import 'package:medlink/models/doctor_model.dart';
+import 'package:medlink/widgets/consultation_type_selector.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:provider/provider.dart';
@@ -9,6 +12,7 @@ import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.da
 import 'package:medlink/views/doctor/Doctor%20profile/doctor_profile_view_model.dart';
 import 'package:intl/intl.dart';
 import 'appointment_details_view.dart'; // Import Details View
+import 'package:medlink/utils/utils.dart';
 
 class BookAppointmentView extends StatelessWidget {
   final DoctorModel doctor;
@@ -35,6 +39,7 @@ class _BookAppointmentContent extends StatefulWidget {
 
 class _BookAppointmentContentState extends State<_BookAppointmentContent> {
   DateTime _focusedMonth = DateTime.now();
+  AppointmentType _consultationType = AppointmentType.inPerson;
 
   @override
   void initState() {
@@ -69,6 +74,18 @@ class _BookAppointmentContentState extends State<_BookAppointmentContent> {
 
             const SizedBox(height: 24),
 
+            ConsultationTypeSelector(
+              value: _consultationType,
+              onChanged: (t) => setState(() => _consultationType = t),
+              titleStyle: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF1E293B),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
             Text(
               "Select Hour",
               style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.bold, color: const Color(0xFF1E293B)),
@@ -89,31 +106,28 @@ class _BookAppointmentContentState extends State<_BookAppointmentContent> {
               itemBuilder: (context, index) {
                 final time = viewModel.timeSlots[index];
                 final isSelected = viewModel.selectedTime == time;
-                // Accurately check if this slot is already booked (even partially)
+                // Overlap check in local time (same calendar day as selected date).
                 bool isBooked = false;
                 try {
-                  final slotTime = DateFormat("hh:mm a").parse(time);
-                  
+                  final slotParsed = DateFormat('hh:mm a').parse(time);
+                  final day = viewModel.selectedDate;
+                  final slotStart = DateTime(day.year, day.month, day.day,
+                      slotParsed.hour, slotParsed.minute);
+                  final slotEnd = slotStart.add(
+                      Duration(minutes: widget.doctor.sessionDuration));
+
                   isBooked = viewModel.bookedRanges.any((range) {
-                    final bStart = range.start;
-                    final bEnd = range.end;
-                    
-                    // Convert both to a comparable "minutes from start of day" value
-                    // This ignores year/month/day differences which might vary by timezone
-                    final slotMins = slotTime.hour * 60 + slotTime.minute;
-                    // bStart and bEnd are guaranteed UTC from AppointmentViewModel fetch
-                    final startMins = bStart.hour * 60 + bStart.minute;
-                    final endMins = bEnd.hour * 60 + bEnd.minute;
-                    
-                    final match = slotMins >= startMins && slotMins < endMins;
+                    final match = slotStart.isBefore(range.end) &&
+                        slotEnd.isAfter(range.start);
                     if (match) {
-                      debugPrint("[BookAppointmentView] Slot $time (mins: $slotMins) MATCHES range $startMins - $endMins mins");
+                      debugPrint(
+                          '[BookAppointmentView] Slot $time overlaps booked ${range.start}-${range.end}');
                     }
                     return match;
                   });
-                } catch(e) {
-                   isBooked = viewModel.bookedSlots.any((slot) =>
-                    slot.trim().toUpperCase() == time.trim().toUpperCase());
+                } catch (e) {
+                  isBooked = viewModel.bookedSlots.any((slot) =>
+                      slot.trim().toUpperCase() == time.trim().toUpperCase());
                 }
 
                 final isPast = viewModel.pastSlots.contains(time);
@@ -125,16 +139,18 @@ class _BookAppointmentContentState extends State<_BookAppointmentContent> {
                        return; // Still loading availability
                     }
                     if (isBooked) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text("This slot is already taken")),
+                      Utils.toastMessage(
+                        context,
+                        "This slot is already taken",
+                        isError: true,
                       );
                       return;
                     }
                     if (isPast) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text("Cannot book a past time slot")),
+                      Utils.toastMessage(
+                        context,
+                        "Cannot book a past time slot",
+                        isError: true,
                       );
                       return;
                     }
@@ -197,8 +213,10 @@ class _BookAppointmentContentState extends State<_BookAppointmentContent> {
                   text: "Confirm Appointment",
                   onPressed: () {
                     if (viewModel.selectedTime == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Please select a time slot")),
+                      Utils.toastMessage(
+                        context,
+                        "Please select a time slot",
+                        isError: true,
                       );
                       return;
                     }
@@ -209,6 +227,7 @@ class _BookAppointmentContentState extends State<_BookAppointmentContent> {
                           doctor: widget.doctor,
                           selectedDate: viewModel.selectedDate,
                           selectedTime: viewModel.selectedTime!,
+                          consultationType: _consultationType,
                         ),
                       ),
                     );
@@ -326,20 +345,26 @@ class _BookAppointmentContentState extends State<_BookAppointmentContent> {
               
               final isSelected = DateUtils.isSameDay(viewModel.selectedDate, currentDate);
               final isToday = DateUtils.isSameDay(now, currentDate);
-              final isDocAvailable = widget.doctor.availabilityDays.contains(DateFormat('E').format(currentDate));
+              final isDocAvailable = buildDoctorSlotLabelsForDay(
+                      widget.doctor, currentDate)
+                  .isNotEmpty;
               final isAvailable = !isPast && isDocAvailable;
 
               return InkWell(
                 onTap: () {
                   if (isPast) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Cannot book a past date")),
+                    Utils.toastMessage(
+                      context,
+                      "Cannot book a past date",
+                      isError: true,
                     );
                     return;
                   }
                   if (!isDocAvailable) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("Doctor is not available on ${DateFormat('EEEE').format(currentDate)}")),
+                    Utils.toastMessage(
+                      context,
+                      "Doctor is not available on ${DateFormat('EEEE').format(currentDate)}",
+                      isError: true,
                     );
                     return;
                   }

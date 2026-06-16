@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/services/social_auth_service.dart';
 import 'package:medlink/utils/utils.dart';
+import 'package:medlink/utils/user_facing_errors.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/models/user_login_model.dart';
 import 'package:provider/provider.dart';
@@ -51,6 +52,13 @@ class LoginViewModel with ChangeNotifier {
     notifyListeners();
   }
 
+  void _clearLoginFields() {
+    emailController.clear();
+    phoneController.clear();
+    passwordController.clear();
+    formKey.currentState?.reset();
+  }
+
   Future<void> loginApi(BuildContext context) async {
     if (!formKey.currentState!.validate()) return;
 
@@ -70,8 +78,9 @@ class LoginViewModel with ChangeNotifier {
         print("Login Response: $response");
       }
 
-      if (response != null) {
-        final loginModel = UserLoginModel.fromJson(response);
+      if (response != null && response is Map) {
+        final map = Map<String, dynamic>.from(response as Map);
+        final loginModel = UserLoginModel.fromJson(map);
 
         if (loginModel.success == true && loginModel.data != null) {
           final userVM = Provider.of<UserViewModel>(context, listen: false);
@@ -83,6 +92,7 @@ class LoginViewModel with ChangeNotifier {
                   'patient';
           if (roleToSave == 'ambulance') roleToSave = 'driver';
 
+          _clearLoginFields();
           // Navigation logic based on role
           if (context.mounted) {
             Navigator.pushAndRemoveUntil(
@@ -103,8 +113,11 @@ class LoginViewModel with ChangeNotifier {
             );
           }
         } else {
-          Utils.toastMessage(context, "Login failed: No user data",
-              isError: true);
+          final msg = UserFacingErrors.forApiMessage(
+            map['message']?.toString(),
+            fallback: 'Login failed. Check your details and try again.',
+          );
+          Utils.toastMessage(context, msg, isError: true);
         }
       }
     } catch (e) {
@@ -112,7 +125,7 @@ class LoginViewModel with ChangeNotifier {
       if (kDebugMode) {
         print("Login Error: $e");
       }
-      Utils.toastMessage(context, e.toString(), isError: true);
+      Utils.toastError(context, e);
     }
   }
 
@@ -155,6 +168,7 @@ class LoginViewModel with ChangeNotifier {
                 'patient';
         if (roleToSave == 'ambulance') roleToSave = 'driver';
 
+        _clearLoginFields();
         if (context.mounted) {
           Navigator.pushAndRemoveUntil(
             context,
@@ -168,13 +182,16 @@ class LoginViewModel with ChangeNotifier {
           );
         }
       } else {
-        final msg = response['message']?.toString() ?? 'Google sign-in failed';
+        final msg = UserFacingErrors.forApiMessage(
+          response['message']?.toString(),
+          fallback: 'Unable to sign in with Google. Please try again.',
+        );
         Utils.toastMessage(context, msg, isError: true);
       }
     } catch (e) {
       setLoading(false);
       if (context.mounted) {
-        Utils.toastMessage(context, e.toString(), isError: true);
+        Utils.toastError(context, e);
       }
     }
   }
@@ -219,6 +236,7 @@ class LoginViewModel with ChangeNotifier {
                 'patient';
         if (roleToSave == 'ambulance') roleToSave = 'driver';
 
+        _clearLoginFields();
         if (context.mounted) {
           Navigator.pushAndRemoveUntil(
             context,
@@ -232,14 +250,16 @@ class LoginViewModel with ChangeNotifier {
           );
         }
       } else {
-        final msg =
-            response['message']?.toString() ?? 'Apple sign-in failed';
+        final msg = UserFacingErrors.forApiMessage(
+          response['message']?.toString(),
+          fallback: 'Unable to sign in with Apple. Please try again.',
+        );
         Utils.toastMessage(context, msg, isError: true);
       }
     } catch (e) {
       setLoading(false);
       if (context.mounted) {
-        Utils.toastMessage(context, e.toString(), isError: true);
+        Utils.toastError(context, e);
       }
     }
   }

@@ -2,25 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/views/doctor/Doctor%20earnings/doctor_earnings_view.dart';
-import 'package:medlink/views/doctor/doctor_appointments_view_model.dart';
 import 'package:medlink/views/doctor/doctor_chat_list_view.dart';
-import 'package:medlink/views/doctor/doctor_chat_history_view_model.dart';
 import 'package:medlink/views/doctor/doctor_appointment_view.dart';
 import 'package:medlink/models/appointment_model.dart';
-import 'package:medlink/views/doctor/appointment_details_edit_view.dart';
+import 'package:medlink/views/doctor/Doctor%20profile/doctor_personal_info_view.dart';
 
 import 'package:provider/provider.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/doctor/Dashboard/doctor_dashboard_view_model.dart';
 import 'package:medlink/views/doctor/Doctor%20patients/doctor_patients_view.dart';
-import 'package:medlink/views/doctor/Patient%20history/patient_history_view.dart';
 import 'package:medlink/views/Patient%20App/health/health_hub_view.dart';
-import 'package:medlink/views/Patient%20App/consultation/chat_list_view.dart';
+import 'package:medlink/views/notifications/notifications_list_view.dart';
 import 'package:medlink/widgets/custom_network_image.dart';
 import 'package:medlink/widgets/appointment_list_shimmer.dart';
 import 'package:medlink/views/doctor/past_appointments_view.dart';
 import 'package:medlink/views/doctor/past_appointments_view_model.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 // ... other imports ...
 
 class DoctorDashboardView extends StatelessWidget {
@@ -32,13 +30,24 @@ class DoctorDashboardView extends StatelessWidget {
       builder: (context, viewModel, child) {
           final userVM = Provider.of<UserViewModel>(context);
           final doctor = userVM.doctor;
+          final currentUserId = userVM.loginSession?.data?.user?.id ??
+              int.tryParse(userVM.doctor?.id ?? '');
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final token = userVM.accessToken ?? '';
+            viewModel.ensureChatRealtime(
+              token: token,
+              currentUserId: currentUserId,
+            );
+          });
 
           return Scaffold(
             backgroundColor: const Color(0xFFF8F9FB),
             body: RefreshIndicator(
               onRefresh: () => viewModel.fetchData(),
               child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: ClampingScrollPhysics(),
+                ),
                 padding: const EdgeInsets.only(bottom: 100),
                 child: Stack(
                   children: [
@@ -104,22 +113,33 @@ class DoctorDashboardView extends StatelessWidget {
                               children: [
                                 Row(
                                   children: [
-                                    Container(
-                                      width: 42,
-                                      height: 42,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                            color:
-                                                Colors.white.withOpacity(0.5),
-                                            width: 2),
-                                      ),
-                                      child: CustomNetworkImage(
-                                        imageUrl: doctor?.imageUrl,
-                                        placeholderName: doctor?.name,
-                                        shape: BoxShape.circle,
+                                    GestureDetector(
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const DoctorPersonalInfoView(),
+                                          ),
+                                        );
+                                      },
+                                      child: Container(
                                         width: 42,
                                         height: 42,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                              color:
+                                                  Colors.white.withOpacity(0.5),
+                                              width: 2),
+                                        ),
+                                        child: CustomNetworkImage(
+                                          imageUrl: doctor?.imageUrl,
+                                          placeholderName: doctor?.name,
+                                          shape: BoxShape.circle,
+                                          width: 42,
+                                          height: 42,
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(width: 12),
@@ -128,7 +148,7 @@ class DoctorDashboardView extends StatelessWidget {
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          "Welcome back,",
+                                          context.tr('doctor.dashboard.welcome_back'),
                                           style: GoogleFonts.inter(
                                             color:
                                                 Colors.white.withOpacity(0.8),
@@ -136,7 +156,7 @@ class DoctorDashboardView extends StatelessWidget {
                                           ),
                                         ),
                                         Text(
-                                          doctor?.name ?? "Dr. Alex Smith",
+                                          doctor?.name ?? context.tr('doctor.dashboard.fallback_name'),
                                           style: GoogleFonts.inter(
                                               color: Colors.white,
                                               fontSize: 20,
@@ -148,19 +168,101 @@ class DoctorDashboardView extends StatelessWidget {
                                 ),
                                 Row(
                                   children: [
-                                    GestureDetector(
-                                      onTap: () {
-                                        Navigator.push(
+                                    Tooltip(
+                                      message: context.tr('home.tooltip.notifications'),
+                                      child: GestureDetector(
+                                        onTap: () async {
+                                          await Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  const NotificationsListView(
+                                                portal:
+                                                    NotificationPortal.doctor,
+                                              ),
+                                            ),
+                                          );
+                                          await viewModel
+                                              .fetchUnreadNotificationsCount();
+                                        },
+                                        child: Stack(
+                                          clipBehavior: Clip.none,
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(8),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white
+                                                    .withOpacity(0.2),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: Image.asset(
+                                                'assets/Icons/notification.png',
+                                                width: 20,
+                                                height: 20,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                            if (viewModel
+                                                    .unreadNotificationsCount >
+                                                0)
+                                              Positioned(
+                                                top: -2,
+                                                right: -2,
+                                                child: Container(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                    horizontal: 5,
+                                                    vertical: 1,
+                                                  ),
+                                                  constraints:
+                                                      const BoxConstraints(
+                                                    minWidth: 16,
+                                                    minHeight: 16,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.error,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            20),
+                                                    border: Border.all(
+                                                      color: Colors.white,
+                                                      width: 1.5,
+                                                    ),
+                                                  ),
+                                                  child: Center(
+                                                    child: Text(
+                                                      viewModel.unreadNotificationsCount >
+                                                              99
+                                                          ? '99+'
+                                                          : '${viewModel.unreadNotificationsCount}',
+                                                      style: GoogleFonts.inter(
+                                                        color: Colors.white,
+                                                        fontSize: 9,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    // Messages — same pattern as patient home (`msg.png` + dot)
+                                    Tooltip(
+                                      message: context.tr('doctor.dashboard.patient_messages'),
+                                      child: GestureDetector(
+                                      onTap: () async {
+                                        await Navigator.push(
                                           context,
                                           MaterialPageRoute(
-                                              builder: (_) =>
-                                                  ChangeNotifierProvider(
-                                                    create: (_) =>
-                                                        DoctorChatHistoryViewModel(),
-                                                    child:
-                                                        const DoctorChatListView(),
-                                                  )),
+                                            builder: (_) =>
+                                                const DoctorChatListScreen(),
+                                          ),
                                         );
+                                        await viewModel.fetchUnreadMessagesCount();
                                       },
                                       child: Stack(
                                         clipBehavior: Clip.none,
@@ -172,32 +274,52 @@ class DoctorDashboardView extends StatelessWidget {
                                                   Colors.white.withOpacity(0.2),
                                               shape: BoxShape.circle,
                                             ),
-                                            child: const Icon(
-                                                Icons.notifications_outlined,
-                                                color: Colors.white,
-                                                size: 20),
+                                            child: Image.asset(
+                                              'assets/Icons/chat-icon.png',
+                                              width: 22,
+                                              height: 22,
+                                              color: Colors.white,
+                                            ),
                                           ),
-                                          Positioned(
-                                            top: 4,
-                                            right: 4,
-                                            child: Container(
-                                              padding: const EdgeInsets.all(4),
-                                              decoration: const BoxDecoration(
-                                                color: Colors.red,
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: Text(
-                                                "3",
-                                                style: GoogleFonts.inter(
-                                                  color: Colors.white,
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.bold,
+                                          if (viewModel.unreadMessagesCount > 0)
+                                            Positioned(
+                                              top: -2,
+                                              right: -2,
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 5,
+                                                  vertical: 1,
+                                                ),
+                                                constraints: const BoxConstraints(
+                                                  minWidth: 16,
+                                                  minHeight: 16,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.error,
+                                                  borderRadius:
+                                                      BorderRadius.circular(20),
+                                                  border: Border.all(
+                                                    color: Colors.white,
+                                                    width: 1.5,
+                                                  ),
+                                                ),
+                                                child: Center(
+                                                  child: Text(
+                                                    viewModel.unreadMessagesCount > 99
+                                                        ? '99+'
+                                                        : '${viewModel.unreadMessagesCount}',
+                                                    style: GoogleFonts.inter(
+                                                      color: Colors.white,
+                                                      fontSize: 9,
+                                                      fontWeight: FontWeight.w700,
+                                                    ),
+                                                  ),
                                                 ),
                                               ),
                                             ),
-                                          ),
                                         ],
                                       ),
+                                    ),
                                     ),
                                   ],
                                 )
@@ -244,7 +366,7 @@ class DoctorDashboardView extends StatelessWidget {
                                           ),
                                           const SizedBox(width: 8),
                                           Text(
-                                            "Total Earnings",
+                                            context.tr('doctor.dashboard.total_earnings'),
                                             style: GoogleFonts.inter(
                                                 color: Colors.white70,
                                                 fontSize: 14,
@@ -262,7 +384,7 @@ class DoctorDashboardView extends StatelessWidget {
                                         ),
                                         child: Row(
                                           children: [
-                                            Text("This Month",
+                                            Text(context.tr('doctor.dashboard.this_month'),
                                                 style: GoogleFonts.inter(
                                                     color: Colors.white,
                                                     fontSize: 11,
@@ -320,7 +442,7 @@ class DoctorDashboardView extends StatelessWidget {
                               children: [
                                 Expanded(
                                   child: _buildStatCard(
-                                    "Patients",
+                                    context.tr('doctor.main.nav.patients'),
                                     "${viewModel.patientsCount}",
                                     Icons.people_alt_outlined,
                                     Colors.blue,
@@ -330,7 +452,7 @@ class DoctorDashboardView extends StatelessWidget {
                                 const SizedBox(width: 16),
                                 Expanded(
                                   child: _buildStatCard(
-                                    "Appointments",
+                                    context.tr('doctor.main.nav.appointments'),
                                     "${viewModel.appointmentsCount}",
                                     Icons.calendar_today_outlined,
                                     Colors.orange,
@@ -379,32 +501,39 @@ class DoctorDashboardView extends StatelessWidget {
                                     ),
                                   ),
                                   const SizedBox(width: 16),
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        viewModel.isOnline
-                                            ? "Available for Booking"
-                                            : "Currently Unavailable",
-                                        style: GoogleFonts.inter(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 14,
-                                            color: AppColors.textPrimary),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        viewModel.isOnline
-                                            ? "You are visible to patients"
-                                            : "You are hidden from search",
-                                        style: GoogleFonts.inter(
-                                          fontSize: 12,
-                                          color: Colors.grey[500],
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          viewModel.isOnline
+                                              ? context.tr('doctor.dashboard.available_booking')
+                                              : context.tr('doctor.dashboard.currently_unavailable'),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.inter(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                              color: AppColors.textPrimary),
                                         ),
-                                      ),
-                                    ],
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          viewModel.isOnline
+                                              ? context.tr('doctor.dashboard.visible_to_patients')
+                                              : context.tr('doctor.dashboard.hidden_from_search'),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12,
+                                            color: Colors.grey[500],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                  const Spacer(),
+                                  const SizedBox(width: 8),
                                   Transform.scale(
                                     scale: 0.8,
                                     child: Switch(
@@ -442,7 +571,7 @@ class DoctorDashboardView extends StatelessWidget {
                                             MainAxisAlignment.spaceBetween,
                                         children: [
                                           Text(
-                                            "Upcoming Appointments",
+                                            context.tr('doctor.dashboard.upcoming_appointments'),
                                             style: GoogleFonts.inter(
                                               fontSize: 18,
                                               fontWeight: FontWeight.bold,
@@ -451,7 +580,7 @@ class DoctorDashboardView extends StatelessWidget {
                                           ),
                                           TextButton(
                                             onPressed: null,
-                                            child: const Text("See All",
+                                            child: Text(context.tr('common.see_all'),
                                                 style: TextStyle(
                                                     color: Colors.grey)),
                                           ),
@@ -463,7 +592,9 @@ class DoctorDashboardView extends StatelessWidget {
                                 );
                               }
 
-                              final items = viewModel.upcomingAppointments;
+                              final items = viewModel.upcomingAppointments
+                                  .where((a) => a.isDoctorUpcomingSlot)
+                                  .toList();
                               if (items.isEmpty) {
                                 return const SizedBox
                                     .shrink(); // Hide entire section if no appointments
@@ -480,7 +611,7 @@ class DoctorDashboardView extends StatelessWidget {
                                           MainAxisAlignment.spaceBetween,
                                       children: [
                                         Text(
-                                          "Upcoming Appointments",
+                                          context.tr('doctor.dashboard.upcoming_appointments'),
                                           style: GoogleFonts.inter(
                                             fontSize: 18,
                                             fontWeight: FontWeight.bold,
@@ -498,7 +629,7 @@ class DoctorDashboardView extends StatelessWidget {
                                                               true)),
                                             );
                                           },
-                                          child: const Text("See All"),
+                                          child: Text(context.tr('common.see_all')),
                                         ),
                                       ],
                                     ),
@@ -529,7 +660,7 @@ class DoctorDashboardView extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 20),
                             child: Column(
                               children: [
-                                _buildSectionHeader("Quick Actions"),
+                                _buildSectionHeader(context.tr('doctor.patient.quick_actions')),
                                 const SizedBox(height: 16),
                                 _buildQuickActionsGrid(context),
                               ],
@@ -569,29 +700,7 @@ class DoctorDashboardView extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(icon, color: color, size: 20),
-                // Tiny trend indicator could go here
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    "+2.5%",
-                    style: GoogleFonts.inter(
-                        fontSize: 10,
-                        color: Colors.green,
-                        fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
             Text(
               value,
               style: GoogleFonts.inter(
@@ -600,7 +709,7 @@ class DoctorDashboardView extends StatelessWidget {
                 color: AppColors.textPrimary,
               ),
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 4),
             Text(
               title,
               style: GoogleFonts.inter(
@@ -638,16 +747,16 @@ class DoctorDashboardView extends StatelessWidget {
   Widget _buildQuickActionsGrid(BuildContext context) {
     final actions = [
       {
-        "title": "Patients",
-        "subtitle": "Manage records",
+        "title": context.tr('doctor.main.nav.patients'),
+        "subtitle": context.tr('doctor.dashboard.manage_records'),
         "image": "assets/doctors.png",
         "color": const Color(0xFFCEE9F1),
         "onTap": () => Navigator.push(
             context, MaterialPageRoute(builder: (_) => const DoctorPatientsView(showBackButton: true))),
       },
       {
-        "title": "History",
-        "subtitle": "Patient records",
+        "title": context.tr('doctor.dashboard.history'),
+        "subtitle": context.tr('doctor.dashboard.patient_records'),
         "image": "assets/pres.png",
         "color": const Color(0xFFDCE8C0),
         "onTap": () => Navigator.push(
@@ -655,12 +764,14 @@ class DoctorDashboardView extends StatelessWidget {
             MaterialPageRoute(
                 builder: (_) => ChangeNotifierProvider(
                       create: (_) => PastAppointmentsViewModel(),
-                      child: const PastAppointmentsView(title: "History"),
+                      child: PastAppointmentsView(
+                        title: context.tr('doctor.dashboard.history'),
+                      ),
                     ))),
       },
       {
-        "title": "Articles",
-        "subtitle": "Health Hub",
+        "title": context.tr('patient.health_hub.tab.articles'),
+        "subtitle": context.tr('patient.health_hub.title'),
         "image": "assets/tip.png",
         "color": const Color(0xFFFFEBD2),
         "onTap": () => Navigator.push(
@@ -670,8 +781,8 @@ class DoctorDashboardView extends StatelessWidget {
                     showBackButton: true, isDoctor: true))),
       },
       {
-        "title": "Appointments",
-        "subtitle": "Schedule",
+        "title": context.tr('doctor.main.nav.appointments'),
+        "subtitle": context.tr('doctor.dashboard.schedule'),
         "image": "assets/consult.png",
         "color": const Color(0xFFE3DBF2),
         "onTap": () => Navigator.push(
@@ -712,6 +823,7 @@ class DoctorDashboardView extends StatelessWidget {
               ],
             ),
             child: Stack(
+              clipBehavior: Clip.none,
               children: [
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -755,8 +867,8 @@ class DoctorDashboardView extends StatelessWidget {
                   ],
                 ),
                 Positioned(
-                  bottom: -4,
-                  right: -4,
+                  bottom: 0,
+                  right: 0,
                   child: Container(
                     height: 32,
                     width: 32,

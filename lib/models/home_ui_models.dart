@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 class QuickActionItem {
+  /// Stable identifier used for routing (independent of the displayed locale).
+  final String type;
   final String title;
   final String subtitle;
   final String image;
@@ -8,6 +10,7 @@ class QuickActionItem {
   final VoidCallback? onTap;
 
   QuickActionItem({
+    required this.type,
     required this.title,
     required this.subtitle,
     required this.image,

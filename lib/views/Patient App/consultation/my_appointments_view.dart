@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
 import 'package:medlink/models/appointment_model.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 import 'package:medlink/widgets/appointment_info_card.dart';
 import 'package:medlink/widgets/no_data_widget.dart';
 // import 'package:medlink/viewmodels/auth_viewmodel.dart'; // To get userId
@@ -58,8 +59,8 @@ class _MyAppointmentsViewState extends State<MyAppointmentsView>
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('My Appointments',
-            style: TextStyle(color: Colors.black)),
+        title: Text(context.tr('patient.appointments.title'),
+            style: const TextStyle(color: Colors.black)),
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
@@ -69,10 +70,10 @@ class _MyAppointmentsViewState extends State<MyAppointmentsView>
           labelColor: AppColors.primary,
           unselectedLabelColor: Colors.grey,
           indicatorColor: AppColors.primary,
-          tabs: const [
-            Tab(text: 'Upcoming'),
-            Tab(text: 'Past'),
-            Tab(text: 'Cancelled'),
+          tabs: [
+            Tab(text: context.tr('patient.appointments.tab.upcoming')),
+            Tab(text: context.tr('patient.appointments.tab.past')),
+            Tab(text: context.tr('patient.appointments.tab.cancelled')),
           ],
         ),
       ),
@@ -102,9 +103,12 @@ class _MyAppointmentsViewState extends State<MyAppointmentsView>
     }
 
     if (appointments.isEmpty) {
+      final typeLabel = _typeLabel(context, type);
       return NoDataWidget(
-        title: 'No ${type.capitalize()} Appointments',
-        subTitle: "You have no ${type.toLowerCase()} appointments right now.",
+        title: context.tr('patient.appointments.empty.title',
+            params: {'type': typeLabel}),
+        subTitle: context.tr('patient.appointments.empty.subtitle',
+            params: {'type': typeLabel.toLowerCase()}),
       );
     }
 
@@ -120,9 +124,15 @@ class _MyAppointmentsViewState extends State<MyAppointmentsView>
   }
 }
 
-extension StringExtension on String {
-  String capitalize() {
-    if (isEmpty) return "";
-    return "${this[0].toUpperCase()}${substring(1)}";
+String _typeLabel(BuildContext context, String type) {
+  switch (type) {
+    case 'upcoming':
+      return context.tr('patient.appointments.tab.upcoming');
+    case 'past':
+      return context.tr('patient.appointments.tab.past');
+    case 'cancelled':
+      return context.tr('patient.appointments.tab.cancelled');
+    default:
+      return type;
   }
 }

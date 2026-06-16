@@ -6,6 +6,14 @@ class NotificationServices {
   FirebaseMessaging messaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _local = FlutterLocalNotificationsPlugin();
 
+  /// Set in [main] after [setupLocalNotifications] so features can show in-app-style banners.
+  static NotificationServices? _appInstance;
+  static void registerAppInstance(NotificationServices instance) {
+    _appInstance = instance;
+  }
+
+  static NotificationServices? get app => _appInstance;
+
   static const AndroidNotificationChannel _androidChannel = AndroidNotificationChannel(
     'medlink_push',
     'Push notifications',
@@ -89,13 +97,26 @@ class NotificationServices {
     }
   }
 
+  /// Prints the FCM registration token to the console (debug only; full string, not truncated).
+  static void logFcmTokenToConsole(String? token, {String source = 'getToken'}) {
+    if (!kDebugMode) return;
+    // ignore: avoid_print
+    print('══════════ FCM DEVICE TOKEN ($source) ══════════');
+    // ignore: avoid_print
+    print(token ?? '<null — Firebase not ready, permission, or error>');
+    // ignore: avoid_print
+    print('══════════ end FCM token ══════════');
+  }
+
   Future<String?> getDeviceToken() async {
     try {
       await _waitForApnsTokenIfNeeded();
-      return await messaging.getToken();
+      final token = await messaging.getToken();
+      logFcmTokenToConsole(token, source: 'getDeviceToken');
+      return token;
     } catch (e, stack) {
       if (kDebugMode) {
-        debugPrint('getDeviceToken: $e');
+        logFcmTokenToConsole(null, source: 'getDeviceToken error: $e');
         debugPrint('$stack');
       }
       return null;
@@ -168,5 +189,47 @@ class NotificationServices {
       }
       await _showForegroundLocal(message);
     });
+  }
+
+  /// Simple local notification (e.g. after appointment cancel) using the same channel as FCM foreground.
+  Future<void> showLocalBanner({
+    required String title,
+    required String body,
+  }) async {
+    if (kIsWeb) return;
+
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      await _local.show(
+        id: _localId++,
+        title: title,
+        body: body,
+        notificationDetails: NotificationDetails(
+          android: AndroidNotificationDetails(
+            _androidChannel.id,
+            _androidChannel.name,
+            channelDescription: _androidChannel.description,
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: 'ic_launcher',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      await _local.show(
+        id: _localId++,
+        title: title,
+        body: body,
+        notificationDetails: const NotificationDetails(
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+      );
+    }
   }
 }

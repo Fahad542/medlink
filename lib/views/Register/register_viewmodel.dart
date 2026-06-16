@@ -3,9 +3,11 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:medlink/models/user_login_model.dart';
+import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/services/social_auth_service.dart';
 import 'package:medlink/utils/utils.dart';
+import 'package:medlink/utils/user_facing_errors.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:provider/provider.dart';
 
@@ -81,6 +83,9 @@ class RegisterViewModel extends ChangeNotifier {
   final TextEditingController aboutController = TextEditingController();
   final TextEditingController consultationFeeController =
       TextEditingController();
+  double _minimumDoctorConsultationFee = 500;
+  double get minimumDoctorConsultationFee => _minimumDoctorConsultationFee;
+
   String? licensePath;
   String? selectedSpecialtyId;
   List<String> availabilityDays = [];
@@ -120,6 +125,16 @@ class RegisterViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> fetchMinimumDoctorConsultationFeeFromOrg() async {
+    final v = await _apiServices.getOrganizationMinimumConsultationFee(
+      AppUrl.defaultOrganizationIdForFeeRules,
+    );
+    if (v != null && v > 0) {
+      _minimumDoctorConsultationFee = v;
+      notifyListeners();
+    }
+  }
+
   void reset() {
     _currentStep = 0;
     if (pageController.hasClients) {
@@ -145,6 +160,7 @@ class RegisterViewModel extends ChangeNotifier {
     clinicAddressController.clear();
     aboutController.clear();
     consultationFeeController.clear();
+    _minimumDoctorConsultationFee = 500;
 
     carNumberController.clear();
     carNameController.clear();
@@ -308,15 +324,17 @@ class RegisterViewModel extends ChangeNotifier {
         Utils.toastMessage(
             context, 'Signed in with Google. Complete your profile.');
       } else {
-        final msg =
-            response['message']?.toString() ?? 'Google sign-in failed';
+        final msg = UserFacingErrors.forApiMessage(
+          response['message']?.toString(),
+          fallback: 'Unable to sign in with Google. Please try again.',
+        );
         Utils.toastMessage(context, msg, isError: true);
       }
     } catch (e, stack) {
       setLoading(false);
       if (kDebugMode) print('signInWithGoogleForRegistration: $stack');
       if (context.mounted) {
-        Utils.toastMessage(context, e.toString(), isError: true);
+        Utils.toastError(context, e);
       }
     }
   }
@@ -374,15 +392,17 @@ class RegisterViewModel extends ChangeNotifier {
         Utils.toastMessage(
             context, 'Signed in with Apple. Complete your profile.');
       } else {
-        final msg =
-            response['message']?.toString() ?? 'Apple sign-in failed';
+        final msg = UserFacingErrors.forApiMessage(
+          response['message']?.toString(),
+          fallback: 'Unable to sign in with Apple. Please try again.',
+        );
         Utils.toastMessage(context, msg, isError: true);
       }
     } catch (e, stack) {
       setLoading(false);
       if (kDebugMode) print('signInWithAppleForRegistration: $stack');
       if (context.mounted) {
-        Utils.toastMessage(context, e.toString(), isError: true);
+        Utils.toastError(context, e);
       }
     }
   }
@@ -445,7 +465,7 @@ class RegisterViewModel extends ChangeNotifier {
       } catch (error, stack) {
         setLoading(false);
         if (kDebugMode) print("patientSendOtp error: $stack");
-        Utils.toastMessage(context, error.toString(), isError: true);
+        Utils.toastError(context, error);
       }
     } else if (_role == UserRole.doctor) {
       // Doctor 3-step API: Step 1 send OTP (phone only)
@@ -467,7 +487,7 @@ class RegisterViewModel extends ChangeNotifier {
       } catch (error, stack) {
         setLoading(false);
         if (kDebugMode) print("doctorSendOtp error: $stack");
-        Utils.toastMessage(context, error.toString(), isError: true);
+        Utils.toastError(context, error);
       }
     } else {
       // Driver 3-step API: Step 1 send OTP (phone only)
@@ -489,7 +509,7 @@ class RegisterViewModel extends ChangeNotifier {
       } catch (error, stack) {
         setLoading(false);
         if (kDebugMode) print("driverSendOtp error: $stack");
-        Utils.toastMessage(context, error.toString(), isError: true);
+        Utils.toastError(context, error);
       }
     }
   }
@@ -511,7 +531,7 @@ class RegisterViewModel extends ChangeNotifier {
       } catch (error, stack) {
         setLoading(false);
         if (kDebugMode) print("patientVerifyOtp error: $stack");
-        Utils.toastMessage(context, error.toString(), isError: true);
+        Utils.toastError(context, error);
         return false;
       }
     }
@@ -530,7 +550,7 @@ class RegisterViewModel extends ChangeNotifier {
       } catch (error, stack) {
         setLoading(false);
         if (kDebugMode) print("doctorVerifyOtp error: $stack");
-        Utils.toastMessage(context, error.toString(), isError: true);
+        Utils.toastError(context, error);
         return false;
       }
     }
@@ -549,7 +569,7 @@ class RegisterViewModel extends ChangeNotifier {
       } catch (error, stack) {
         setLoading(false);
         if (kDebugMode) print("driverVerifyOtp error: $stack");
-        Utils.toastMessage(context, error.toString(), isError: true);
+        Utils.toastError(context, error);
         return false;
       }
     }
@@ -571,7 +591,7 @@ class RegisterViewModel extends ChangeNotifier {
       } catch (error, stack) {
         setResendLoading(false);
         if (kDebugMode) print("patientSendOtp resend error: $stack");
-        Utils.toastMessage(context, error.toString(), isError: true);
+        Utils.toastError(context, error);
       }
     } else if (_role == UserRole.doctor) {
       setResendLoading(true);
@@ -583,7 +603,7 @@ class RegisterViewModel extends ChangeNotifier {
       } catch (error, stack) {
         setResendLoading(false);
         if (kDebugMode) print("doctorSendOtp resend error: $stack");
-        Utils.toastMessage(context, error.toString(), isError: true);
+        Utils.toastError(context, error);
       }
     } else if (_role == UserRole.driver) {
       setResendLoading(true);
@@ -595,7 +615,7 @@ class RegisterViewModel extends ChangeNotifier {
       } catch (error, stack) {
         setResendLoading(false);
         if (kDebugMode) print("driverSendOtp resend error: $stack");
-        Utils.toastMessage(context, error.toString(), isError: true);
+        Utils.toastError(context, error);
       }
     } else {
       final data = {"phone_number": phoneController.text};
@@ -654,6 +674,7 @@ class RegisterViewModel extends ChangeNotifier {
           isError: true);
       return;
     }
+    await fetchMinimumDoctorConsultationFeeFromOrg();
     nextStep();
   }
 
@@ -661,6 +682,21 @@ class RegisterViewModel extends ChangeNotifier {
     if (consultationFeeController.text.isEmpty) {
       Utils.toastMessage(context, "Please enter consultation fee",
           isError: true);
+      return;
+    }
+    final entered = double.tryParse(consultationFeeController.text.trim());
+    if (entered == null) {
+      Utils.toastMessage(
+          context, "Please enter a valid consultation fee",
+          isError: true);
+      return;
+    }
+    if (entered < minimumDoctorConsultationFee) {
+      Utils.toastMessage(
+        context,
+        "Consultation fee must be at least ${minimumDoctorConsultationFee.toStringAsFixed(0)}",
+        isError: true,
+      );
       return;
     }
     if (availabilityDays.isEmpty) {
@@ -699,7 +735,7 @@ class RegisterViewModel extends ChangeNotifier {
       else
         setLoading(false);
       if (kDebugMode) print("Error in v1/step: ${stack.toString()}");
-      Utils.toastMessage(context, error.toString(), isError: true);
+      Utils.toastError(context, error);
       return false;
     }
   }
@@ -733,7 +769,7 @@ class RegisterViewModel extends ChangeNotifier {
       else
         setLoading(false);
       if (kDebugMode) print("Error: ${stack.toString()}");
-      Utils.toastMessage(context, error.toString(), isError: true);
+      Utils.toastError(context, error);
       return false;
     }
   }
@@ -753,7 +789,7 @@ class RegisterViewModel extends ChangeNotifier {
     } catch (error, stack) {
       setLoading(false);
       if (kDebugMode) print("Error: ${stack.toString()}");
-      Utils.toastMessage(context, error.toString(), isError: true);
+      Utils.toastError(context, error);
       return false;
     }
   }
@@ -824,7 +860,7 @@ class RegisterViewModel extends ChangeNotifier {
     } catch (error, stack) {
       setLoading(false);
       if (kDebugMode) print("patientRegister error: $stack");
-      Utils.toastMessage(context, error.toString(), isError: true);
+      Utils.toastError(context, error);
       return false;
     }
   }
@@ -870,7 +906,7 @@ class RegisterViewModel extends ChangeNotifier {
     } catch (error, stack) {
       setLoading(false);
       if (kDebugMode) print("Error: ${stack.toString()}");
-      Utils.toastMessage(context, error.toString(), isError: true);
+      Utils.toastError(context, error);
       return false;
     }
   }
@@ -891,7 +927,7 @@ class RegisterViewModel extends ChangeNotifier {
     } catch (error, stack) {
       setLoading(false);
       if (kDebugMode) print("Step 3 Error: $stack");
-      Utils.toastMessage(context, error.toString(), isError: true);
+      Utils.toastError(context, error);
       return false;
     }
   }
@@ -902,6 +938,9 @@ class RegisterViewModel extends ChangeNotifier {
       final data = {'email': email};
       dynamic value;
       if (_role == UserRole.doctor) {
+        // Doctor flow: fail fast here if email is already taken,
+        // so user doesn't reach profile/photo step before seeing this error.
+        await _apiServices.doctorCheckEmailAvailability(email.trim());
         value = await _apiServices.doctorCheckEmail(data);
       } else if (_role == UserRole.driver) {
         value = await _apiServices.driverCheckEmail(data);
@@ -923,7 +962,7 @@ class RegisterViewModel extends ChangeNotifier {
       return true;
     } catch (e) {
       setEmailLoading(false);
-      Utils.toastMessage(context, e.toString(), isError: true);
+      Utils.toastError(context, e);
       return false;
     }
   }
@@ -952,7 +991,7 @@ class RegisterViewModel extends ChangeNotifier {
       return true;
     } catch (e) {
       setEmailLoading(false);
-      Utils.toastMessage(context, e.toString(), isError: true);
+      Utils.toastError(context, e);
       return false;
     }
   }
@@ -1043,7 +1082,7 @@ class RegisterViewModel extends ChangeNotifier {
     } catch (error, stack) {
       setLoading(false);
       if (kDebugMode) print("doctorRegister error: $stack");
-      Utils.toastMessage(context, error.toString(), isError: true);
+      Utils.toastError(context, error);
       return false;
     }
   }
@@ -1110,7 +1149,7 @@ class RegisterViewModel extends ChangeNotifier {
       setLoading(false);
       if (kDebugMode) print("driverRegister error: $stack");
       if (context.mounted) {
-        Utils.toastMessage(context, error.toString(), isError: true);
+        Utils.toastError(context, error);
       }
     }
   }

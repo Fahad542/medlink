@@ -85,11 +85,15 @@ class GoogleMapsService {
   }
 
   // Fetch Places Autocomplete
-  static Future<List<dynamic>> searchPlaces(String query) async {
+  static Future<List<dynamic>> searchPlaces(String query, {LatLng? origin}) async {
     if (query.isEmpty) return [];
     try {
+      final String originParam = (origin != null) 
+          ? "&origin=${origin.latitude},${origin.longitude}" 
+          : "";
+          
       final String url =
-          "$_baseUrl/place/autocomplete/json?input=$query&key=$_apiKey";
+          "$_baseUrl/place/autocomplete/json?input=$query&key=$_apiKey$originParam";
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
@@ -122,6 +126,33 @@ class GoogleMapsService {
       return null;
     } catch (e) {
       print("Google Maps Places Details Error: $e");
+      return null;
+    }
+  }
+
+  // Reverse geocode from coordinates to a readable address
+  static Future<String?> getAddressFromLatLng(
+      double latitude, double longitude) async {
+    try {
+      final String url =
+          "$_baseUrl/geocode/json?latlng=$latitude,$longitude&key=$_apiKey";
+      final response = await http.get(Uri.parse(url));
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = json.decode(response.body);
+        if (data['status'] == 'OK' &&
+            data['results'] is List &&
+            data['results'].isNotEmpty) {
+          final first = data['results'][0];
+          final formatted = first['formatted_address']?.toString();
+          if (formatted != null && formatted.trim().isNotEmpty) {
+            return formatted;
+          }
+        }
+      }
+      return null;
+    } catch (e) {
+      print("Google Maps Reverse Geocode Error: $e");
       return null;
     }
   }

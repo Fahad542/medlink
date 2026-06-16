@@ -7,6 +7,8 @@ class DoctorEarningsViewModel extends ChangeNotifier {
 
   bool _isLoading = false;
   double _totalBalance = 0.0;
+  /// Max amount allowed for a new withdrawal request (excludes pending/processing).
+  double _availableToWithdraw = 0.0;
   double _todayEarning = 0.0;
   double _thisWeekEarning = 0.0;
   String _currency = "CFA";
@@ -20,6 +22,7 @@ class DoctorEarningsViewModel extends ChangeNotifier {
 
   bool get isLoading => _isLoading;
   double get totalBalance => _totalBalance;
+  double get availableToWithdraw => _availableToWithdraw;
   double get todayEarning => _todayEarning;
   double get thisWeekEarning => _thisWeekEarning;
   String get currency => _currency;
@@ -37,6 +40,14 @@ class DoctorEarningsViewModel extends ChangeNotifier {
         final data = response['data'];
         if (data != null) {
           _totalBalance = (data['totalBalance'] ?? 0).toDouble();
+          final atw = data['availableToWithdraw'];
+          if (atw != null) {
+            _availableToWithdraw = (atw is num)
+                ? atw.toDouble()
+                : double.tryParse(atw.toString()) ?? _totalBalance;
+          } else {
+            _availableToWithdraw = _totalBalance;
+          }
           _todayEarning = (data['todayEarning'] ?? 0).toDouble();
           _thisWeekEarning = (data['thisWeekEarning'] ?? 0).toDouble();
           _currency = data['currency'] ?? "CFA";
@@ -122,5 +133,59 @@ class DoctorEarningsViewModel extends ChangeNotifier {
     } catch(e) {
        return dateString;
     }
+  }
+
+  /// Backend may send `user` as a string, nested `patient`, or alternate keys.
+  String transactionUserDisplayName(Map<String, dynamic> m) {
+    for (final key in [
+      'user',
+      'patientName',
+      'userName',
+      'memberName',
+      'customerName',
+    ]) {
+      final v = m[key];
+      if (v is String && v.trim().isNotEmpty) return v.trim();
+      if (v != null && v is! Map && v.toString().trim().isNotEmpty) {
+        return v.toString().trim();
+      }
+    }
+    for (final nestedKey in ['patient', 'patientUser', 'member']) {
+      final raw = m[nestedKey];
+      if (raw is Map) {
+        final p = Map<String, dynamic>.from(raw);
+        for (final key in ['name', 'fullName', 'full_name', 'displayName']) {
+          final v = p[key];
+          if (v != null && v.toString().trim().isNotEmpty) {
+            return v.toString().trim();
+          }
+        }
+      }
+    }
+    final appointment = m['appointment'];
+    if (appointment is Map) {
+      final a = Map<String, dynamic>.from(appointment);
+      final inner = a['patient'] ?? a['user'];
+      if (inner is Map) {
+        final p = Map<String, dynamic>.from(inner);
+        for (final key in ['name', 'fullName', 'full_name']) {
+          final v = p[key];
+          if (v != null && v.toString().trim().isNotEmpty) {
+            return v.toString().trim();
+          }
+        }
+      }
+    }
+    final userObj = m['user'];
+    if (userObj is Map) {
+      final u = Map<String, dynamic>.from(userObj);
+      for (final key in ['name', 'fullName', 'full_name']) {
+        final v = u[key];
+        if (v != null && v.toString().trim().isNotEmpty) {
+          return v.toString().trim();
+        }
+      }
+    }
+    return 'Unknown User';
   }
 }

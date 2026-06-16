@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:medlink/core/constants/app_url.dart';
 import 'package:medlink/data/network/network_api_services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,6 +16,30 @@ class ApiServices {
   Future<dynamic> getSystemSettings() async {
     try {
       return await _apiServices.getGetApiResponse(AppUrl.systemSettings);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Validates stored JWT with [POST /auth/check-login](AppUrl.checkLogin). No `Authorization` header (public route).
+  Future<dynamic> checkLogin(String accessToken) async {
+    try {
+      return await _apiServices.getPostApiResponseNoAuth(
+        AppUrl.checkLogin,
+        jsonEncode({'access_token': accessToken}),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Saves device FCM token for the logged-in user (patient, doctor, driver). Uses Bearer from session.
+  Future<dynamic> updateFcmToken(String fcmToken) async {
+    try {
+      return await _apiServices.getPatchApiResponse(
+        AppUrl.updateFcmToken,
+        {'fcmToken': fcmToken},
+      );
     } catch (e) {
       rethrow;
     }
@@ -107,23 +132,27 @@ class ApiServices {
   }
 
   Future<dynamic> createSos(double latitude, double longitude,
-      {String incidentType = "Medical Emergency",
-      String severity = "High",
+      {String? incidentType,
+      String? severity,
       double? destinationLat,
       double? destinationLng,
       String? addressText}) async {
     try {
-      final payload = {
+      final Map<String, dynamic> payload = {
         "lat": latitude,
         "lng": longitude,
-        "emergencyType": incidentType,
-        "severity": severity,
       };
-      
+
+      if (incidentType != null && incidentType.trim().isNotEmpty) {
+        payload["emergencyType"] = incidentType.trim();
+      }
+      if (severity != null && severity.trim().isNotEmpty) {
+        payload["severity"] = severity.trim();
+      }
       if (destinationLat != null) payload["destinationLat"] = destinationLat;
       if (destinationLng != null) payload["destinationLng"] = destinationLng;
       if (addressText != null) payload["addressText"] = addressText;
-      
+
       return await _apiServices.getPostApiResponse(
         AppUrl.createSos,
         jsonEncode(payload),
@@ -141,6 +170,68 @@ class ApiServices {
     }
   }
 
+  /// Re-open search for an EXPIRED SOS (same id). Backend: `POST /patient/sos/:id/retry`
+  Future<dynamic> retryPatientSos(String sosId) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        '${AppUrl.createSos}/$sosId/retry',
+        jsonEncode({}),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Cancel an OPEN SOS within the first 2 minutes. Backend: `PATCH /patient/sos/:id/cancel`
+  Future<dynamic> cancelPatientSos(String sosId) async {
+    try {
+      return await _apiServices.getPatchApiResponse(
+        '${AppUrl.createSos}/$sosId/cancel',
+        <String, dynamic>{},
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Stripe Payment Sheet client params for trip fare (after driver completes trip).
+  Future<dynamic> patientTripPaymentCheckout(String tripId) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        AppUrl.patientTripPaymentCheckout(tripId),
+        jsonEncode({}),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Patient chose cash — server acknowledges (driver already paid via earnings on complete).
+  Future<dynamic> patientTripPaymentCash(String tripId) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        AppUrl.patientTripPaymentCash(tripId),
+        jsonEncode({}),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> patientTripPaymentConfirmOnline(
+    String tripId,
+    String paymentIntentId,
+  ) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        AppUrl.patientTripPaymentConfirmOnline(tripId),
+        jsonEncode({'paymentIntentId': paymentIntentId}),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<dynamic> createAppointmentCheckout(String appointmentId) async {
     try {
       return await _apiServices.getPostApiResponse(
@@ -152,13 +243,134 @@ class ApiServices {
     }
   }
 
-  Future<dynamic> getBookedSlots(String doctorId, String date) async {
+  Future<dynamic> getBookedSlots(
+    String doctorId,
+    String date, {
+    String? excludeAppointmentId,
+  }) async {
+    try {
+      var url =
+          '${AppUrl.getBookedSlots}/$doctorId/booked-slots?date=$date';
+      if (excludeAppointmentId != null && excludeAppointmentId.isNotEmpty) {
+        url += '&excludeAppointmentId=${Uri.encodeQueryComponent(excludeAppointmentId)}';
+      }
+      return await _apiServices.getGetApiResponse(url);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Session length + active weekly availability rows (same shape as doctor list).
+  Future<dynamic> getPatientDoctorWeeklySchedule(String doctorId) async {
     try {
       return await _apiServices.getGetApiResponse(
-        '${AppUrl.getBookedSlots}/$doctorId/booked-slots?date=$date',
+        '${AppUrl.patientDoctorWeeklySchedule}/$doctorId/weekly-schedule',
       );
     } catch (e) {
       rethrow;
+    }
+  }
+
+  Future<dynamic> getPatientNotifications({int limit = 50}) async {
+    try {
+      return await _apiServices.getGetApiResponse(
+        '${AppUrl.patientNotifications}?limit=$limit',
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> getDoctorNotifications({int limit = 50}) async {
+    try {
+      return await _apiServices.getGetApiResponse(
+        '${AppUrl.doctorNotifications}?limit=$limit',
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// POST — mark every in-app notification read (patient). Sets `isRead` on the server.
+  Future<dynamic> markAllPatientNotificationsRead() async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        AppUrl.patientNotificationsReadAll,
+        jsonEncode({}),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// POST — mark every in-app notification read (doctor).
+  Future<dynamic> markAllDoctorNotificationsRead() async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        AppUrl.doctorNotificationsReadAll,
+        jsonEncode({}),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// PATCH — one row: set `isRead: true` in DB for this notification (patient).
+  ///
+  /// **Backend contract:** `PATCH /patient/notifications/{id}/read`
+  /// - Auth: Bearer (same as other patient routes)
+  /// - Body: `{ "isRead": true }`
+  /// - Response: `{ "success": true, ... }` (or your standard envelope)
+  Future<dynamic> markPatientNotificationRead(String notificationId) async {
+    final id = notificationId.trim();
+    if (id.isEmpty) {
+      return <String, dynamic>{'success': false, 'message': 'Missing id'};
+    }
+    try {
+      final path = Uri.encodeComponent(id);
+      return await _apiServices.getPatchApiResponse(
+        '${AppUrl.patientNotifications}/$path/read',
+        {'isRead': true},
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// PATCH — set `isRead: true` for one doctor notification.
+  ///
+  /// **Backend contract:** `PATCH /doctor/notifications/{id}/read`
+  /// - Body: `{ "isRead": true }`
+  Future<dynamic> markDoctorNotificationRead(String notificationId) async {
+    final id = notificationId.trim();
+    if (id.isEmpty) {
+      return <String, dynamic>{'success': false, 'message': 'Missing id'};
+    }
+    try {
+      final path = Uri.encodeComponent(id);
+      return await _apiServices.getPatchApiResponse(
+        '${AppUrl.doctorNotifications}/$path/read',
+        {'isRead': true},
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Reads `settings.minimumDoctorConsultationFee` from GET `/common/organization-settings/:id`.
+  Future<double?> getOrganizationMinimumConsultationFee(int organizationId) async {
+    try {
+      final res = await _apiServices.getGetApiResponse(
+        AppUrl.organizationSettingsById(organizationId),
+      );
+      if (res is! Map || res['success'] != true) return null;
+      final settings = res['settings'];
+      if (settings is! Map) return null;
+      final v = settings['minimumDoctorConsultationFee'];
+      if (v == null) return null;
+      return double.tryParse(v.toString());
+    } catch (_) {
+      return null;
     }
   }
 
@@ -518,13 +730,16 @@ class ApiServices {
     String phone = '',
   }) async {
     try {
+      // Never send "" for phone: a unique `phone` column allows only one "" row;
+      // social sign-in has no number — send null so DB can store NULL (many NULLs OK).
+      final trimmedPhone = phone.trim();
       final body = <String, dynamic>{
         'provider': provider,
         'providerUserId': providerUserId,
         'role': role,
         'email': email,
         'fullName': fullName,
-        'phone': phone.trim().isNotEmpty ? phone.trim() : '',
+        'phone': trimmedPhone.isEmpty ? null : trimmedPhone,
       };
       return await _apiServices.getPostApiResponseNoAuth(
         AppUrl.socialLogin,
@@ -608,6 +823,17 @@ class ApiServices {
     try {
       return await _apiServices.getPostApiResponse(
           AppUrl.doctorRegisterStep1, jsonEncode(data));
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> doctorCheckEmailAvailability(String email) async {
+    try {
+      return await _apiServices.getPostApiResponse(
+        AppUrl.doctorCheckEmailAvailability,
+        jsonEncode({'email': email}),
+      );
     } catch (e) {
       rethrow;
     }
@@ -878,6 +1104,18 @@ class ApiServices {
     }
   }
 
+  /// Marks the 1:1 thread with [peerId] (other User.id) as read for the current user.
+  Future<void> markChatConversationRead(int peerId) async {
+    try {
+      await _apiServices.getPostApiResponse(
+        AppUrl.markChatConversationRead,
+        jsonEncode({'peerId': peerId}),
+      );
+    } catch (e) {
+      debugPrint('markChatConversationRead: $e');
+    }
+  }
+
   Future<dynamic> uploadImage(File file) async {
     try {
       return await _apiServices.getPostMultipartApiResponse(
@@ -893,6 +1131,32 @@ class ApiServices {
       final url = '${AppUrl.patientCancelAppointment}/$appointmentId/cancel';
       final payload = {"cancelReason": reason};
       return await _apiServices.getPatchApiResponse(url, payload);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> patientRescheduleAppointment(
+    String appointmentId,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final url =
+          '${AppUrl.patientCancelAppointment}/$appointmentId/reschedule';
+      return await _apiServices.getPatchApiResponse(url, body);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> doctorRescheduleAppointment(
+    String appointmentId,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final url =
+          '${AppUrl.doctorAppointmentActions}/$appointmentId/reschedule';
+      return await _apiServices.getPatchApiResponse(url, body);
     } catch (e) {
       rethrow;
     }
@@ -940,6 +1204,17 @@ class ApiServices {
     try {
       final url =
           '${AppUrl.baseUrl}/patient/appointments/$appointmentId/complete';
+      return await _apiServices.getPatchApiResponse(url, {});
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Patient-only: finalizes a paid PENDING booking (CONFIRMED + PAID + earnings split on server).
+  Future<dynamic> confirmPatientAppointment(String appointmentId) async {
+    try {
+      final url =
+          '${AppUrl.bookAppointments}/$appointmentId/confirm';
       return await _apiServices.getPatchApiResponse(url, {});
     } catch (e) {
       rethrow;
@@ -1014,7 +1289,12 @@ class ApiServices {
 
   Future<dynamic> getPatientReels() async {
     try {
-      return await _apiServices.getGetApiResponse(AppUrl.patientReels);
+      // Bust HTTP/CDN caches so list changes from the API are always fresh
+      final u = Uri.parse(AppUrl.patientReels);
+      final q = Map<String, String>.from(u.queryParameters);
+      q['_t'] = DateTime.now().millisecondsSinceEpoch.toString();
+      final url = u.replace(queryParameters: q).toString();
+      return await _apiServices.getGetApiResponse(url);
     } catch (e) {
       rethrow;
     }
@@ -1188,20 +1468,35 @@ class ApiServices {
     }
   }
 
-  Future<dynamic> approveAppointment(String id) async {
-    try {
-      return await _apiServices.getPatchApiResponse(
-          "${AppUrl.doctorAppointmentActions}/$id/approve", {});
-    } catch (e) {
-      rethrow;
-    }
-  }
-
   Future<dynamic> doctorCancelAppointment(String id, String reason) async {
     try {
       return await _apiServices.getPatchApiResponse(
           "${AppUrl.doctorAppointmentActions}/$id/cancel",
           {"cancelReason": reason});
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Doctor approves a pending patient booking (adds to calendar; no payout until patient completes visit).
+  Future<dynamic> approveAppointment(String id) async {
+    try {
+      return await _apiServices.getPatchApiResponse(
+        "${AppUrl.doctorAppointmentActions}/$id/approve",
+        {},
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Doctor rejects a pending booking; patient is notified. Body matches cancel reason shape on backend.
+  Future<dynamic> rejectDoctorBooking(String id, {String? cancelReason}) async {
+    try {
+      return await _apiServices.getPatchApiResponse(
+        "${AppUrl.doctorAppointmentActions}/$id/reject",
+        {if (cancelReason != null && cancelReason.isNotEmpty) "cancelReason": cancelReason},
+      );
     } catch (e) {
       rethrow;
     }
@@ -1246,6 +1541,16 @@ class ApiServices {
           "${AppUrl.uploadTestReport}/$prescriptionId/tests/$testId/report";
       return await _apiServices.getPatchMultipartApiResponse(url, {}, file,
           fileKey: 'report');
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> removeTestReport(String prescriptionId, String testId) async {
+    try {
+      final url =
+          "${AppUrl.uploadTestReport}/$prescriptionId/tests/$testId/report";
+      return await _apiServices.getDeleteApiResponse(url);
     } catch (e) {
       rethrow;
     }
@@ -1335,6 +1640,45 @@ class ApiServices {
         imageFile,
         fileKey: 'coverImage',
       );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> updateDoctorArticle({
+    required int articleId,
+    required String title,
+    required String category,
+    required String contentHtml,
+    required bool isPublished,
+    String? imagePath,
+  }) async {
+    try {
+      final Map<String, String> data = {
+        'title': title,
+        'category': category,
+        'contentHtml': contentHtml,
+        'isPublished': isPublished.toString(),
+      };
+      File? imageFile;
+      if (imagePath != null) {
+        imageFile = File(imagePath);
+      }
+      return await _apiServices.getPatchMultipartApiResponse(
+        '${AppUrl.doctorArticleById}/$articleId',
+        data,
+        imageFile,
+        fileKey: 'coverImage',
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<dynamic> deleteDoctorArticle(int articleId) async {
+    try {
+      return await _apiServices
+          .getDeleteApiResponse('${AppUrl.doctorArticleById}/$articleId');
     } catch (e) {
       rethrow;
     }

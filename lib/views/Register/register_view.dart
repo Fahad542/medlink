@@ -15,6 +15,8 @@ import 'package:medlink/views/Patient%20App/auth/patient_info.dart';
 import 'package:medlink/widgets/emergency_contact.dart';
 import 'package:medlink/widgets/Setting_up_account.dart';
 import 'package:medlink/views/main/main_screen.dart';
+import 'package:medlink/utils/apple_sign_in_visibility.dart';
+import 'package:medlink/utils/utils.dart';
 
 // Doctor steps
 import 'package:medlink/views/doctor/auth/steps/doctor_step4_professional.dart';
@@ -165,7 +167,8 @@ class _RegisterViewState extends State<RegisterView> {
       onGoogleSignIn: authViewModel.role != UserRole.driver
           ? () => authViewModel.signInWithGoogleForRegistration(context)
           : null,
-      onAppleSignIn: authViewModel.role != UserRole.driver
+      onAppleSignIn: authViewModel.role != UserRole.driver &&
+              showAppleSignInButton
           ? () => authViewModel.signInWithAppleForRegistration(context)
           : null,
     );
@@ -225,8 +228,11 @@ class _RegisterViewState extends State<RegisterView> {
                     await authViewModel.registerStep3({}, context, file);
                 if (success) authViewModel.nextStep();
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Please select an image")));
+                Utils.toastMessage(
+                  context,
+                  "Please select an image",
+                  isError: true,
+                );
               }
             },
             onSkip: () async {
@@ -268,6 +274,8 @@ class _RegisterViewState extends State<RegisterView> {
             isLoading: authViewModel.loading,
             onNext: () => authViewModel.submitDoctorStep5(context),
             consultationFeeController: authViewModel.consultationFeeController,
+            minimumConsultationFee:
+                authViewModel.minimumDoctorConsultationFee,
             onAvailabilitySelected: (days) =>
                 authViewModel.setAvailability(days),
             onTimeSelected: (start, end) => authViewModel.setTimes(start, end),
@@ -276,13 +284,19 @@ class _RegisterViewState extends State<RegisterView> {
             isLoading: authViewModel.loading,
             onNext: () async {
               if (authViewModel.profileImagePath == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Profile image required")));
+                Utils.toastMessage(
+                  context,
+                  "Profile image required",
+                  isError: true,
+                );
                 return;
               }
               if (authViewModel.licensePath == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("License document required")));
+                Utils.toastMessage(
+                  context,
+                  "License document required",
+                  isError: true,
+                );
                 return;
               }
               final success = await authViewModel.doctorRegisterStep3(context);
@@ -313,8 +327,11 @@ class _RegisterViewState extends State<RegisterView> {
               if (authViewModel.driverLicensePath != null) {
                 authViewModel.nextStep();
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text("Driver License file required")));
+                Utils.toastMessage(
+                  context,
+                  "Driver License file required",
+                  isError: true,
+                );
               }
             },
             carNumberController: authViewModel.carNumberController,
@@ -328,8 +345,11 @@ class _RegisterViewState extends State<RegisterView> {
               if (authViewModel.profileImagePath != null) {
                 authViewModel.nextStep();
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Profile image required")));
+                Utils.toastMessage(
+                  context,
+                  "Profile image required",
+                  isError: true,
+                );
               }
             },
             onSkip: () => authViewModel.nextStep(),

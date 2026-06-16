@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:medlink/views/services/session_view_model.dart';
@@ -22,7 +23,8 @@ class PersonalInformationView extends StatelessWidget {
         builder: (context, viewModel, child) {
           return Scaffold(
             backgroundColor: const Color(0xFFF9FAFB),
-            appBar: const CustomAppBar(title: "Personal Information"),
+            appBar: CustomAppBar(
+                title: context.tr('profile.personal_info.title')),
             body: viewModel.isLoading
                 ? const PersonalInfoShimmer()
                 : SingleChildScrollView(
@@ -86,32 +88,32 @@ class PersonalInformationView extends StatelessWidget {
                   ),
                   const SizedBox(height: 32),
 
-                  _buildModernTextField("Full Name", viewModel.nameController, Icons.person_rounded),
+                  _buildModernTextField(context, "Full Name", viewModel.nameController, Icons.person_rounded),
                   const SizedBox(height: 16),
-                  _buildModernTextField("Phone Number", viewModel.phoneController, Icons.phone_rounded),
+                  _buildModernTextField(context, "Phone Number", viewModel.phoneController, Icons.phone_rounded),
                   const SizedBox(height: 16),
                   
                   Row(
                     children: [
-                      Expanded(child: _buildModernTextField("Date of Birth", viewModel.dobController, Icons.calendar_today_rounded)),
+                      Expanded(child: _buildModernTextField(context, "Date of Birth", viewModel.dobController, Icons.calendar_today_rounded)),
                       const SizedBox(width: 16),
-                      Expanded(child: _buildModernTextField("Gender", viewModel.genderController, Icons.people_rounded)),
+                      Expanded(child: _buildModernTextField(context, "Gender", viewModel.genderController, Icons.people_rounded)),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  _buildModernTextField("Blood Group", viewModel.bloodGroupController, Icons.water_drop_rounded),
+                  _buildModernTextField(context, "Blood Group", viewModel.bloodGroupController, Icons.water_drop_rounded),
                    const SizedBox(height: 16),
-                  _buildModernTextField("Address", viewModel.addressController, Icons.location_on_rounded),
+                  _buildModernTextField(context, "Address", viewModel.addressController, Icons.location_on_rounded),
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      Expanded(child: _buildModernTextField("Age", viewModel.ageController, Icons.calendar_month_rounded, keyboardType: TextInputType.number)),
+                      Expanded(child: _buildModernTextField(context, "Age", viewModel.ageController, Icons.calendar_month_rounded, keyboardType: TextInputType.number)),
                       const SizedBox(width: 16),
-                      Expanded(child: _buildModernTextField("Weight (kg)", viewModel.weightController, Icons.monitor_weight_rounded, keyboardType: TextInputType.number)),
+                      Expanded(child: _buildModernTextField(context, "Weight (kg)", viewModel.weightController, Icons.monitor_weight_rounded, keyboardType: TextInputType.number)),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  _buildModernTextField("Height (cm)", viewModel.heightController, Icons.height_rounded, keyboardType: TextInputType.number),
+                  _buildModernTextField(context, "Height (cm)", viewModel.heightController, Icons.height_rounded, keyboardType: TextInputType.number),
 
                   const SizedBox(height: 100),
                 ],
@@ -137,7 +139,7 @@ class PersonalInformationView extends StatelessWidget {
                 child: SizedBox(
                     width: double.infinity,
                     child: CustomButton(
-                        text: "Save Changes",
+                        text: context.tr('profile.personal_info.save_changes'),
                         fontWeight: FontWeight.w500,
                         onPressed: () => viewModel.saveChanges(context),
                     ),
@@ -150,7 +152,11 @@ class PersonalInformationView extends StatelessWidget {
     );
   }
 
-  Widget _buildModernTextField(String label, TextEditingController controller, IconData icon, {bool readOnly = false, int maxLines = 1, TextInputType? keyboardType}) {
+  Widget _buildModernTextField(
+      BuildContext context, String label, TextEditingController controller, IconData icon,
+      {bool readOnly = false,
+      int maxLines = 1,
+      TextInputType? keyboardType}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -184,7 +190,8 @@ class PersonalInformationView extends StatelessWidget {
             decoration: InputDecoration(
               filled: true,
               fillColor: readOnly ? Colors.grey.shade50 : Colors.white,
-              hintText: "Enter $label",
+              hintText: _localizedPlaceholderLabel(
+                  label, Localizations.localeOf(context)),
               hintStyle: GoogleFonts.inter(color: Colors.grey[400], fontWeight: FontWeight.w500, fontSize: 14),
               prefixIcon: Padding(
                 padding: const EdgeInsets.all(10),
@@ -215,5 +222,33 @@ class PersonalInformationView extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  String _localizedPlaceholderLabel(String label, Locale locale) {
+    final lang = locale.languageCode;
+    switch (label) {
+      case "Full Name":
+        return lang == 'fr' ? 'Entrez le nom complet' : 'Enter full name';
+      case "Phone Number":
+        return lang == 'fr'
+            ? 'Entrez le numero de telephone'
+            : 'Enter phone number';
+      case "Date of Birth":
+        return lang == 'fr' ? 'Entrez la date de naissance' : 'Enter date of birth';
+      case "Gender":
+        return lang == 'fr' ? 'Entrez le genre' : 'Enter gender';
+      case "Blood Group":
+        return lang == 'fr' ? 'Entrez le groupe sanguin' : 'Enter blood group';
+      case "Address":
+        return lang == 'fr' ? 'Entrez l adresse' : 'Enter address';
+      case "Age":
+        return lang == 'fr' ? 'Entrez l age' : 'Enter age';
+      case "Weight (kg)":
+        return lang == 'fr' ? 'Entrez le poids (kg)' : 'Enter weight (kg)';
+      case "Height (cm)":
+        return lang == 'fr' ? 'Entrez la taille (cm)' : 'Enter height (cm)';
+      default:
+        return lang == 'fr' ? 'Entrez la valeur' : 'Enter value';
+    }
   }
 }

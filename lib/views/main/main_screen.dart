@@ -14,8 +14,8 @@ import 'package:medlink/services/call_socket_service.dart';
 import 'package:medlink/views/call/call_screen.dart';
 import 'package:medlink/services/appointment_socket_service.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
-import 'package:medlink/views/call/incoming_call_screen.dart';
 import 'package:medlink/core/constants/app_url.dart';
+import 'package:medlink/views/Patient%20App/emergency/trip_payment_flow.dart';
 import 'dart:async';
 
 class MainScreen extends StatefulWidget {
@@ -27,15 +27,19 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late AnimationController _pulseController;
   StreamSubscription? _incomingCallSub;
+  StreamSubscription? _callEndedSub;
   StreamSubscription? _appointmentSub;
   StreamSubscription? _emergencyToastSub;
+  StreamSubscription<TripPaymentPromptEvent>? _tripPaymentPromptSub;
+  Map<String, dynamic>? _pendingIncomingCall;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _selectedIndex = widget.initialIndex;
     _pulseController = AnimationController(
       vsync: this,
@@ -47,8 +51,7 @@ class _MainScreenState extends State<MainScreen>
       final emergencyVM =
           Provider.of<EmergencyViewModel>(context, listen: false);
       final userVM = Provider.of<UserViewModel>(context, listen: false);
-      final appointmentVM =
-          Provider.of<AppointmentViewModel>(context, listen: false);
+      final appointmentVM = Provider.of<AppointmentViewModel>(context, listen: false);
 
       emergencyVM.checkActiveSos();
       final token = userVM.accessToken;
@@ -73,17 +76,32 @@ class _MainScreenState extends State<MainScreen>
           );
         });
 
+        _tripPaymentPromptSub?.cancel();
+        _tripPaymentPromptSub =
+            emergencyVM.tripPaymentPromptStream.listen((event) async {
+          if (!mounted) return;
+          await showTripPaymentPromptDialog(context, event);
+        });
+
         // Initial load
         appointmentVM.loadUpcomingAppointments();
 
         // Connect to Appointment Socket
-        final appointmentSocket =
-            Provider.of<AppointmentSocketService>(context, listen: false);
-        appointmentSocket.connect(url: AppUrl.baseUrl, token: token);
+        final appointmentSocket = Provider.of<AppointmentSocketService>(context, listen: false);
+        appointmentSocket.connect(
+          url: AppUrl.baseUrl,
+          token: token,
+          userId: patientIdStr,
+          role: 'patient',
+        );
         _appointmentSub = appointmentSocket.appointmentUpdateStream.listen((_) {
-          debugPrint('[MainScreen] Appointment update received! Refreshing...');
+          if (!mounted) return;
+          debugPrint('[MainScreen] Appointment socket — refreshing list');
           appointmentVM.loadUpcomingAppointments();
         });
+
+        // Start Call Polling as backup
+        Provider.of<CallViewModel>(context, listen: false).startPolling(context);
 
         // Connect to dedicated Call Socket
         final callSocket =
@@ -96,8 +114,36 @@ class _MainScreenState extends State<MainScreen>
         _incomingCallSub = callSocket.incomingCallStream.listen((data) {
           _handleSocketIncomingCall(data);
         });
+        _callEndedSub = callSocket.callEndedStream.listen((channel) {
+          final pending = _pendingIncomingCall;
+          if (pending == null) return;
+          if (pending['channelName']?.toString() == channel) {
+            setState(() => _pendingIncomingCall = null);
+          }
+        });
       }
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    final userVM = Provider.of<UserViewModel>(context, listen: false);
+    final token = userVM.accessToken;
+    final patientIdStr = (userVM.patient?.id ?? '').trim();
+    if (token == null || token.isEmpty || patientIdStr.isEmpty) return;
+    try {
+      Provider.of<AppointmentSocketService>(context, listen: false).connect(
+        url: AppUrl.baseUrl,
+        token: token,
+        userId: patientIdStr,
+        role: 'patient',
+      );
+      Provider.of<AppointmentViewModel>(context, listen: false)
+          .loadUpcomingAppointments();
+      Provider.of<EmergencyViewModel>(context, listen: false)
+          .checkActiveSos();
+    } catch (_) {}
   }
 
   void _handleSocketIncomingCall(Map<String, dynamic> data) {
@@ -106,53 +152,18 @@ class _MainScreenState extends State<MainScreen>
       debugPrint('[MainScreen] Incoming call skipped — already active');
       return;
     }
-
-    final callerId = data['callerId'] is int
-        ? data['callerId'] as int
-        : int.tryParse(data['callerId']?.toString() ?? '');
-
-    CallViewModel.isIncomingCallActive = true;
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => IncomingCallScreen(
-          callerName: data['callerName'] ?? 'Unknown Caller',
-          callerPhoto: data['callerPhoto'],
-          channelName: data['channelName'],
-          token: data['token'],
-          appId: data['appId'],
-          callerId: callerId,
-          onDecline: () {},
-        ),
-      ),
-    ).then((result) {
-      CallViewModel.isIncomingCallActive = false;
-      if (result == true) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => CallScreen(
-              channelName: data['channelName'],
-              token: data['token'],
-              appId: data['appId'],
-              recipientName: data['callerName'] ?? 'Caller',
-              recipientPhoto: data['callerPhoto'],
-              isCaller: false,
-              recipientId: callerId,
-            ),
-          ),
-        );
-      }
-    });
+    setState(() => _pendingIncomingCall = Map<String, dynamic>.from(data));
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _pulseController.dispose();
     _incomingCallSub?.cancel();
+    _callEndedSub?.cancel();
     _appointmentSub?.cancel();
     _emergencyToastSub?.cancel();
+    _tripPaymentPromptSub?.cancel();
     super.dispose();
   }
 
@@ -188,8 +199,25 @@ class _MainScreenState extends State<MainScreen>
                 .toList(),
           ),
 
+          if (_pendingIncomingCall != null)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              left: 12,
+              right: 12,
+              child: _buildIncomingCallBanner(_pendingIncomingCall!),
+            ),
+
+          if (emergencyVM.hasPendingTripPayment)
+            Positioned(
+              top: MediaQuery.of(context).padding.top +
+                  (_pendingIncomingCall != null ? 64 : 8),
+              left: 12,
+              right: 12,
+              child: _buildPendingTripPaymentBanner(emergencyVM),
+            ),
+
           // 3. Floating SOS Status (Fixed Position above Navbar)
-          if (emergencyVM.isSosActive)
+          if (emergencyVM.shouldShowSosStatusCard)
             Positioned(
               left: 16,
               right: 16,
@@ -199,21 +227,23 @@ class _MainScreenState extends State<MainScreen>
                 children: [
                   GestureDetector(
                     onTap: () {
-                      if (emergencyVM.assignedAmbulance != null) {
+                      final trackAmb = emergencyVM.trackingAmbulance;
+                      if (trackAmb != null) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => AmbulanceTrackingView(
-                                ambulance: emergencyVM.assignedAmbulance!),
+                            builder: (_) =>
+                                AmbulanceTrackingView(ambulance: trackAmb),
                           ),
                         );
                       } else {
                         // User requested not traversing to trip details when finding driver.
-                        ScaffoldMessenger.of(context)
-                            .showSnackBar(const SnackBar(
-                          content: Text("Finding Driver... Please wait."),
-                          duration: Duration(seconds: 1),
-                        ));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("Finding Driver... Please wait."),
+                            duration: Duration(seconds: 1),
+                          )
+                        );
                       }
                     },
                     child: Container(
@@ -269,13 +299,137 @@ class _MainScreenState extends State<MainScreen>
                                 const SizedBox(height: 2),
                                 // Subtitle / Hint
                                 Text(
-                                  "Tap to track live location",
+                                  emergencyVM.canRetrySearch
+                                      ? "No driver available right now"
+                                      : "Tap to track live location",
                                   style: GoogleFonts.inter(
                                     fontWeight: FontWeight.w500,
                                     fontSize: 11,
                                     color: const Color(0xFF94A3B8),
                                   ),
                                 ),
+                                if (!emergencyVM.canRetrySearch &&
+                                    emergencyVM.sosStatus == 'OPEN' &&
+                                    emergencyVM.trackingAmbulance == null) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${emergencyVM.driversViewingCount} drivers are currently viewing your SOS',
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 10.5,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                  if (emergencyVM.driversViewingProfiles.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 6),
+                                      child: SizedBox(
+                                        height: 28,
+                                        child: ListView.separated(
+                                          scrollDirection: Axis.horizontal,
+                                          itemCount: emergencyVM
+                                              .driversViewingProfiles.length,
+                                          separatorBuilder: (_, __) =>
+                                              const SizedBox(width: 6),
+                                          itemBuilder: (context, idx) {
+                                            final d = emergencyVM
+                                                .driversViewingProfiles[idx];
+                                            final name = (d['fullName']?.toString().trim().isNotEmpty ?? false)
+                                                ? d['fullName'].toString().trim()
+                                                : 'D';
+                                            final photo =
+                                                d['profilePhotoUrl']?.toString() ??
+                                                    '';
+                                            final initial = name[0]
+                                                .toUpperCase();
+                                            return Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(horizontal: 6),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFF0FDFA),
+                                                borderRadius:
+                                                    BorderRadius.circular(14),
+                                                border: Border.all(
+                                                  color: AppColors.primary
+                                                      .withValues(alpha: 0.18),
+                                                ),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  CircleAvatar(
+                                                    radius: 10,
+                                                    backgroundColor:
+                                                        Colors.white,
+                                                    backgroundImage: photo.isNotEmpty
+                                                        ? NetworkImage(
+                                                            AppUrl.getFullUrl(photo),
+                                                          )
+                                                        : null,
+                                                    child: photo.isEmpty
+                                                        ? Text(
+                                                            initial,
+                                                            style: GoogleFonts.inter(
+                                                              fontSize: 9,
+                                                              fontWeight:
+                                                                  FontWeight.w700,
+                                                              color: AppColors
+                                                                  .primary,
+                                                            ),
+                                                          )
+                                                        : null,
+                                                  ),
+                                                  const SizedBox(width: 5),
+                                                  Text(
+                                                    name,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: GoogleFonts.inter(
+                                                      fontSize: 10,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: AppColors.primary,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                                if (emergencyVM.canRetrySearch) ...[
+                                  const SizedBox(height: 8),
+                                  SizedBox(
+                                    height: 30,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () async {
+                                        await emergencyVM.retrySosSearch(context);
+                                      },
+                                      icon: const Icon(Icons.refresh_rounded,
+                                          size: 15),
+                                      label: Text(
+                                        "Refind Driver",
+                                        style: GoogleFonts.inter(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.primary,
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(14),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -304,7 +458,15 @@ class _MainScreenState extends State<MainScreen>
                                     width: 50,
                                     height: 50,
                                     child: CircularProgressIndicator(
-                                      value: 0.75, // 75% circle like image
+                                      value: emergencyVM.canRetrySearch
+                                          ? 0.0
+                                          : (() {
+                                              final frac = emergencyVM
+                                                  .searchWindowProgressFraction;
+                                              if (frac == null) return 0.75;
+                                              return (1 - frac)
+                                                  .clamp(0.0, 1.0);
+                                            })(),
                                       strokeWidth: 6,
                                       backgroundColor: Colors.transparent,
                                       valueColor:
@@ -340,34 +502,65 @@ class _MainScreenState extends State<MainScreen>
                     ),
                   ),
 
-                  // Close Button
-                  Positioned(
-                    top: -16,
-                    right: -8,
-                    child: GestureDetector(
-                      onTap: () {
-                        emergencyVM.cancelSos();
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                              color: Colors.grey.shade300, width: 1.5),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
+                  if (emergencyVM.canCancelActiveSos || emergencyVM.canRetrySearch)
+                    Positioned(
+                      top: -16,
+                      right: -8,
+                      child: GestureDetector(
+                        onTap: () async {
+                          if (emergencyVM.canCancelActiveSos) {
+                            final ok = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Cancel SOS?'),
+                                content: const Text(
+                                  'This will cancel your emergency request. You can only cancel within 2 minutes after sending.',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, false),
+                                    child: const Text('No'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    child: const Text('Yes, cancel'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (ok == true && context.mounted) {
+                              await emergencyVM.cancelActiveSosOnServer(context);
+                            }
+                            return;
+                          }
+
+                          if (emergencyVM.canRetrySearch) {
+                            emergencyVM.dismissRetrySosCard();
+                            return;
+                          }
+
+                          emergencyVM.cancelSos();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                                color: Colors.grey.shade300, width: 1.5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(Icons.close,
+                              size: 16, color: Colors.grey),
                         ),
-                        child: const Icon(Icons.close,
-                            size: 16, color: Colors.grey),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -406,6 +599,114 @@ class _MainScreenState extends State<MainScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPendingTripPaymentBanner(EmergencyViewModel emergencyVM) {
+    return GestureDetector(
+      onTap: () async {
+        final pending = emergencyVM.nextPendingTripPaymentPrompt;
+        if (pending == null) return;
+        await showTripPaymentPromptDialog(context, pending);
+      },
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFFBEB),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFF59E0B), width: 1),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded,
+                  color: Color(0xFFF59E0B), size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  emergencyVM.pendingTripPaymentWarningText,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF92400E),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Pay now',
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIncomingCallBanner(Map<String, dynamic> data) {
+    final callerId = data['callerId'] is int
+        ? data['callerId'] as int
+        : int.tryParse(data['callerId']?.toString() ?? '');
+    final callerName = data['callerName']?.toString() ?? 'Incoming call';
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.78),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.videocam_rounded, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '$callerName is calling — Join video call',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+                final payload = _pendingIncomingCall;
+                if (payload == null) return;
+                setState(() => _pendingIncomingCall = null);
+                CallViewModel.isIncomingCallActive = true;
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CallScreen(
+                      channelName: payload['channelName'],
+                      token: payload['token'],
+                      appId: payload['appId'],
+                      recipientName: payload['callerName'] ?? 'Caller',
+                      recipientPhoto: payload['callerPhoto'],
+                      isCaller: false,
+                      recipientId: callerId,
+                    ),
+                  ),
+                );
+                CallViewModel.isIncomingCallActive = false;
+              },
+              child: const Text('Join'),
+            ),
+            IconButton(
+              onPressed: () => setState(() => _pendingIncomingCall = null),
+              icon: const Icon(Icons.close, color: Colors.white70, size: 18),
+            ),
+          ],
+        ),
       ),
     );
   }

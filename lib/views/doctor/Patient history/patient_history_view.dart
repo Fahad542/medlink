@@ -8,6 +8,7 @@ import 'package:medlink/views/doctor/Doctor%20Patient%20Dashboard/appointment_de
 import 'package:provider/provider.dart';
 import 'package:medlink/views/doctor/Patient%20history/patient_history_view_model.dart';
 import 'package:medlink/views/doctor/Doctor%20Patient%20Dashboard/prescription_detail_view_model.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 // ... other imports ...
 
 class PatientHistoryView extends StatelessWidget {
@@ -34,7 +35,7 @@ class PatientHistoryView extends StatelessWidget {
               title: patientName,
               automaticallyImplyLeading: showBackButton,
               actions: [
-                  _buildAppBarAction(assetPath: "assets/Icons/chat.png", onTap: () {}),
+                  _buildAppBarAction(assetPath: "assets/Icons/chat-icon.png", onTap: () {}),
                   const SizedBox(width: 8),
                   _buildAppBarAction(assetPath: "assets/Icons/video.png", onTap: () {}),
                   const SizedBox(width: 8),
@@ -44,9 +45,9 @@ class PatientHistoryView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 20),
-                const Padding(
+                Padding(
                   padding: EdgeInsets.symmetric(horizontal: 20),
-                  child: Text("Recent Visits", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                  child: Text(context.tr('doctor.patient_history.recent_visits'), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
                 ),
                 const SizedBox(height: 10),
 
@@ -68,7 +69,7 @@ class PatientHistoryView extends StatelessWidget {
               onPressed: () {},
               backgroundColor: AppColors.primary,
               icon: const Icon(Icons.add_task_rounded, color: Colors.white),
-              label: const Text("New Visit", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              label: Text(context.tr('doctor.patient_history.new_visit'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           );
         },
@@ -154,7 +155,7 @@ class PatientHistoryView extends StatelessWidget {
                                 color: Colors.green.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(6),
                               ),
-                              child: const Text("Completed", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.green)),
+                              child: Text(context.tr('doctor.patient_history.completed'), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.green)),
                             )
                           ],
                         ),
@@ -168,11 +169,11 @@ class PatientHistoryView extends StatelessWidget {
                         // Action / Divider
                         Divider(color: Colors.grey.withOpacity(0.1), height: 1),
                         const SizedBox(height: 8),
-                        const Row(
+                        Row(
                           children: [
-                            Text("View Full Details", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary)),
-                            SizedBox(width: 4),
-                            Icon(Icons.arrow_forward_rounded, size: 14, color: AppColors.primary),
+                            Text(context.tr('doctor.patient_history.view_full_details'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.arrow_forward_rounded, size: 14, color: AppColors.primary),
                           ],
                         )
                       ],

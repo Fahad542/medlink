@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 import 'package:medlink/utils/trip_fare_format.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 
@@ -11,7 +12,8 @@ class AmbulanceTripDetailView extends StatefulWidget {
   const AmbulanceTripDetailView({super.key, required this.trip});
 
   @override
-  State<AmbulanceTripDetailView> createState() => _AmbulanceTripDetailViewState();
+  State<AmbulanceTripDetailView> createState() =>
+      _AmbulanceTripDetailViewState();
 }
 
 class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
@@ -19,22 +21,20 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
   static const LatLng _pickupLocation = LatLng(40.7128, -74.0060);
   static const LatLng _dropoffLocation = LatLng(40.7589, -73.9851);
 
-  late Set<Marker> _markers;
-
-  @override
-  void initState() {
-    super.initState();
-    _markers = {
-       Marker(
-        markerId: MarkerId('pickup'),
+  Set<Marker> _buildMarkers(AppLocalizations l10n) {
+    return {
+      Marker(
+        markerId: const MarkerId('pickup'),
         position: _pickupLocation,
-        infoWindow: InfoWindow(title: 'Pickup Location'),
+        infoWindow:
+            InfoWindow(title: l10n.tr('ambulance.trip.pickup_location')),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
       ),
-       Marker(
-        markerId: MarkerId('dropoff'),
+      Marker(
+        markerId: const MarkerId('dropoff'),
         position: _dropoffLocation,
-        infoWindow: InfoWindow(title: 'Drop-off Location'),
+        infoWindow:
+            InfoWindow(title: l10n.tr('ambulance.trip.dropoff_location')),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
       ),
     };
@@ -42,10 +42,11 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: const CustomAppBar(
-        title: "Trip Details",
+      appBar: CustomAppBar(
+        title: l10n.tr('ambulance.trip.details_title'),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -61,13 +62,13 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
                       target: _pickupLocation,
                       zoom: 12.5,
                     ),
-                    markers: _markers,
+                    markers: _buildMarkers(l10n),
                     zoomControlsEnabled: false,
                     myLocationButtonEnabled: false,
                     mapToolbarEnabled: false,
                   ),
                   // Gradient Overlay
-                   Positioned(
+                  Positioned(
                     bottom: 0,
                     left: 0,
                     right: 0,
@@ -89,20 +90,24 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
                     bottom: 30,
                     right: 16,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10),
+                          BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 10),
                         ],
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.map, size: 14, color: AppColors.primary),
+                          const Icon(Icons.map,
+                              size: 14, color: AppColors.primary),
                           const SizedBox(width: 6),
                           Text(
-                            "Google Maps",
+                            l10n.tr('ambulance.trip.google_maps'),
                             style: GoogleFonts.inter(
                               fontWeight: FontWeight.w600,
                               fontSize: 11, // Reduced font
@@ -116,7 +121,7 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
                 ],
               ),
             ),
-            
+
             Transform.translate(
               offset: const Offset(0, -20),
               child: Container(
@@ -138,7 +143,10 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
                             children: [
                               Text(
                                 widget.trip['tripNumber']?.toString() ??
-                                    'Trip #${widget.trip['id']}',
+                                    l10n.tr(
+                                      'ambulance.trip.number_prefix',
+                                      params: {'id': widget.trip['id']},
+                                    ),
                                 style: GoogleFonts.inter(
                                   fontSize: 16, // Reduced from 18
                                   fontWeight: FontWeight.w600,
@@ -157,7 +165,8 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
                             ],
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), // Reduced padding
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5), // Reduced padding
                             decoration: BoxDecoration(
                               color: AppColors.success.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(20),
@@ -179,10 +188,10 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
                       _buildRouteSection(widget.trip),
 
                       const SizedBox(height: 24), // Reduced from 32
-                      
+
                       // Patient Info
                       Text(
-                        "Patient Details",
+                        l10n.tr('ambulance.trip.patient_details'),
                         style: GoogleFonts.inter(
                           fontSize: 15, // Reduced from 16
                           fontWeight: FontWeight.w600,
@@ -194,9 +203,10 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
                         padding: const EdgeInsets.all(12), // Reduced from 16
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(16), // Reduced radius slightly
+                          borderRadius: BorderRadius.circular(
+                              16), // Reduced radius slightly
                           boxShadow: [
-                             BoxShadow(
+                            BoxShadow(
                               color: Colors.black.withOpacity(0.03),
                               blurRadius: 15,
                               offset: const Offset(0, 5),
@@ -209,12 +219,15 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
                               padding: const EdgeInsets.all(2),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+                                border: Border.all(
+                                    color: AppColors.primary.withOpacity(0.2)),
                               ),
                               child: CircleAvatar(
                                 radius: 22, // Reduced from 24
-                                backgroundColor: AppColors.primary.withOpacity(0.1),
-                                child: const Icon(Icons.person, color: AppColors.primary, size: 22),
+                                backgroundColor:
+                                    AppColors.primary.withOpacity(0.1),
+                                child: const Icon(Icons.person,
+                                    color: AppColors.primary, size: 22),
                               ),
                             ),
                             const SizedBox(width: 12), // Reduced gap
@@ -231,7 +244,7 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
                                     ),
                                   ),
                                   Text(
-                                    "Emergency Run", 
+                                    l10n.tr('ambulance.trip.emergency_run'),
                                     style: GoogleFonts.inter(
                                       fontSize: 12, // Reduced from 13
                                       color: Colors.grey[500],
@@ -241,9 +254,15 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
                               ),
                             ),
                             // Action Buttons
-                            _buildActionButton(Icons.call_rounded, Colors.green),
+                            _buildActionButton(
+                              icon: Icons.call_rounded,
+                              color: Colors.green,
+                            ),
                             const SizedBox(width: 10),
-                            _buildActionButton(Icons.message_rounded, AppColors.primary),
+                            _buildActionButton(
+                              color: AppColors.primary,
+                              assetPath: "assets/Icons/chat-icon.png",
+                            ),
                           ],
                         ),
                       ),
@@ -252,8 +271,8 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
 
                       // Payment Breakdown
                       Text(
-                        "Payment Details",
-                         style: GoogleFonts.inter(
+                        l10n.tr('ambulance.trip.payment_details'),
+                        style: GoogleFonts.inter(
                           fontSize: 15, // Reduced from 16
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary,
@@ -265,8 +284,8 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(16),
-                           boxShadow: [
-                             BoxShadow(
+                          boxShadow: [
+                            BoxShadow(
                               color: Colors.black.withOpacity(0.03),
                               blurRadius: 15,
                               offset: const Offset(0, 5),
@@ -278,14 +297,15 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
                           children: [
                             ..._buildFareLineItems(widget.trip),
                             const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 12), // Reduced
+                              padding:
+                                  EdgeInsets.symmetric(vertical: 12), // Reduced
                               child: Divider(),
                             ),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  "Total",
+                                  l10n.tr('ambulance.trip.total'),
                                   style: GoogleFonts.inter(
                                     fontSize: 15, // Reduced
                                     fontWeight: FontWeight.w600,
@@ -305,9 +325,9 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
                           ],
                         ),
                       ),
-                      
+
                       const SizedBox(height: 24),
-                      
+
                       // Download Receipt Button
                       SizedBox(
                         width: double.infinity,
@@ -316,12 +336,13 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
                           onPressed: () {},
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: AppColors.primary),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14)),
                             foregroundColor: AppColors.primary,
                           ),
                           icon: const Icon(Icons.download_rounded, size: 20),
                           label: Text(
-                            "Download Receipt",
+                            l10n.tr('ambulance.trip.download_receipt'),
                             style: GoogleFonts.inter(
                               fontSize: 14, // Reduced from 16
                               fontWeight: FontWeight.w600,
@@ -341,18 +362,25 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
     );
   }
 
-  Widget _buildActionButton(IconData icon, Color color) {
+  Widget _buildActionButton({
+    IconData? icon,
+    required Color color,
+    String? assetPath,
+  }) {
     return Container(
       padding: const EdgeInsets.all(8), // Reduced from 10
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         shape: BoxShape.circle,
       ),
-      child: Icon(icon, color: color, size: 18), // Reduced from 20
+      child: assetPath != null
+          ? Image.asset(assetPath, color: color, width: 18, height: 18)
+          : Icon(icon, color: color, size: 18), // Reduced from 20
     );
   }
 
   Widget _buildRouteSection(Map<String, dynamic> trip) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.all(12), // Reduced from 16
       decoration: BoxDecoration(
@@ -367,20 +395,22 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
             children: [
               Column(
                 children: [
-                  const Icon(Icons.my_location_rounded, size: 16, color: AppColors.primary), // Reduced size
-                   Container(
-                     width: 2, 
-                     height: 30, // Reduced height
-                     margin: const EdgeInsets.symmetric(vertical: 4),
-                     decoration: BoxDecoration(
-                       gradient: LinearGradient(
-                         begin: Alignment.topCenter,
-                         end: Alignment.bottomCenter,
-                         colors: [AppColors.primary, Colors.orange],
-                       ),
-                     ),
-                   ),
-                  const Icon(Icons.location_on_rounded, size: 18, color: Colors.orange), // Reduced size
+                  const Icon(Icons.my_location_rounded,
+                      size: 16, color: AppColors.primary), // Reduced size
+                  Container(
+                    width: 2,
+                    height: 30, // Reduced height
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [AppColors.primary, Colors.orange],
+                      ),
+                    ),
+                  ),
+                  const Icon(Icons.location_on_rounded,
+                      size: 18, color: Colors.orange), // Reduced size
                 ],
               ),
               const SizedBox(width: 12),
@@ -389,43 +419,41 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Pickup",
+                      l10n.tr('ambulance.trip.pickup'),
                       style: GoogleFonts.inter(
-                        fontSize: 11, // Reduced
-                        color: Colors.grey[500],
-                        fontWeight: FontWeight.w600
-                      ),
+                          fontSize: 11, // Reduced
+                          color: Colors.grey[500],
+                          fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 2),
-                     Text(
+                    Text(
                       trip['pickupAddress']?.toString() ??
                           trip['location']?.toString() ??
-                          'Pickup',
-                       style: GoogleFonts.inter(
+                          l10n.tr('ambulance.trip.pickup'),
+                      style: GoogleFonts.inter(
                         fontSize: 14, // Reduced
                         fontWeight: FontWeight.w600,
                         color: AppColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 16), // Reduced from 20
-                     Text(
-                      "Drop-off",
+                    Text(
+                      l10n.tr('ambulance.trip.dropoff'),
                       style: GoogleFonts.inter(
-                        fontSize: 11, // Reduced
-                        color: Colors.grey[500],
-                         fontWeight: FontWeight.w600
-                      ),
+                          fontSize: 11, // Reduced
+                          color: Colors.grey[500],
+                          fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 2),
-                     Text(
+                    Text(
                       trip['dropoffAddress']?.toString() ??
                           trip['dropoffLabel']?.toString() ??
                           trip['location']?.toString() ??
-                          'Destination',
-                       style: GoogleFonts.inter(
+                          l10n.tr('ambulance.trip.destination'),
+                      style: GoogleFonts.inter(
                         fontSize: 14, // Reduced
                         fontWeight: FontWeight.w600,
-                         color: AppColors.textPrimary,
+                        color: AppColors.textPrimary,
                       ),
                     ),
                   ],
@@ -448,6 +476,7 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
   }
 
   List<Widget> _buildFareLineItems(Map<String, dynamic> trip) {
+    final l10n = AppLocalizations.of(context);
     final cur = _currencyHint(trip);
     String fmt(double v) => TripFareFormat.formatCfa(v, currencyHint: cur);
 
@@ -462,22 +491,24 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
     }
 
     line(
-      'Base fare',
-      TripFareFormat.amountForKeys(trip, ['baseFare', 'base_fare', 'baseAmount']),
+      l10n.tr('ambulance.trip.base_fare'),
+      TripFareFormat.amountForKeys(
+          trip, ['baseFare', 'base_fare', 'baseAmount']),
     );
 
     final distFare = TripFareFormat.amountForKeys(
       trip,
       ['distanceFare', 'distance_fare', 'kmFare', 'perKmFare'],
     );
-    final km = trip['distanceKm'] ?? trip['distance'] ?? trip['totalDistanceKm'];
+    final km =
+        trip['distanceKm'] ?? trip['distance'] ?? trip['totalDistanceKm'];
     if (distFare != null) {
       final kmLabel = km != null ? ' ($km km)' : '';
-      line('Distance$kmLabel', distFare);
+      line('${l10n.tr('ambulance.trip.distance')}$kmLabel', distFare);
     }
 
     line(
-      'Time',
+      l10n.tr('ambulance.trip.time'),
       TripFareFormat.amountForKeys(
         trip,
         ['timeFare', 'time_fare', 'durationFare', 'minutesFare'],
@@ -485,19 +516,20 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
     );
 
     line(
-      'Surge',
+      l10n.tr('ambulance.trip.surge'),
       TripFareFormat.amountForKeys(trip, ['surgeFare', 'surge', 'surgeAmount']),
     );
 
     line(
-      'Fees',
-      TripFareFormat.amountForKeys(trip, ['serviceFee', 'platformFee', 'tax', 'taxAmount']),
+      l10n.tr('ambulance.trip.fees'),
+      TripFareFormat.amountForKeys(
+          trip, ['serviceFee', 'platformFee', 'tax', 'taxAmount']),
     );
 
     if (items.isEmpty) {
       items.add(
         Text(
-          'Line items not provided — total reflects the trip fare from your records.',
+          l10n.tr('ambulance.trip.line_items_missing'),
           style: GoogleFonts.inter(
             fontSize: 12,
             color: Colors.grey[600],
@@ -516,11 +548,17 @@ class _AmbulanceTripDetailViewState extends State<AmbulanceTripDetailView> {
       children: [
         Text(
           label,
-          style: GoogleFonts.inter(color: Colors.grey[600], fontSize: 13, fontWeight: FontWeight.w500), // Reduced font
+          style: GoogleFonts.inter(
+              color: Colors.grey[600],
+              fontSize: 13,
+              fontWeight: FontWeight.w500), // Reduced font
         ),
         Text(
           value,
-          style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.textPrimary), // Reduced font
+          style: GoogleFonts.inter(
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+              color: AppColors.textPrimary), // Reduced font
         ),
       ],
     );

@@ -105,6 +105,7 @@ class _Step3OtpState extends State<Step3Otp> {
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: Container(
+                width: double.infinity,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
@@ -113,17 +114,20 @@ class _Step3OtpState extends State<Step3Otp> {
                   border: Border.all(color: Colors.amber.shade200),
                 ),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.bug_report_outlined,
                         size: 16, color: Colors.amber.shade800),
                     const SizedBox(width: 8),
-                    Text(
-                      "Debug OTP: ${widget.debugOtp ?? 'Checking console...'}",
-                      style: TextStyle(
-                        color: Colors.amber.shade900,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: Text(
+                        "Debug OTP: ${widget.debugOtp ?? 'Checking console...'}",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.amber.shade900,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
@@ -131,16 +135,37 @@ class _Step3OtpState extends State<Step3Otp> {
               ),
             ),
 
-          Row(
-            mainAxisAlignment:
-                MainAxisAlignment.center, // Centered for better focus
-            children: [
-              for (int i = 0; i < _otpLength; i++) ...[
-                _buildOtpDigitField(i),
-                if (i != _otpLength - 1)
-                  const SizedBox(width: 12), // Spacing between digits
-              ],
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const double minSpacing = 6;
+              const double maxSpacing = 12;
+              const double maxCellWidth = 45;
+              const double minCellWidth = 38;
+              final double totalSlots = _otpLength.toDouble();
+              final double spacingSlots = (_otpLength - 1).toDouble();
+
+              final double candidateByMax =
+                  (constraints.maxWidth - (spacingSlots * maxSpacing)) /
+                      totalSlots;
+              final double cellWidth = candidateByMax.clamp(
+                minCellWidth,
+                maxCellWidth,
+              );
+              final double spacing =
+                  ((constraints.maxWidth - (cellWidth * totalSlots)) /
+                          spacingSlots)
+                      .clamp(minSpacing, maxSpacing);
+
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (int i = 0; i < _otpLength; i++) ...[
+                    _buildOtpDigitField(i, width: cellWidth),
+                    if (i != _otpLength - 1) SizedBox(width: spacing),
+                  ],
+                ],
+              );
+            },
           ),
 
           if (_errorText != null)
@@ -202,14 +227,12 @@ class _Step3OtpState extends State<Step3Otp> {
     );
   }
 
-  Widget _buildOtpDigitField(int index) {
-    bool isActive =
-        _focusNodes[index].hasFocus || _controllers[index].text.isNotEmpty;
+  Widget _buildOtpDigitField(int index, {required double width}) {
     bool isFocused = _focusNodes[index].hasFocus;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
-      width: 45,
+      width: width,
       height: 64, // Reduced height for more compact look
       decoration: BoxDecoration(
         color: Colors.white,

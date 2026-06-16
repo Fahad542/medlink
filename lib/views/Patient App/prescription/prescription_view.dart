@@ -1,16 +1,25 @@
 import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:medlink/widgets/custom_network_image.dart';
+import 'package:flutter/services.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/core/constants/app_url.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
+import 'package:medlink/widgets/custom_network_image.dart';
 import 'package:medlink/widgets/no_data_widget.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:medlink/views/Patient App/prescriptions/prescription_view_model.dart';
-import 'package:medlink/widgets/prescription_list_shimmer.dart';
+import 'package:medlink/widgets/appointment_list_shimmer.dart';
+import 'package:medlink/utils/prescription_export.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class PrescriptionView extends StatefulWidget {
   const PrescriptionView({super.key});
@@ -19,7 +28,12 @@ class PrescriptionView extends StatefulWidget {
   State<PrescriptionView> createState() => _PrescriptionViewState();
 }
 
+enum _TestReportAction { remove, reupload }
+
 class _PrescriptionViewState extends State<PrescriptionView> {
+  static const MethodChannel _androidDownloadsChannel =
+      MethodChannel('com.medlink/downloads');
+
   @override
   void initState() {
     super.initState();
@@ -33,18 +47,18 @@ class _PrescriptionViewState extends State<PrescriptionView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      appBar: const CustomAppBar(title: "E-Prescriptions"),
+      appBar: CustomAppBar(title: context.tr('prescription.title')),
       body: Consumer<PrescriptionViewModel>(
         builder: (context, vm, _) {
           if (vm.isLoading && vm.prescriptions.isEmpty) {
-            return const PrescriptionListShimmer(itemCount: 4);
+            return const AppointmentListShimmer(itemCount: 4);
           }
 
           if (vm.prescriptions.isEmpty) {
-            return const Center(
+            return Center(
               child: NoDataWidget(
-                title: "No Prescriptions Found",
-                subTitle: "You don't have any generic e-prescriptions.",
+                title: context.tr('prescription.empty.title'),
+                subTitle: context.tr('prescription.empty.subtitle'),
               ),
             );
           }
@@ -68,35 +82,35 @@ class _PrescriptionViewState extends State<PrescriptionView> {
 
   Widget _buildPrescriptionCard(BuildContext context, dynamic p) {
     final doctor = p['doctor'] as Map? ?? {};
-    final diagnosis = p['diagnosis'] ?? 'N/A';
+    final diagnosis = p['diagnosis']?.toString() ?? 'N/A';
     final testsPending = (p['testsPending'] ?? 0) as int;
-    final createdAt = p['createdAt'] != null ? DateTime.tryParse(p['createdAt']) : null;
+    final createdAt =
+        p['createdAt'] != null ? DateTime.tryParse(p['createdAt']) : null;
     final doctorName = doctor['fullName'] ?? 'Doctor';
     final specialty = doctor['specialty'] ?? '';
     final photoUrl = AppUrl.getFullUrl(doctor['profilePhotoUrl']?.toString());
-    final hasPendingTests = testsPending > 0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
+            blurRadius: 12,
             offset: const Offset(0, 4),
           )
         ],
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         child: InkWell(
           onTap: () => _onViewTapped(context, p, doctor),
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
@@ -107,50 +121,51 @@ class _PrescriptionViewState extends State<PrescriptionView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "Dr. $doctorName",
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                          color: AppColors.textPrimary,
+                        "${context.tr('prescription.diagnosis_label')} $diagnosis",
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                          height: 1.25,
                         ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "${context.tr('prescription.doctor_prefix')} $doctorName",
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                      ),
-                      if (specialty.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Text(
-                            specialty,
-                            style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.w500),
-                          ),
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF1F2937),
                         ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Icon(Icons.medication_outlined, size: 14, color: AppColors.primary),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              diagnosis,
-                              style: TextStyle(fontSize: 12, color: Colors.grey[700], fontWeight: FontWeight.w500),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
                       ),
-                      if (hasPendingTests)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Row(
-                            children: [
-                              Icon(Icons.info_outline_rounded, size: 14, color: Colors.orange[700]),
-                              const SizedBox(width: 4),
-                              Text(
-                                "Action: Submit Report",
-                                style: TextStyle(fontSize: 11, color: Colors.orange[700], fontWeight: FontWeight.w600),
-                              ),
-                            ],
+                      const SizedBox(height: 2),
+                      Text(
+                        specialty.isEmpty
+                            ? context.tr('common.general')
+                            : specialty,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF71717A),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      if (testsPending > 0)
+                        Text(
+                          context.tr(
+                            'prescription.tests_pending',
+                            params: {'count': testsPending},
+                          ),
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFFF59E0B),
                           ),
                         ),
                     ],
@@ -158,33 +173,35 @@ class _PrescriptionViewState extends State<PrescriptionView> {
                 ),
                 const SizedBox(width: 8),
                 Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    if (createdAt != null)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.calendar_today_rounded, size: 12, color: Colors.grey[500]),
-                          const SizedBox(width: 4),
-                          Text(
-                            DateFormat('dd MMM yyyy').format(createdAt),
-                            style: TextStyle(fontSize: 11, color: Colors.grey[500], fontWeight: FontWeight.w500),
-                          ),
-                        ],
+                    Text(
+                      createdAt != null
+                          ? DateFormat('MMM d, h:mm a')
+                              .format(createdAt.toLocal())
+                          : context.tr('common.no_date'),
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[600],
                       ),
+                    ),
                     const SizedBox(height: 12),
-                    GestureDetector(
+                    InkWell(
                       onTap: () => _onViewTapped(context, p, doctor),
+                      borderRadius: BorderRadius.circular(20),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        width: 28,
+                        height: 28,
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
                         ),
-                        child: const Text(
-                          "View",
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.primary),
+                        child: const Icon(
+                          Icons.arrow_forward_rounded,
+                          size: 15,
+                          color: Colors.white,
                         ),
                       ),
                     ),
@@ -199,30 +216,13 @@ class _PrescriptionViewState extends State<PrescriptionView> {
   }
 
   Widget _buildAvatar(String photoUrl, String name) {
-    final initials = name.isNotEmpty ? name[0].toUpperCase() : 'D';
-    final fallback = Container(
-      width: 46,
-      height: 46,
-      decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Center(
-        child: Text(
-          initials,
-          style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.primary),
-        ),
-      ),
-    );
-
-    if (photoUrl.isEmpty) return fallback;
-
     return CustomNetworkImage(
       imageUrl: photoUrl,
-      width: 46,
-      height: 46,
+      width: 48,
+      height: 48,
+      shape: BoxShape.circle,
       fit: BoxFit.cover,
-      borderRadius: 14,
+      placeholderName: name,
     );
   }
 
@@ -233,16 +233,111 @@ class _PrescriptionViewState extends State<PrescriptionView> {
 
     final vm = Provider.of<PrescriptionViewModel>(context, listen: false);
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(child: CircularProgressIndicator()),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      isDismissible: false,
+      enableDrag: false,
+      builder: (_) => Container(
+        width: MediaQuery.of(context).size.width * 0.92,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: SizedBox(
+          height: 360,
+          child: Shimmer.fromColors(
+            baseColor: Colors.grey[200]!,
+            highlightColor: Colors.grey[50]!,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    height: 18,
+                    width: 160,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(height: 12, width: 120, color: Colors.white),
+                            const SizedBox(height: 8),
+                            Container(height: 14, width: 170, color: Colors.white),
+                            const SizedBox(height: 8),
+                            Container(height: 12, width: 130, color: Colors.white),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Container(height: 12, width: 90, color: Colors.white),
+                  const SizedBox(height: 8),
+                  Container(height: 12, width: double.infinity, color: Colors.white),
+                  const SizedBox(height: 8),
+                  Container(height: 12, width: 250, color: Colors.white),
+                  const SizedBox(height: 18),
+                  Container(height: 12, width: 110, color: Colors.white),
+                  const SizedBox(height: 8),
+                  Container(height: 12, width: double.infinity, color: Colors.white),
+                  const SizedBox(height: 8),
+                  Container(height: 12, width: 210, color: Colors.white),
+                  const Spacer(),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Container(
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
 
     final apiDetail = await vm.getPrescriptionDetail(appointmentId);
 
     if (!context.mounted) return;
-    Navigator.of(context).pop(); // dismiss loading
+    Navigator.of(context).pop(); // dismiss shimmer sheet
 
     // Merge: list item data (p) + API detail response
     // p has: diagnosis, doctor, appointment, testsPending, testsCount
@@ -261,18 +356,18 @@ class _PrescriptionViewState extends State<PrescriptionView> {
     // Show picker source options
     final source = await showModalBottomSheet<ImageSource>(
       context: ctx,
-      builder: (_) => SafeArea(
+      builder: (sheetCtx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),
-              title: const Text("Choose from Gallery"),
+              title: Text(sheetCtx.tr('prescription.choose_gallery')),
               onTap: () => Navigator.pop(ctx, ImageSource.gallery),
             ),
             ListTile(
               leading: const Icon(Icons.camera_alt_outlined),
-              title: const Text("Take a Photo"),
+              title: Text(sheetCtx.tr('prescription.take_photo')),
               onTap: () => Navigator.pop(ctx, ImageSource.camera),
             ),
           ],
@@ -303,8 +398,229 @@ class _PrescriptionViewState extends State<PrescriptionView> {
     if (success) {
       Navigator.of(ctx).pop(); // close bottom sheet
       ScaffoldMessenger.of(ctx).showSnackBar(
-        const SnackBar(content: Text("Report uploaded successfully ✓"), backgroundColor: Color(0xFF00897B)),
+        SnackBar(
+          content: Text(ctx.tr('prescription.upload_success')),
+          backgroundColor: const Color(0xFF00897B),
+        ),
       );
+    }
+  }
+
+  Future<void> _removeTestReport(
+      BuildContext ctx, String prescriptionId, String testId) async {
+    showDialog(
+      context: ctx,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    final vm = Provider.of<PrescriptionViewModel>(ctx, listen: false);
+    final success = await vm.removeReport(prescriptionId, testId, ctx);
+
+    if (!ctx.mounted) return;
+    Navigator.of(ctx).pop();
+
+    if (success) {
+      Navigator.of(ctx).pop();
+    }
+  }
+
+  Future<void> _handleTestReportAction(
+    BuildContext ctx,
+    _TestReportAction action,
+    String prescriptionId,
+    String testId,
+  ) async {
+    switch (action) {
+      case _TestReportAction.remove:
+        await _removeTestReport(ctx, prescriptionId, testId);
+        break;
+      case _TestReportAction.reupload:
+        await _uploadTestReport(ctx, prescriptionId, testId);
+        break;
+    }
+  }
+
+  String _prescriptionPdfBaseName(Map<String, dynamic> detail) {
+    final rawId = detail['appointmentId']?.toString() ??
+        detail['id']?.toString() ??
+        '${DateTime.now().millisecondsSinceEpoch}';
+    final safeId = rawId.replaceAll(RegExp(r'[^\w\-]'), '_');
+    return 'medlink_prescription_$safeId';
+  }
+
+  /// Android: MediaStore [Download]/Medlink (visible in Files app). Null if unavailable.
+  Future<String?> _savePdfToAndroidPublicDownloads(Uint8List bytes, String fileName) async {
+    if (!Platform.isAndroid) return null;
+    try {
+      final path = await _androidDownloadsChannel.invokeMethod<String>(
+        'savePdfToDownloads',
+        <String, Object?>{
+          'fileName': fileName,
+          'bytes': bytes,
+        },
+      );
+      return path;
+    } on PlatformException catch (e, st) {
+      debugPrint('Android Downloads save failed: ${e.code} ${e.message}');
+      debugPrint('$st');
+      return null;
+    } on MissingPluginException catch (e, st) {
+      debugPrint('Downloads channel missing (full reinstall required): $e');
+      debugPrint('$st');
+      return null;
+    }
+  }
+
+  /// Writes PDF into app storage as a last resort (no system picker).
+  Future<File> _writePrescriptionPdfToAppDocuments(Uint8List bytes, String baseName) async {
+    final root = await getApplicationDocumentsDirectory();
+    final folder = Directory('${root.path}/Medlink/Prescriptions');
+    if (!await folder.exists()) {
+      await folder.create(recursive: true);
+    }
+    final file = File('${folder.path}/$baseName.pdf');
+    await file.writeAsBytes(bytes);
+    return file;
+  }
+
+  /// 1) Android: public Downloads/Medlink via MediaStore. 2) System save dialog. 3) App folder.
+  Future<void> _savePrescriptionPdfLocally(BuildContext sheetContext, Map<String, dynamic> detail) async {
+    // Resolve translations up front so we can safely format result strings
+    // after async gaps without re-using [sheetContext].
+    final l10n = AppLocalizations.of(sheetContext);
+    final saveDialogTitle = l10n.tr('prescription.save.system_dialog_title');
+    final androidDownloadsPrefix = l10n.tr('prescription.save.android_downloads');
+    final saveSuccessPrefix = l10n.tr('prescription.save.success');
+    final saveCancelledMsg = l10n.tr('prescription.save.cancelled');
+    String androidFallbackMsg(String path) =>
+        l10n.tr('prescription.save.android_fallback', params: {'path': path});
+    String localFallbackMsg(String path) =>
+        l10n.tr('prescription.save.local_fallback', params: {'path': path});
+    String saveErrorMsg(Object e) =>
+        l10n.tr('prescription.save.error', params: {'error': e});
+
+    showDialog<void>(
+      context: sheetContext,
+      barrierDismissible: false,
+      useRootNavigator: true,
+      builder: (_) => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+    );
+    var loaderDismissed = false;
+    try {
+      final bytes = await buildPrescriptionPdfBytes(detail);
+      final baseName = _prescriptionPdfBaseName(detail);
+      final pdfFileName = '$baseName.pdf';
+      if (!sheetContext.mounted) return;
+      Navigator.of(sheetContext, rootNavigator: true).pop();
+      loaderDismissed = true;
+
+      late final String message;
+
+      final androidPath = await _savePdfToAndroidPublicDownloads(bytes, pdfFileName);
+      if (androidPath != null && androidPath.isNotEmpty) {
+        message = '$androidDownloadsPrefix\n$androidPath';
+      } else {
+        try {
+          final pickerPath = await FilePicker.saveFile(
+            dialogTitle: saveDialogTitle,
+            fileName: pdfFileName,
+            type: FileType.custom,
+            allowedExtensions: const ['pdf'],
+            bytes: bytes,
+          );
+          if (pickerPath != null && pickerPath.isNotEmpty) {
+            message = '$saveSuccessPrefix\n$pickerPath';
+          } else {
+            if (!sheetContext.mounted) return;
+            ScaffoldMessenger.of(sheetContext).showSnackBar(
+              SnackBar(
+                content: Text(saveCancelledMsg),
+                backgroundColor: Colors.black87,
+              ),
+            );
+            return;
+          }
+        } catch (e) {
+          if (Platform.isAndroid) {
+            final file = await _writePrescriptionPdfToAppDocuments(bytes, baseName);
+            message = androidFallbackMsg(file.path);
+          } else {
+            final file = await _writePrescriptionPdfToAppDocuments(bytes, baseName);
+            message = localFallbackMsg(file.path);
+          }
+        }
+      }
+
+      if (!sheetContext.mounted) return;
+
+      ScaffoldMessenger.of(sheetContext).showSnackBar(
+        SnackBar(
+          content: Text(message, style: const TextStyle(fontSize: 12)),
+          backgroundColor: const Color(0xFF00897B),
+          duration: const Duration(seconds: 6),
+        ),
+      );
+    } catch (e) {
+      if (sheetContext.mounted && !loaderDismissed) {
+        Navigator.of(sheetContext, rootNavigator: true).pop();
+      }
+      if (sheetContext.mounted) {
+        ScaffoldMessenger.of(sheetContext).showSnackBar(
+          SnackBar(
+            content: Text(saveErrorMsg(e)),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Opens the system share sheet with the prescription PDF attached.
+  Future<void> _sharePrescriptionPdf(BuildContext sheetContext, Map<String, dynamic> detail) async {
+    final l10n = AppLocalizations.of(sheetContext);
+    final shareSubject = l10n.tr('prescription.share.subject');
+    String shareErrorMsg(Object e) =>
+        l10n.tr('prescription.share.error', params: {'error': e});
+
+    showDialog<void>(
+      context: sheetContext,
+      barrierDismissible: false,
+      useRootNavigator: true,
+      builder: (_) => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+    );
+    var loaderDismissed = false;
+    try {
+      final bytes = await buildPrescriptionPdfBytes(detail);
+      final dir = await getTemporaryDirectory();
+      final baseName = _prescriptionPdfBaseName(detail);
+      final file = File('${dir.path}/$baseName.pdf');
+      await file.writeAsBytes(bytes);
+      if (sheetContext.mounted) {
+        Navigator.of(sheetContext, rootNavigator: true).pop();
+        loaderDismissed = true;
+      }
+      if (!sheetContext.mounted) return;
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile(file.path, mimeType: 'application/pdf'),
+          ],
+          subject: shareSubject,
+        ),
+      );
+    } catch (e) {
+      if (sheetContext.mounted && !loaderDismissed) {
+        Navigator.of(sheetContext, rootNavigator: true).pop();
+      }
+      if (sheetContext.mounted) {
+        ScaffoldMessenger.of(sheetContext).showSnackBar(
+          SnackBar(
+            content: Text(shareErrorMsg(e)),
+            backgroundColor: Colors.red.shade700,
+          ),
+        );
+      }
     }
   }
 
@@ -452,11 +768,12 @@ class _PrescriptionViewState extends State<PrescriptionView> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text("Dr. $doctorName", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+                                    Text("${context.tr('prescription.doctor_prefix')} $doctorName", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
                                     if (specialty.isNotEmpty) Text(specialty, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w500)),
                                     if (scheduledStart != null)
                                       Text(
-                                        DateFormat('MMM dd, yyyy • hh:mm a').format(scheduledStart.toLocal()),
+                                        DateFormat('MMM dd, yyyy • hh:mm a')
+                                            .format(scheduledStart.toLocal()),
                                         style: TextStyle(fontSize: 10, color: Colors.grey[500]),
                                       ),
                                   ],
@@ -483,7 +800,8 @@ class _PrescriptionViewState extends State<PrescriptionView> {
                             children: [
                               // Reason for Visit
                               if (reason != null && reason.isNotEmpty) ...[
-                                _buildSectionTitle("Reason for Visit"),
+                                _buildSectionTitle(
+                                    context.tr('prescription.section.reason')),
                                 const SizedBox(height: 6),
                                 Text(reason, style: const TextStyle(fontSize: 13, height: 1.4, color: Color(0xFF475569))),
                                 const SizedBox(height: 16),
@@ -492,7 +810,8 @@ class _PrescriptionViewState extends State<PrescriptionView> {
                               ],
 
                               // Diagnosis
-                              _buildSectionTitle("Diagnosis"),
+                              _buildSectionTitle(
+                                  context.tr('prescription.section.diagnosis')),
                               const SizedBox(height: 6),
                               Text(diagnosis, style: const TextStyle(fontSize: 13, height: 1.4, color: Color(0xFF475569))),
 
@@ -501,7 +820,8 @@ class _PrescriptionViewState extends State<PrescriptionView> {
                                 const SizedBox(height: 16),
                                 _buildDashedLine(),
                                 const SizedBox(height: 16),
-                                _buildSectionTitle("Vitals"),
+                                _buildSectionTitle(
+                                    context.tr('prescription.section.vitals')),
                                 const SizedBox(height: 12),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -513,13 +833,22 @@ class _PrescriptionViewState extends State<PrescriptionView> {
                                   child: Column(
                                     children: [
                                       if (vitals['bpSystolic'] != null && vitals['bpDiastolic'] != null)
-                                        _buildVitalRow("Blood Pressure", "${vitals['bpSystolic']}/${vitals['bpDiastolic']} mmHg"),
+                                        _buildVitalRow(
+                                            context.tr('prescription.vital.bp'),
+                                            "${vitals['bpSystolic']}/${vitals['bpDiastolic']} mmHg"),
                                       if (vitals['heartRate'] != null)
-                                        _buildVitalRow("Heart Rate", "${vitals['heartRate']} bpm"),
+                                        _buildVitalRow(
+                                            context.tr('prescription.vital.heart_rate'),
+                                            "${vitals['heartRate']} bpm"),
                                       if (vitals['weightKg'] != null)
-                                        _buildVitalRow("Weight", "${vitals['weightKg']} kg"),
+                                        _buildVitalRow(
+                                            context.tr('prescription.vital.weight'),
+                                            "${vitals['weightKg']} kg"),
                                       if (vitals['temperature'] != null)
-                                        _buildVitalRow("Temperature", "${vitals['temperature']} °C", isLast: true),
+                                        _buildVitalRow(
+                                            context.tr('prescription.vital.temperature'),
+                                            "${vitals['temperature']} °C",
+                                            isLast: true),
                                     ],
                                   ),
                                 ),
@@ -530,7 +859,8 @@ class _PrescriptionViewState extends State<PrescriptionView> {
                                 const SizedBox(height: 16),
                                 _buildDashedLine(),
                                 const SizedBox(height: 16),
-                                _buildSectionTitle("Medications"),
+                                _buildSectionTitle(context
+                                    .tr('prescription.section.medications')),
                                 const SizedBox(height: 12),
                                 ...medications.map((med) {
                                   final name = med['medicineName'] ?? med['name'] ?? '';
@@ -564,7 +894,15 @@ class _PrescriptionViewState extends State<PrescriptionView> {
                                                   style: const TextStyle(fontSize: 11, color: Color(0xFF00897B), fontWeight: FontWeight.w500),
                                                 ),
                                               if (duration.isNotEmpty)
-                                                Text("Duration: $duration", style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                                                Text(
+                                                    context.tr(
+                                                        'prescription.medication.duration',
+                                                        params: {
+                                                          'value': duration
+                                                        }),
+                                                    style: TextStyle(
+                                                        fontSize: 11,
+                                                        color: Colors.grey[500])),
                                             ],
                                           ),
                                         ),
@@ -579,11 +917,13 @@ class _PrescriptionViewState extends State<PrescriptionView> {
                                 const SizedBox(height: 16),
                                 _buildDashedLine(),
                                 const SizedBox(height: 16),
-                                _buildSectionTitle("Tests Required"),
+                                _buildSectionTitle(context
+                                    .tr('prescription.section.tests_required')),
                                 const SizedBox(height: 12),
                                 ...tests.map((test) {
                                   final testName = test['testName'] ?? test['name'] ?? test['test'] ?? '';
-                                  final hasReport = test['reportUrl'] != null || test['reportId'] != null;
+                                  final reportUrl = test['reportUrl']?.toString() ?? '';
+                                  final hasReport = reportUrl.isNotEmpty || test['reportId'] != null;
                                   final prescriptionId = (prescription['id'] ?? '').toString();
                                   final testId = (test['id'] ?? '').toString();
                                   return Padding(
@@ -596,7 +936,41 @@ class _PrescriptionViewState extends State<PrescriptionView> {
                                         ),
                                         const SizedBox(width: 12),
                                         if (hasReport)
-                                          const Icon(Icons.check_circle, size: 20, color: Color(0xFF00897B))
+                                          PopupMenuButton<_TestReportAction>(
+                                            tooltip: '',
+                                            onSelected: (action) => _handleTestReportAction(
+                                              ctx,
+                                              action,
+                                              prescriptionId,
+                                              testId,
+                                            ),
+                                            itemBuilder: (_) => [
+                                              PopupMenuItem(
+                                                value: _TestReportAction.reupload,
+                                                child: Text(context.tr('common.reupload')),
+                                              ),
+                                              PopupMenuItem(
+                                                value: _TestReportAction.remove,
+                                                child: Text(context.tr('common.remove')),
+                                              ),
+                                            ],
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFECFDF5),
+                                                borderRadius: BorderRadius.circular(20),
+                                                border: Border.all(color: const Color(0xFF10B981).withOpacity(0.25)),
+                                              ),
+                                              child: const Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(Icons.check_circle, size: 16, color: Color(0xFF00897B)),
+                                                  SizedBox(width: 4),
+                                                  Icon(Icons.more_horiz, size: 16, color: Color(0xFF00897B)),
+                                                ],
+                                              ),
+                                            ),
+                                          )
                                         else
                                           SizedBox(
                                             height: 32,
@@ -607,7 +981,7 @@ class _PrescriptionViewState extends State<PrescriptionView> {
                                                 testId,
                                               ),
                                               icon: const Icon(Icons.upload_rounded, size: 14),
-                                              label: const Text("Upload"),
+                                              label: Text(context.tr('common.upload')),
                                               style: OutlinedButton.styleFrom(
                                                 foregroundColor: AppColors.primary,
                                                 side: const BorderSide(color: AppColors.primary),
@@ -627,7 +1001,8 @@ class _PrescriptionViewState extends State<PrescriptionView> {
                                 const SizedBox(height: 16),
                                 _buildDashedLine(),
                                 const SizedBox(height: 16),
-                                _buildSectionTitle("Tests Required"),
+                                _buildSectionTitle(context
+                                    .tr('prescription.section.tests_required')),
                                 const SizedBox(height: 12),
                                 Container(
                                   padding: const EdgeInsets.all(12),
@@ -646,8 +1021,17 @@ class _PrescriptionViewState extends State<PrescriptionView> {
                                       Expanded(
                                         child: Text(
                                           testsPending > 0
-                                              ? "$testsPending of $testsCount test(s) pending — upload required"
-                                              : "All $testsCount test report(s) uploaded ✓",
+                                              ? context.tr(
+                                                  'prescription.tests.summary_pending',
+                                                  params: {
+                                                    'pending': testsPending,
+                                                    'total': testsCount,
+                                                  })
+                                              : context.tr(
+                                                  'prescription.tests.summary_complete',
+                                                  params: {
+                                                    'total': testsCount
+                                                  }),
                                           style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w600,
@@ -666,7 +1050,8 @@ class _PrescriptionViewState extends State<PrescriptionView> {
                                 const SizedBox(height: 16),
                                 _buildDashedLine(),
                                 const SizedBox(height: 16),
-                                _buildSectionTitle("Doctor's Notes"),
+                                _buildSectionTitle(context
+                                    .tr('prescription.section.notes')),
                                 const SizedBox(height: 6),
                                 Text(notes, style: const TextStyle(fontSize: 13, height: 1.4, color: Color(0xFF475569))),
                               ],
@@ -689,15 +1074,15 @@ class _PrescriptionViewState extends State<PrescriptionView> {
                   children: [
                     _ActionCircleButton(
                       icon: Icons.download_rounded,
-                      label: "Download",
-                      onTap: () {
-                        ScaffoldMessenger.of(ctx).showSnackBar(
-                          const SnackBar(content: Text("Downloading PDF..."), backgroundColor: Colors.teal),
-                        );
-                      },
+                      label: context.tr('common.download'),
+                      onTap: () => _savePrescriptionPdfLocally(ctx, detail),
                     ),
                     const SizedBox(width: 32),
-                    _ActionCircleButton(icon: Icons.share_outlined, label: "Share", onTap: () {}),
+                    _ActionCircleButton(
+                      icon: Icons.share_outlined,
+                      label: context.tr('common.share'),
+                      onTap: () => _sharePrescriptionPdf(ctx, detail),
+                    ),
                   ],
                 ),
               ),

@@ -9,6 +9,7 @@ import 'package:medlink/widgets/shimmer_widgets.dart';
 import 'package:medlink/widgets/doctor_card.dart';
 import 'package:medlink/widgets/no_data_widget.dart';
 import 'package:provider/provider.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 
 class DoctorListView extends StatelessWidget {
   final String? initialCategory;
@@ -59,7 +60,7 @@ class _DoctorListViewContent extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: const CustomAppBar(title: "Find a Doctor"),
+      appBar: CustomAppBar(title: context.tr('patient.doctor_list.title')),
 
       body: Stack(
         children: [
@@ -83,7 +84,7 @@ class _DoctorListViewContent extends StatelessWidget {
                     },
                     style: GoogleFonts.inter(fontSize: 14, color: Colors.black),
                     decoration: InputDecoration(
-                      hintText: "Search doctor name...",
+                      hintText: context.tr('patient.doctor_list.search_hint'),
                       hintStyle: GoogleFonts.inter(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.w500),
                       prefixIcon: Icon(Icons.search_rounded, color: Colors.grey[400], size: 22),
                       suffixIcon: GestureDetector(
@@ -129,7 +130,12 @@ class _DoctorListViewContent extends StatelessWidget {
                   child: SizedBox(
                     width: double.infinity,
                     child: Text(
-                      localVM.selectedSpecialty != null ? "${localVM.selectedSpecialty} Doctors" : "All Doctors",
+                      localVM.selectedSpecialty != null
+                          ? context.tr(
+                              'patient.doctor_list.specialty_doctors',
+                              params: {'specialty': localVM.selectedSpecialty!},
+                            )
+                          : context.tr('patient.doctor_list.all_doctors'),
                       style: GoogleFonts.inter(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -172,11 +178,17 @@ class _DoctorListViewContent extends StatelessWidget {
               alignment: const Alignment(0, -0.2), // Moves it 10% up from center
               child: NoDataWidget(
                 title: localVM.selectedSpecialty != null 
-                    ? "No ${localVM.selectedSpecialty} Doctors Found" 
+                    ? context.tr(
+                        'patient.doctor_list.no_specialty_doctors',
+                        params: {'specialty': localVM.selectedSpecialty!},
+                      )
                     : (localVM.searchQuery.isNotEmpty 
-                        ? "No \"${localVM.searchQuery}\" Found"
-                        : "No Doctors Found"),
-                subTitle: "Try adjusting your search or filters to find more doctors.",
+                        ? context.tr(
+                            'patient.doctor_list.no_search_found',
+                            params: {'query': localVM.searchQuery},
+                          )
+                        : context.tr('patient.doctor_list.no_doctors_found')),
+                subTitle: context.tr('patient.doctor_list.no_doctors_subtitle'),
               ),
             ),
         ],
@@ -240,7 +252,7 @@ class _DoctorListViewContent extends StatelessWidget {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  "Filter Doctors",
+                                  context.tr('patient.doctor_list.filter_title'),
                                   style: GoogleFonts.inter(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold,
@@ -254,7 +266,7 @@ class _DoctorListViewContent extends StatelessWidget {
                                     Navigator.pop(sheetContext);
                                   },
                                   child: Text(
-                                    "Reset",
+                                    context.tr('patient.doctor_list.reset'),
                                     style: GoogleFonts.inter(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
@@ -269,25 +281,33 @@ class _DoctorListViewContent extends StatelessWidget {
                             // Options
                             _buildFilterOptionTile(
                               context,
-                              "Specialty",
-                              "Select Specialist",
+                              context.tr('patient.doctor_list.specialty'),
+                              context.tr('patient.doctor_list.select_specialist'),
                               Icons.medical_services_outlined,
                               vm.selectedSpecialty,
                               () {
                                 // Stack the sheet on top -> Remove pop
-                                _showFilterOptions(context, "Specialty", vm.specialtyOptions);
+                                _showFilterOptions(
+                                  context,
+                                  context.tr('patient.doctor_list.specialty'),
+                                  vm.specialtyOptions,
+                                );
                               },
                             ),
                             const SizedBox(height: 12),
                             _buildFilterOptionTile(
                               context,
-                              "Location",
-                              "Select Location",
+                              context.tr('patient.doctor_list.location'),
+                              context.tr('patient.doctor_list.select_location'),
                               Icons.location_on_outlined,
                               vm.selectedLocation,
                               () {
                                  // Stack the sheet on top -> Remove pop
-                                 _showFilterOptions(context, "Location", vm.locationOptions);
+                                 _showFilterOptions(
+                                   context,
+                                   context.tr('patient.doctor_list.location'),
+                                   vm.locationOptions,
+                                 );
                               },
                             ),
                             const SizedBox(height: 24),
@@ -304,7 +324,13 @@ class _DoctorListViewContent extends StatelessWidget {
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                   padding: const EdgeInsets.symmetric(vertical: 14),
                                 ),
-                                child: Text("Show Results", style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
+                                child: Text(
+                                  context.tr('patient.doctor_list.show_results'),
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ),
                             ),
                             
@@ -494,7 +520,10 @@ class _FilterSheetContentState extends State<_FilterSheetContent> {
         Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: Text(
-            "Select ${widget.title}",
+            context.tr(
+              'patient.doctor_list.select_title',
+              params: {'title': widget.title},
+            ),
             style: GoogleFonts.inter(
               fontSize: 17, // Smaller font
               fontWeight: FontWeight.bold,
@@ -518,7 +547,10 @@ class _FilterSheetContentState extends State<_FilterSheetContent> {
               style: GoogleFonts.inter(fontSize: 14),
               decoration: InputDecoration(
                 isDense: true,
-                hintText: "Search ${widget.title.toLowerCase()}...",
+                hintText: context.tr(
+                  'patient.doctor_list.search_title',
+                  params: {'title': widget.title.toLowerCase()},
+                ),
                 hintStyle: GoogleFonts.inter(color: Colors.grey[400], fontSize: 13), // Smaller hint
                 prefixIcon: Icon(Icons.search_rounded, color: Colors.grey[400], size: 20),
                 border: InputBorder.none,
@@ -532,7 +564,15 @@ class _FilterSheetContentState extends State<_FilterSheetContent> {
         // List
         Expanded(
           child: _filteredOptions.isEmpty 
-          ? Center(child: Text("No ${widget.title.toLowerCase()} found", style: GoogleFonts.inter(color: Colors.grey[500], fontSize: 13)))
+          ? Center(
+              child: Text(
+                context.tr(
+                  'patient.doctor_list.no_title_found',
+                  params: {'title': widget.title.toLowerCase()},
+                ),
+                style: GoogleFonts.inter(color: Colors.grey[500], fontSize: 13),
+              ),
+            )
           : ListView.separated(
             controller: widget.scrollController,
             padding: const EdgeInsets.symmetric(vertical: 4),
@@ -545,7 +585,8 @@ class _FilterSheetContentState extends State<_FilterSheetContent> {
                    // Update local VM via Provider (dirty way since we are in a separate state class)
                    // Ideally callback. But we can just use Provider here since it's inside the widget tree.
                    final localVM = Provider.of<DoctorListViewModel>(context, listen: false);
-                   if (widget.title == "Specialty") {
+                   if (widget.title ==
+                       context.tr('patient.doctor_list.specialty')) {
                      localVM.setSelectedSpecialty(option);
                    } else {
                      localVM.setSelectedLocation(option);

@@ -1,16 +1,19 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:medlink/widgets/custom_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/Patient%20App/emergency/emergency_viewmodel.dart';
 import 'package:medlink/views/Patient%20App/emergency/destination_picker_view.dart';
 import 'package:medlink/widgets/sos_button.dart';
 import 'package:medlink/views/Patient%20App/Find%20a%20doctor/doctor_list_view.dart';
 import 'package:medlink/views/Patient App/consultation/chat_list_view.dart';
+import 'package:medlink/views/notifications/notifications_list_view.dart';
 import 'package:medlink/views/Patient App/prescription/prescription_view.dart';
 import 'package:medlink/views/Patient App/home/category_list_view.dart';
+import 'package:medlink/views/Patient App/profile/personal_info_view.dart';
 import 'package:medlink/widgets/shimmer_widgets.dart';
 import 'package:medlink/views/Patient App/appointment/appointment_list_view.dart';
 import 'package:medlink/views/Patient App/health/health_hub_view.dart';
@@ -48,11 +51,11 @@ class _HomeViewState extends State<HomeView> {
 
   @override
   Widget build(BuildContext context) {
+    final userVM = Provider.of<UserViewModel>(context);
     return ChangeNotifierProvider(
-      create: (_) => HomeViewModel(),
+      create: (_) => HomeViewModel(userVM),
       child: Consumer<HomeViewModel>(
         builder: (context, homeVM, child) {
-          final userVM = Provider.of<UserViewModel>(context); // Session User
           final emergencyVM = Provider.of<EmergencyViewModel>(context);
           final appointmentVM = Provider.of<AppointmentViewModel>(context);
 
@@ -63,6 +66,7 @@ class _HomeViewState extends State<HomeView> {
                 await Future.wait([
                   homeVM.fetchDoctorCategories(),
                   appointmentVM.loadUpcomingAppointments(),
+                  homeVM.fetchUnreadNotificationsCount(),
                 ]);
               },
               child: CustomScrollView(
@@ -84,18 +88,29 @@ class _HomeViewState extends State<HomeView> {
                         Row(
                           // Profile Header
                           children: [
-                            Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const PersonalInformationView(),
                                   ),
-                                ],
+                                );
+                              },
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.05),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: _buildProfileAvatar(userVM),
                               ),
-                              child: _buildProfileAvatar(userVM),
                             ),
                             const SizedBox(width: 14),
                             Column(
@@ -103,7 +118,7 @@ class _HomeViewState extends State<HomeView> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
-                                  "Good Morning,",
+                                  context.tr('home.greeting.morning'),
                                   style: GoogleFonts.inter(
                                     // Ensure Inter
                                     color: Colors.grey[600],
@@ -115,7 +130,8 @@ class _HomeViewState extends State<HomeView> {
                                 Row(
                                   children: [
                                     Text(
-                                      userVM.patient?.name ?? "Guest",
+                                      userVM.patient?.name ??
+                                          context.tr('home.guest'),
                                       style: GoogleFonts.inter(
                                         // Ensure Inter
                                         color: const Color(
@@ -130,6 +146,11 @@ class _HomeViewState extends State<HomeView> {
                                       "https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Hand%20gestures/Waving%20Hand.png",
                                       width: 22, // Slightly refined size
                                       height: 22,
+                                      errorBuilder: (_, __, ___) => const Icon(
+                                        Icons.waving_hand_rounded,
+                                        size: 20,
+                                        color: Color(0xFFF59E0B),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -137,57 +158,167 @@ class _HomeViewState extends State<HomeView> {
                             ),
                           ],
                         ),
-                        // Badged Notification Icon
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const ChatListView()),
-                            );
-                          },
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(
-                                    10), // Increased padding
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary.withOpacity(0.1),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                      color: Colors.grey.withOpacity(0.1)),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.03),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 4),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Tooltip(
+                              message: context.tr('home.tooltip.notifications'),
+                              child: GestureDetector(
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const NotificationsListView(
+                                        portal: NotificationPortal.patient,
+                                      ),
                                     ),
+                                  );
+                                  await homeVM.fetchUnreadNotificationsCount();
+                                },
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary.withOpacity(0.1),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                            color: Colors.grey.withOpacity(0.1)),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color:
+                                                Colors.black.withOpacity(0.03),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Image.asset(
+                                        'assets/Icons/notification.png',
+                                        width: 24,
+                                        height: 24,
+                                        color: const Color(0xFF1E293B),
+                                      ),
+                                    ),
+                                    if (homeVM.unreadNotificationsCount > 0)
+                                      Positioned(
+                                        top: -2,
+                                        right: -2,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 5, vertical: 1),
+                                          constraints: const BoxConstraints(
+                                            minWidth: 16,
+                                            minHeight: 16,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.error,
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                            border: Border.all(
+                                                color: Colors.white,
+                                                width: 1.5),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              homeVM.unreadNotificationsCount >
+                                                      99
+                                                  ? '99+'
+                                                  : '${homeVM.unreadNotificationsCount}',
+                                              style: GoogleFonts.inter(
+                                                color: Colors.white,
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                   ],
                                 ),
-                                child: Image.asset(
-                                  'assets/msg.png',
-                                  width: 24,
-                                  height: 24,
-                                  color: const Color(0xFF1E293B), // Darker icon
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Tooltip(
+                              message: context.tr('home.tooltip.messages'),
+                              child: GestureDetector(
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) =>
+                                            const ChatListView()),
+                                  );
+                                  await homeVM.fetchUnreadMessagesCount();
+                                },
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(10),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            AppColors.primary.withOpacity(0.1),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                            color:
+                                                Colors.grey.withOpacity(0.1)),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color:
+                                                Colors.black.withOpacity(0.03),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Image.asset(
+                                        'assets/Icons/chat-icon.png',
+                                        width: 26,
+                                        height: 26,
+                                        color: const Color(0xFF1E293B),
+                                      ),
+                                    ),
+                                    if (homeVM.unreadMessagesCount > 0)
+                                      Positioned(
+                                        top: -2,
+                                        right: -2,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 5, vertical: 1),
+                                          constraints: const BoxConstraints(
+                                            minWidth: 16,
+                                            minHeight: 16,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.error,
+                                            borderRadius:
+                                                BorderRadius.circular(20),
+                                            border: Border.all(
+                                                color: Colors.white,
+                                                width: 1.5),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              homeVM.unreadMessagesCount > 99
+                                                  ? '99+'
+                                                  : '${homeVM.unreadMessagesCount}',
+                                              style: GoogleFonts.inter(
+                                                color: Colors.white,
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
                                 ),
                               ),
-                              Positioned(
-                                top: 0,
-                                right: 0,
-                                child: Container(
-                                  width: 16,
-                                  height: 16,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.error,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                        color: Colors.white, width: 2),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -229,7 +360,7 @@ class _HomeViewState extends State<HomeView> {
                                       builder: (_) => const DoctorListView()),
                                 ),
                                 decoration: InputDecoration(
-                                  hintText: "Search doctor, specialty...",
+                                  hintText: context.tr('home.search.hint'),
                                   hintStyle: GoogleFonts.inter(
                                       color: Colors.grey[400], fontSize: 14),
                                   filled: true,
@@ -263,7 +394,8 @@ class _HomeViewState extends State<HomeView> {
                           const SizedBox(height: 24),
 
                           // 2. SOS Button (Upper Position as requested)
-                          if (!emergencyVM.isSosActive && homeVM.isSosVisible)
+                          if (emergencyVM.shouldShowSosCreateSection &&
+                              homeVM.isSosVisible)
                             Center(
                               child: Container(
                                 margin: const EdgeInsets.only(
@@ -290,7 +422,7 @@ class _HomeViewState extends State<HomeView> {
                                             CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            "Medical Emergency?",
+                                            context.tr('home.sos.title'),
                                             style: GoogleFonts.inter(
                                                 fontWeight: FontWeight.w600,
                                                 fontSize:
@@ -299,7 +431,7 @@ class _HomeViewState extends State<HomeView> {
                                           ),
                                           const SizedBox(height: 2),
                                           Text(
-                                            "Long Press button for ambulance",
+                                            context.tr('home.sos.subtitle'),
                                             style: GoogleFonts.inter(
                                               color: Colors.grey,
                                               fontSize:
@@ -330,8 +462,8 @@ class _HomeViewState extends State<HomeView> {
                           if (homeVM.categoriesLoading ||
                               homeVM.categories.isNotEmpty) ...[
                             _buildSectionHeader(
-                              "Doctors Categories",
-                              actionLabel: "See all",
+                              context.tr('home.section.categories'),
+                              actionLabel: context.tr('common.see_all'),
                               onAction: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -346,8 +478,8 @@ class _HomeViewState extends State<HomeView> {
                           // 4. Upcoming Appointment
                           if (appointmentVM.isLoading) ...[
                             _buildSectionHeader(
-                              "Upcoming Appointment",
-                              actionLabel: "See all",
+                              context.tr('home.section.upcoming'),
+                              actionLabel: context.tr('common.see_all'),
                               onAction: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -361,10 +493,11 @@ class _HomeViewState extends State<HomeView> {
                           ] else if (appointmentVM.appointments.any((a) =>
                               a.status == AppointmentStatus.upcoming ||
                               a.status == AppointmentStatus.pending ||
-                              a.status == AppointmentStatus.confirmed)) ...[
+                              a.status == AppointmentStatus.confirmed ||
+                              a.status == AppointmentStatus.rescheduled)) ...[
                             _buildSectionHeader(
-                              "Upcoming Appointment",
-                              actionLabel: "See all",
+                              context.tr('home.section.upcoming'),
+                              actionLabel: context.tr('common.see_all'),
                               onAction: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -377,21 +510,21 @@ class _HomeViewState extends State<HomeView> {
                                 .where((a) =>
                                     a.status == AppointmentStatus.upcoming ||
                                     a.status == AppointmentStatus.pending ||
-                                    a.status == AppointmentStatus.confirmed)
+                                    a.status == AppointmentStatus.confirmed ||
+                                    a.status == AppointmentStatus.rescheduled)
                                 .take(1) // Limit to 1
                                 .map((appointment) => Padding(
                                       padding:
                                           const EdgeInsets.only(bottom: 12.0),
-                                      child: AppointmentInfoCard(
-                                        appointment: appointment,
-                                        showConfirmationActions: true,
-                                      ),
+                                      child: _buildHomeUpcomingAppointmentCard(
+                                          appointment),
                                     )),
                             const SizedBox(height: 15),
                           ],
 
                           // 4. Services Grid
-                          _buildSectionHeader("Quick Services"),
+                          _buildSectionHeader(
+                              context.tr('home.section.quick_services')),
                           const SizedBox(height: 15),
                           _buildQuickActionsGrid(context),
 
@@ -413,11 +546,116 @@ class _HomeViewState extends State<HomeView> {
 
   void _showSOSConfirmation(
       BuildContext context, EmergencyViewModel emergencyVM) {
-    // Navigate to maps view to pick destination before triggering SOS
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const DestinationPickerView(),
+    showDialog(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        elevation: 0,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                context.tr('home.sos.dialog.title'),
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                context.tr('home.sos.dialog.body'),
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  color: Colors.grey[600],
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
+                        emergencyVM.triggerSos(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: Text(
+                        context.tr('home.sos.dialog.activate'),
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: Colors.grey[100],
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      child: Text(
+                        context.tr('common.cancel'),
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: () {
+                  Navigator.pop(dialogContext);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const DestinationPickerView(),
+                    ),
+                  );
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Text(
+                    context.tr('home.sos.dialog.pickup_destination'),
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -434,13 +672,14 @@ class _HomeViewState extends State<HomeView> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const SizedBox(height: 8),
-              const Text(
-                "Remove Widget?",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              Text(
+                context.tr('home.sos.remove.title'),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 18),
               ),
               const SizedBox(height: 8),
               Text(
-                "This will hide the SOS shortcut from your home screen.",
+                context.tr('home.sos.remove.body'),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey[600], fontSize: 14),
               ),
@@ -456,7 +695,7 @@ class _HomeViewState extends State<HomeView> {
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         foregroundColor: Colors.grey.shade700,
                       ),
-                      child: const Text("Cancel"),
+                      child: Text(context.tr('common.cancel')),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -475,7 +714,7 @@ class _HomeViewState extends State<HomeView> {
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         elevation: 0,
                       ),
-                      child: const Text("Remove"),
+                      child: Text(context.tr('common.remove')),
                     ),
                   ),
                 ],
@@ -521,6 +760,129 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
+  Widget _buildHomeUpcomingAppointmentCard(AppointmentModel appointment) {
+    final doctor = appointment.doctor;
+    // Doctor name & specialty are server-provided values and are intentionally
+    // NOT localised — only the placeholder fallbacks are.
+    final doctorName = doctor?.name.isNotEmpty == true
+        ? doctor!.name
+        : context.tr('common.unknown_doctor');
+    final specialty = doctor?.specialty.isNotEmpty == true
+        ? doctor!.specialty
+        : context.tr('common.general');
+    final profileImage = doctor?.imageUrl ?? '';
+    final dateLabel =
+        DateFormat('MMM d, h:mm a').format(appointment.displayScheduledStart);
+    final duration = appointment.scheduledDurationLabel;
+    final dateLine = duration != null ? '$dateLabel · $duration' : dateLabel;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => AppointmentInfoCard(
+          appointment: appointment,
+          showConfirmationActions: true,
+        ).showAppointmentOptions(context),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: const Color(0xFFE8EEF5),
+                backgroundImage:
+                    profileImage.isNotEmpty ? NetworkImage(profileImage) : null,
+                child: profileImage.isEmpty
+                    ? const Icon(Icons.person, color: Colors.grey)
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${appointment.type.shortLabel} ${context.tr('home.appointment.consultation_suffix')}',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      doctorName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1F2937),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      specialty,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF71717A),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.watch_later_outlined,
+                          size: 14,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            dateLine,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.primary,
+                              height: 1.2,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: () => AppointmentInfoCard(
+                  appointment: appointment,
+                  showConfirmationActions: true,
+                ).showAppointmentOptions(context),
+                icon: const Icon(Icons.more_vert_rounded, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildQuickActionsGrid(BuildContext context) {
     final actions = Provider.of<HomeViewModel>(context).quickActions;
 
@@ -531,30 +893,42 @@ class _HomeViewState extends State<HomeView> {
       itemCount: actions.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 0.85,
+        childAspectRatio: 0.95,
         crossAxisSpacing: 16,
         mainAxisSpacing: 16,
       ),
       itemBuilder: (context, index) {
         final action = actions[index];
-
+        // Route on stable [type] (locale-independent) instead of the
+        // displayed title to keep navigation working in any language.
         return InkWell(
           onTap: () {
-            if (action.title.contains("Doctors")) {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const DoctorListView()));
-            } else if (action.title.contains("Prescription")) {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const PrescriptionView()));
-            } else if (action.title.contains("Consult")) {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const ChatListView()));
-            } else if (action.title.contains("Health")) {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) =>
-                          const HealthHubView(showBackButton: true)));
+            switch (action.type) {
+              case 'doctors':
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const DoctorListView()));
+                break;
+              case 'prescription':
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const PrescriptionView()));
+                break;
+              case 'consult':
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const ChatListView()));
+                break;
+              case 'health':
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            const HealthHubView(showBackButton: true)));
+                break;
             }
           },
           borderRadius: BorderRadius.circular(24),
@@ -592,9 +966,9 @@ class _HomeViewState extends State<HomeView> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Title
+                    // Title (action.title holds a translation key)
                     Text(
-                      action.title,
+                      context.tr(action.title),
                       style: GoogleFonts.inter(
                         fontWeight: FontWeight.w600,
                         fontSize: 16,
@@ -605,9 +979,9 @@ class _HomeViewState extends State<HomeView> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    // Subtitle
+                    // Subtitle (action.subtitle holds a translation key)
                     Text(
-                      action.subtitle,
+                      context.tr(action.subtitle),
                       style: GoogleFonts.inter(
                         fontWeight: FontWeight.w500,
                         fontSize: 12, // Smaller
@@ -672,7 +1046,7 @@ class _HomeViewState extends State<HomeView> {
             },
             borderRadius: BorderRadius.circular(16),
             child: Container(
-              width: 100,
+              width: 112,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -759,12 +1133,13 @@ class _HomeViewState extends State<HomeView> {
             itemCount: banners.length,
             itemBuilder: (context, index) {
               final banner = banners[index];
+              // banner.{title,subtitle,buttonText} hold translation keys.
               return _buildBannerCard(
                 context,
                 type: banner.type,
-                title: banner.title,
-                subtitle: banner.subtitle,
-                buttonText: banner.buttonText,
+                title: context.tr(banner.title),
+                subtitle: context.tr(banner.subtitle),
+                buttonText: context.tr(banner.buttonText),
                 colors: banner.colors,
                 shadowColor: banner.shadowColor,
                 image: banner.image,
@@ -990,15 +1365,36 @@ class _HomeViewState extends State<HomeView> {
     }
 
     // Network image — use Image.network with errorBuilder
+    final fallback = CircleAvatar(
+      radius: 26,
+      backgroundColor: Colors.grey.shade200,
+      child: Icon(Icons.person_rounded, color: Colors.grey.shade500, size: 28),
+    );
+
     final imageUrl = hasImage
         ? profileImage
         : "https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=400&auto=format&fit=crop&q=60";
 
-    return CustomNetworkImage(
-      imageUrl: imageUrl,
-      width: 52,
-      height: 52,
-      fit: BoxFit.cover,
+    return ClipOval(
+      child: Image.network(
+        imageUrl,
+        width: 52,
+        height: 52,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => fallback,
+        loadingBuilder: (_, child, progress) {
+          if (progress == null) return child;
+          return CircleAvatar(
+            radius: 26,
+            backgroundColor: Colors.grey.shade200,
+            child: const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        },
+      ),
     );
   }
 }

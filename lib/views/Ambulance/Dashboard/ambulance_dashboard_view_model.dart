@@ -1,20 +1,28 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/services/sos_socket_service.dart';
 
 class AmbulanceDashboardViewModel extends ChangeNotifier {
   final ApiServices _apiServices = ApiServices();
   final SosSocketService _socket = SosSocketService.instance;
+  static const double _sosBaseFareCfa = 150;
+  static const double _sosRatePerKmCfa = 50;
   StreamSubscription<Map<String, dynamic>>? _sosSub;
   Timer? _countdownTickTimer;
 
-  /// Must match backend `getEmergencyRequests` pool window.
-  static const Duration sosDriverAcceptWindow = Duration(minutes: 2);
+  /// Dedupe reverse-geocode lookups by rounded coordinates.
+  final Map<String, String> _reverseGeocodeCache = {};
 
   bool _isOnline = true;
   List<Map<String, dynamic>> _activeRequests = [];
+
+  /// From public system settings; per-request overrides may exist on each SOS.
+  int _sosDriverSearchWindowMinutes = 2;
 
   // Stats from API
   int _totalTrips = 0;
@@ -27,13 +35,15 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
 
   AmbulanceDashboardViewModel() {
     _loadDashboard();
+    _loadSystemSosWindow();
     _loadActiveRequests();
     _loadProfile();
     _sosSub = _socket.sosUpdatedStream.listen(_handleSosUpdated);
     _countdownTickTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!_isOnline) return;
       final before = _activeRequests.length;
-      _activeRequests.removeWhere((r) => !_isPoolSosFresh(r['createdAt']));
+      _activeRequests.removeWhere(
+          (r) => remainingAcceptTimeForRequest(r) <= Duration.zero);
       if (before != _activeRequests.length || _activeRequests.isNotEmpty) {
         notifyListeners();
       }
@@ -47,11 +57,23 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
     super.dispose();
   }
 
-  /// Time left to accept (from `createdAt`). Zero if expired.
-  static Duration remainingAcceptTime(dynamic createdAt) {
+  int _windowMinutesFor(Map<String, dynamic> r) {
+    final raw = r['searchWindowMinutes'];
+    if (raw != null) {
+      return (int.tryParse(raw.toString()) ?? _sosDriverSearchWindowMinutes)
+          .clamp(1, 1440);
+    }
+    return _sosDriverSearchWindowMinutes.clamp(1, 1440);
+  }
+
+  /// Time left to accept (from `searchWindowStartedAt`, else `createdAt`). Zero if expired.
+  Duration remainingAcceptTimeForRequest(Map<String, dynamic> r) {
+    final window = Duration(minutes: _windowMinutesFor(r));
+    final startRaw = r['searchWindowStartedAt'] ?? r['createdAt'];
+    if (startRaw == null) return Duration.zero;
     try {
-      final t = DateTime.parse(createdAt.toString()).toUtc();
-      final end = t.add(sosDriverAcceptWindow);
+      final t = DateTime.parse(startRaw.toString()).toUtc();
+      final end = t.add(window);
       final left = end.difference(DateTime.now().toUtc());
       return left.isNegative ? Duration.zero : left;
     } catch (_) {
@@ -59,16 +81,18 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
     }
   }
 
-  /// 1.0 = just created, 0.0 = window ended.
-  static double acceptProgressFraction(dynamic createdAt) {
+  /// 1.0 = window just started, 0.0 = window ended.
+  double acceptProgressFractionFor(Map<String, dynamic> r) {
+    final window = Duration(minutes: _windowMinutesFor(r));
+    final startRaw = r['searchWindowStartedAt'] ?? r['createdAt'];
+    if (startRaw == null) return 0.0;
     try {
-      final t = DateTime.parse(createdAt.toString()).toUtc();
+      final t = DateTime.parse(startRaw.toString()).toUtc();
       final now = DateTime.now().toUtc();
       final elapsed = now.difference(t);
       if (elapsed <= Duration.zero) return 1.0;
-      if (elapsed >= sosDriverAcceptWindow) return 0.0;
-      return 1.0 -
-          (elapsed.inMilliseconds / sosDriverAcceptWindow.inMilliseconds);
+      if (elapsed >= window) return 0.0;
+      return 1.0 - (elapsed.inMilliseconds / window.inMilliseconds);
     } catch (_) {
       return 0.0;
     }
@@ -80,6 +104,255 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
     final m = totalSec ~/ 60;
     final s = totalSec % 60;
     return '$m:${s.toString().padLeft(2, '0')}';
+  }
+
+  static double? _toDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString());
+  }
+
+  static double? _haversineKm(
+    double? lat1,
+    double? lng1,
+    double? lat2,
+    double? lng2,
+  ) {
+    if (lat1 == null || lng1 == null || lat2 == null || lng2 == null) {
+      return null;
+    }
+    const earthRadiusKm = 6371.0;
+    final dLat = _degToRad(lat2 - lat1);
+    final dLng = _degToRad(lng2 - lng1);
+    final a =
+        (sin(dLat / 2) * sin(dLat / 2)) +
+            cos(_degToRad(lat1)) *
+                cos(_degToRad(lat2)) *
+                (sin(dLng / 2) * sin(dLng / 2));
+    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return double.parse((earthRadiusKm * c).toStringAsFixed(2));
+  }
+
+  static double _degToRad(double deg) => deg * (3.141592653589793 / 180);
+
+  static String _formatDistanceMeters(double meters) {
+    if (meters < 1000) {
+      return '${meters.round()} m away';
+    }
+    return '${(meters / 1000).toStringAsFixed(1)} km away';
+  }
+
+  static String _placemarkLine(Placemark p) {
+    final parts = <String>[
+      if (p.street != null && p.street!.trim().isNotEmpty) p.street!.trim(),
+      if (p.subLocality != null && p.subLocality!.trim().isNotEmpty)
+        p.subLocality!.trim(),
+      if (p.locality != null && p.locality!.trim().isNotEmpty) p.locality!.trim(),
+      if (p.administrativeArea != null &&
+          p.administrativeArea!.trim().isNotEmpty)
+        p.administrativeArea!.trim(),
+    ];
+    if (parts.isEmpty) {
+      final n = p.name?.trim();
+      if (n != null && n.isNotEmpty) return n;
+      return '';
+    }
+    return parts.join(', ');
+  }
+
+  Future<Position?> _tryDriverPosition() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return null;
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return null;
+      }
+      return Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.medium,
+          timeLimit: Duration(seconds: 10),
+        ),
+      );
+    } catch (e) {
+      debugPrint('AmbulanceDashboardViewModel _tryDriverPosition: $e');
+      return null;
+    }
+  }
+
+  Future<String?> _reverseGeocode(double lat, double lng) async {
+    final key =
+        '${lat.toStringAsFixed(4)}_${lng.toStringAsFixed(4)}';
+    final cached = _reverseGeocodeCache[key];
+    if (cached != null) return cached;
+    try {
+      final list = await placemarkFromCoordinates(lat, lng);
+      if (list.isEmpty) return null;
+      final line = _placemarkLine(list.first).trim();
+      if (line.isEmpty) return null;
+      _reverseGeocodeCache[key] = line;
+      return line;
+    } catch (e) {
+      debugPrint('AmbulanceDashboardViewModel _reverseGeocode: $e');
+      return null;
+    }
+  }
+
+  Future<void> _enrichRequestsLocationAndDistance() async {
+    if (_activeRequests.isEmpty) return;
+
+    final driver = await _tryDriverPosition();
+    bool anyChange = false;
+
+    for (final r in _activeRequests) {
+      final lat = _toDouble(r['lat']);
+      final lng = _toDouble(r['lng']);
+
+      if (lat != null && lng != null && driver != null) {
+        final meters = Geolocator.distanceBetween(
+          driver.latitude,
+          driver.longitude,
+          lat,
+          lng,
+        );
+        final label = _formatDistanceMeters(meters);
+        if (r['distance'] != label) {
+          r['distance'] = label;
+          anyChange = true;
+        }
+      } else if (lat != null && lng != null) {
+        const fallback = 'Turn on location for distance';
+        if (r['distance'] != fallback) {
+          r['distance'] = fallback;
+          anyChange = true;
+        }
+      }
+
+      final hasAddr = r['hasAddressFromApi'] == true;
+      final loc = r['location']?.toString() ?? '';
+      final needsGeocode =
+          !hasAddr && lat != null && lng != null && loc == 'Loading address...';
+      if (needsGeocode) {
+        final resolved = await _reverseGeocode(lat, lng);
+        final next = resolved ?? 'Address unavailable';
+        if (r['location'] != next) {
+          r['location'] = next;
+          anyChange = true;
+        }
+      }
+    }
+
+    if (anyChange) notifyListeners();
+  }
+
+  Map<String, dynamic> _mapEmergencyRequest(Map<String, dynamic> m) {
+    final addrRaw = m['addressText']?.toString().trim();
+    final hasAddr = addrRaw != null && addrRaw.isNotEmpty;
+    final address = hasAddr ? addrRaw : null;
+    final lat = _toDouble(m['lat']);
+    final lng = _toDouble(m['lng']);
+    final destinationLat = _toDouble(m['destinationLat'] ?? m['dropoffLat']);
+    final destinationLng = _toDouble(m['destinationLng'] ?? m['dropoffLng']);
+    final estimatedDistanceKm = _haversineKm(lat, lng, destinationLat, destinationLng);
+    final estimatedFare = estimatedDistanceKm != null
+        ? double.parse(
+            (_sosBaseFareCfa + (estimatedDistanceKm * _sosRatePerKmCfa))
+                .toStringAsFixed(2),
+          )
+        : null;
+    return {
+      'id': m['id'].toString(),
+      'createdAt': m['createdAt'],
+      'searchWindowStartedAt': m['searchWindowStartedAt'],
+      'searchWindowMinutes': m['searchWindowMinutes'],
+      'patientName': m['patient']?['fullName'] ?? 'Unknown',
+      'lat': lat,
+      'lng': lng,
+      'hasAddressFromApi': hasAddr,
+      'distance': '—',
+      'location': hasAddr
+          ? address
+          : (lat != null && lng != null ? 'Loading address...' : 'Location unavailable'),
+      'destinationLat': destinationLat,
+      'destinationLng': destinationLng,
+      'estimatedDistanceKm': estimatedDistanceKm,
+      'estimatedFareAmount': estimatedFare,
+      'currency': _currency,
+      'incident': m['emergencyType'] ?? 'Emergency',
+      'severity': m['severity']?.toString(),
+      'isEmergency': _isEmergencyPayload(
+        emergencyType: m['emergencyType']?.toString(),
+        severity: m['severity']?.toString(),
+      ),
+      'time': _formatTime(
+        (m['searchWindowStartedAt'] ?? m['createdAt'])?.toString(),
+      ),
+    };
+  }
+
+  Map<String, dynamic> _mapSosPayload(Map<String, dynamic> payload) {
+    final addrRaw = payload['addressText']?.toString().trim();
+    final hasAddr = addrRaw != null && addrRaw.isNotEmpty;
+    final address = hasAddr ? addrRaw : null;
+    final lat = _toDouble(payload['lat']);
+    final lng = _toDouble(payload['lng']);
+    final destinationLat =
+        _toDouble(payload['destinationLat'] ?? payload['dropoffLat']);
+    final destinationLng =
+        _toDouble(payload['destinationLng'] ?? payload['dropoffLng']);
+    final estimatedDistanceKm = _haversineKm(lat, lng, destinationLat, destinationLng);
+    final estimatedFare = estimatedDistanceKm != null
+        ? double.parse(
+            (_sosBaseFareCfa + (estimatedDistanceKm * _sosRatePerKmCfa))
+                .toStringAsFixed(2),
+          )
+        : null;
+    final patient = payload['patient'] is Map
+        ? Map<String, dynamic>.from(payload['patient'] as Map)
+        : <String, dynamic>{};
+
+    return {
+      'id': payload['id'].toString(),
+      'createdAt': payload['createdAt'],
+      'searchWindowStartedAt': payload['searchWindowStartedAt'],
+      'searchWindowMinutes': payload['searchWindowMinutes'],
+      'patientName': patient['fullName'] ?? 'Unknown',
+      'lat': lat,
+      'lng': lng,
+      'hasAddressFromApi': hasAddr,
+      'distance': '—',
+      'location': hasAddr
+          ? address
+          : (lat != null && lng != null ? 'Loading address...' : 'Location unavailable'),
+      'destinationLat': destinationLat,
+      'destinationLng': destinationLng,
+      'estimatedDistanceKm': estimatedDistanceKm,
+      'estimatedFareAmount': estimatedFare,
+      'currency': _currency,
+      'incident': payload['emergencyType'] ?? 'Emergency',
+      'severity': payload['severity']?.toString(),
+      'isEmergency': _isEmergencyPayload(
+        emergencyType: payload['emergencyType']?.toString(),
+        severity: payload['severity']?.toString(),
+      ),
+      'time': _formatTime(
+        (payload['searchWindowStartedAt'] ?? payload['createdAt'])
+            ?.toString(),
+      ),
+    };
+  }
+
+  static bool _isEmergencyPayload({String? emergencyType, String? severity}) {
+    final sev = severity?.trim().toUpperCase();
+    if (sev == 'HIGH' || sev == 'CRITICAL') return true;
+    final t = (emergencyType ?? '').trim().toLowerCase();
+    if (t.isEmpty) return false;
+    if (t == 'normal' || t == 'routine') return false;
+    return true;
   }
 
   bool get isOnline => _isOnline;
@@ -137,9 +410,28 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
   Future<void> refreshDashboard() async {
     await Future.wait([
       _loadDashboard(),
+      _loadSystemSosWindow(),
       _loadActiveRequests(),
       _loadProfile(), // Reload profile on pull-to-refresh
     ]);
+  }
+
+  Future<void> _loadSystemSosWindow() async {
+    try {
+      final response = await _apiServices.getSystemSettings();
+      if (response != null && response['success'] == true && response['data'] is Map) {
+        final raw =
+            (response['data'] as Map)['sosDriverSearchWindowMinutes'];
+        if (raw != null) {
+          _sosDriverSearchWindowMinutes =
+              (int.tryParse(raw.toString()) ?? _sosDriverSearchWindowMinutes)
+                  .clamp(1, 1440);
+        }
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('AmbulanceDashboardViewModel _loadSystemSosWindow: $e');
+    }
   }
 
   Future<void> toggleOnlineStatus(bool value) async {
@@ -171,24 +463,9 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
         final data = response['data'];
         if (data is List) {
           _activeRequests = List<Map<String, dynamic>>.from(
-            data
-                .where((item) {
-                  if (item is! Map) return false;
-                  return _isPoolSosFresh(item['createdAt']);
-                })
-                .map((item) {
-              final m = item as Map;
-              return {
-                'id': m['id'].toString(),
-                'createdAt': m['createdAt'],
-                'patientName': m['patient']?['fullName'] ?? 'Unknown',
-                'severity': m['severity'] ?? 'High',
-                'distance': 'Calculating...',
-                'location': m['addressText'] ??
-                    'Lat: ${m['lat']}, Lng: ${m['lng']}',
-                'incident': m['emergencyType'] ?? 'Emergency',
-                'time': _formatTime(m['createdAt']?.toString()),
-              };
+            data.where((item) => item is Map).map((item) {
+              final m = Map<String, dynamic>.from(item as Map);
+              return _mapEmergencyRequest(m);
             }),
           );
         }
@@ -197,6 +474,7 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
       debugPrint('Error loading active requests: $e');
     }
     notifyListeners();
+    unawaited(_enrichRequestsLocationAndDistance());
   }
 
   void _handleSosUpdated(Map<String, dynamic> payload) {
@@ -208,9 +486,8 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
     final status = payload['status']?.toString();
     final assigned = payload['assignedDriverId'];
 
-    final bool inPool = status == 'OPEN' &&
-        (assigned == null) &&
-        _isPoolSosFresh(payload['createdAt']);
+    final bool inPool =
+        status == 'OPEN' && (assigned == null || assigned.toString().isEmpty);
 
     if (!inPool) {
       _activeRequests.removeWhere((r) => r['id']?.toString() == id);
@@ -218,35 +495,13 @@ class AmbulanceDashboardViewModel extends ChangeNotifier {
       return;
     }
 
-    final patient = payload['patient'] is Map
-        ? Map<String, dynamic>.from(payload['patient'] as Map)
-        : <String, dynamic>{};
-
     _activeRequests.removeWhere((r) => r['id']?.toString() == id);
-    _activeRequests.insert(0, {
-      'id': id,
-      'createdAt': payload['createdAt'],
-      'patientName': patient['fullName'] ?? 'Unknown',
-      'severity': payload['severity'] ?? 'High',
-      'distance': 'Calculating...',
-      'location': payload['addressText'] ??
-          'Lat: ${payload['lat']}, Lng: ${payload['lng']}',
-      'incident': payload['emergencyType'] ?? 'Emergency',
-      'time': _formatTime(payload['createdAt']?.toString()),
-    });
+    _activeRequests.insert(
+      0,
+      _mapSosPayload(Map<String, dynamic>.from(payload)),
+    );
     notifyListeners();
-  }
-
-  /// Same rule as backend: unassigned pool SOS inside the accept window.
-  static bool _isPoolSosFresh(dynamic createdAt) {
-    if (createdAt == null) return false;
-    try {
-      final t = DateTime.parse(createdAt.toString()).toUtc();
-      final age = DateTime.now().toUtc().difference(t);
-      return !age.isNegative && age <= sosDriverAcceptWindow;
-    } catch (_) {
-      return false;
-    }
+    unawaited(_enrichRequestsLocationAndDistance());
   }
 
   String _formatTime(String? createdAt) {

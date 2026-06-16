@@ -2,26 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/models/appointment_model.dart';
 import 'package:medlink/models/doctor_model.dart';
+import 'package:medlink/widgets/consultation_type_badge.dart';
 import 'package:medlink/widgets/custom_button.dart';
 import 'package:medlink/widgets/custom_app_bar_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_viewmodel.dart';
 import 'package:medlink/views/Patient%20App/appointment/appointment_payment_view.dart';
-import 'package:medlink/views/services/settings_view_model.dart';
 import 'package:medlink/views/main/main_screen.dart';
 
 class AppointmentDetailsView extends StatelessWidget {
   final DoctorModel doctor;
   final DateTime selectedDate;
   final String selectedTime;
+  final AppointmentType consultationType;
 
   const AppointmentDetailsView({
     super.key,
     required this.doctor,
     required this.selectedDate,
     required this.selectedTime,
+    required this.consultationType,
   });
 
   @override
@@ -102,6 +105,30 @@ class AppointmentDetailsView extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Consultation',
+                      style: GoogleFonts.inter(
+                          color: Colors.grey[500], fontSize: 12),
+                    ),
+                    const SizedBox(height: 8),
+                    ConsultationTypeBadge(type: consultationType),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
@@ -110,7 +137,7 @@ class AppointmentDetailsView extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                     child: _buildDetailCard(
-                        "Price", "${context.watch<SettingsViewModel>().currency} ${doctor.consultationFee.toInt()}")),
+                        "Price", "CFA ${doctor.consultationFee.toInt()}")),
               ],
             ),
 
@@ -183,68 +210,64 @@ class AppointmentDetailsView extends StatelessWidget {
         child: SafeArea(
           child: SizedBox(
             width: double.infinity,
-            child: CustomButton(
-                text: "Proceed to Payment",
-                onPressed: () async {
-                  final userViewModel =
-                      Provider.of<UserViewModel>(context, listen: false);
-                  final patientId = userViewModel.patient?.id;
+            child: Consumer<AppointmentViewModel>(
+              builder: (context, viewModel, _) {
+                return CustomButton(
+                  text: "Proceed to Payment",
+                  isLoading: viewModel.isLoading,
+                  onPressed: () async {
+                    final userViewModel =
+                        Provider.of<UserViewModel>(context, listen: false);
+                    final patientId = userViewModel.patient?.id;
 
-                  if (patientId == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text(
-                              "Error: User session not found. Please login again.")),
-                    );
-                    return;
-                  }
-
-                  // Show loading indicator
-                  showDialog(
-                    context: context,
-                    barrierDismissible: false,
-                    builder: (context) =>
-                        const Center(child: CircularProgressIndicator()),
-                  );
-
-                  final viewModel =
-                      Provider.of<AppointmentViewModel>(context, listen: false);
-                  final result = await viewModel.bookAppointment(
-                    doctor: doctor,
-                    date: selectedDate,
-                    time: selectedTime,
-                    patientId: patientId,
-                  );
-
-                  if (!context.mounted) return;
-                  Navigator.pop(context); // Close loading dialog
-
-                  if (result['success'] == true && result['paymentData'] != null) {
-                    // Navigate to Payment Screen to show the native sheet
-                    final paid = await Navigator.push<bool>(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AppointmentPaymentView(
-                          doctor: doctor,
-                          date: selectedDate,
-                          time: selectedTime,
-                          appointmentId: result['appointmentId'],
-                          paymentData: result['paymentData'],
-                        ),
-                      ),
-                    );
-
-                    if (paid == true && context.mounted) {
-                      _showFinalSuccessDialog(context);
+                    if (patientId == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text(
+                                "Error: User session not found. Please login again.")),
+                      );
+                      return;
                     }
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text(result['message'] ??
-                              "Failed to initiate payment.")),
+
+                    final result = await viewModel.bookAppointment(
+                      doctor: doctor,
+                      date: selectedDate,
+                      time: selectedTime,
+                      patientId: patientId,
+                      consultationType: consultationType,
                     );
-                  }
-                }),
+
+                    if (!context.mounted) return;
+
+                    if (result['success'] == true && result['paymentData'] != null) {
+                      // Navigate to Payment Screen to show the native sheet
+                      final paid = await Navigator.push<bool>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AppointmentPaymentView(
+                            doctor: doctor,
+                            date: selectedDate,
+                            time: selectedTime,
+                            appointmentId: result['appointmentId'],
+                            paymentData: result['paymentData'],
+                          ),
+                        ),
+                      );
+
+                      if (paid == true && context.mounted) {
+                        _showFinalSuccessDialog(context);
+                      }
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text(result['message'] ??
+                                "Failed to initiate payment.")),
+                      );
+                    }
+                  },
+                );
+              },
+            ),
           ),
         ),
       ),

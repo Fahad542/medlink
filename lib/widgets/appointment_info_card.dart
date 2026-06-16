@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:medlink/widgets/custom_network_image.dart';
-import 'package:intl/intl.dart';
 import 'package:medlink/core/constants/app_colors.dart';
 import 'package:medlink/models/appointment_model.dart';
 import 'package:medlink/views/Patient App/consultation/chat_view.dart';
@@ -9,10 +7,21 @@ import 'package:medlink/views/doctor/Doctor%20profile/doctor_profile_view.dart';
 import 'package:provider/provider.dart';
 import 'package:medlink/views/Patient App/appointment/appointment_viewmodel.dart';
 import 'package:medlink/utils/utils.dart';
+import 'package:medlink/widgets/custom_network_image.dart';
+import 'package:medlink/widgets/consultation_type_badge.dart';
+import 'package:medlink/widgets/appointment_schedule_rows.dart';
+import 'package:medlink/widgets/appointment_reschedule_sheet.dart';
+import 'package:medlink/widgets/custom_button.dart';
 import 'package:medlink/data/network/api_services.dart';
 
 import 'package:medlink/views/services/session_view_model.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:medlink/widgets/appointment_cancel_reason_dialog.dart';
+import 'package:medlink/services/notification_services.dart';
+import 'package:medlink/services/appointment_socket_service.dart';
+import 'package:medlink/views/Patient App/home/home_viewmodel.dart';
+import 'package:medlink/widgets/patient_cancelled_appointment_detail_sheet.dart';
+import 'package:medlink/utils/trip_fare_format.dart';
 
 class AppointmentInfoCard extends StatelessWidget {
   final AppointmentModel appointment;
@@ -24,7 +33,15 @@ class AppointmentInfoCard extends StatelessWidget {
     this.showConfirmationActions = false,
   });
 
-  void _showAppointmentOptions(BuildContext context) {
+  void showConfirmSessionDialogDirect(BuildContext context) {
+    _showConfirmSessionDialog(context);
+  }
+
+  void showCancelAppointmentDialogDirect(BuildContext context) {
+    _showCancelDialog(context);
+  }
+
+  void showAppointmentOptions(BuildContext context) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -104,7 +121,7 @@ class AppointmentInfoCard extends StatelessWidget {
             _buildOptionItem(
               context,
               icon: Icons.chat_bubble_outline_rounded,
-              assetPath: "assets/Icons/chat.png",
+              assetPath: "assets/Icons/chat-icon.png",
               iconSize: 18,
               title: "Message Doctor",
               subtitle: "Start a chat related to this visit",
@@ -177,7 +194,7 @@ class AppointmentInfoCard extends StatelessWidget {
                 icon: Icons.verified_rounded,
                 title: "Confirm Session",
                 subtitle: "Mark this visit as completed",
-                color: Colors.green,
+                color: AppColors.primary,
                 onTap: () {
                   Navigator.pop(context);
                   _showConfirmSessionDialog(context);
@@ -190,7 +207,7 @@ class AppointmentInfoCard extends StatelessWidget {
                 icon: Icons.cancel_outlined,
                 title: "Cancel Appointment",
                 subtitle: "Cancel this scheduled visit",
-                color: Colors.red,
+                color: AppColors.primary,
                 showBorder: false,
                 onTap: () {
                   Navigator.pop(context);
@@ -204,190 +221,92 @@ class AppointmentInfoCard extends StatelessWidget {
     );
   }
 
-  void _showCancelDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        bool isCancelling = false;
-        return StatefulBuilder(builder: (context, setState) {
-          return Dialog(
-            backgroundColor: Colors.white,
-            elevation: 0,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(height: 8),
-                  const Text(
-                    "Cancel Appointment?",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "Are you sure you want to cancel this appointment? This action cannot be undone.",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: isCancelling
-                              ? null
-                              : () => Navigator.pop(context),
-                          style: OutlinedButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            foregroundColor: Colors.grey.shade700,
-                          ),
-                          child: const Text("Back"),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: isCancelling
-                              ? null
-                              : () async {
-                                  setState(() => isCancelling = true);
-
-                                  final vm = Provider.of<AppointmentViewModel>(
-                                      context,
-                                      listen: false);
-                                  bool success = await vm.cancelAppointment(
-                                      appointment.id.toString(),
-                                      "Patient requested cancellation");
-
-                                  if (context.mounted) {
-                                    setState(() => isCancelling = false);
-                                    Navigator.pop(context); // Close dialog
-
-                                    Utils.toastMessage(
-                                        context,
-                                        success
-                                            ? "Appointment cancelled successfully"
-                                            : "Failed to cancel appointment",
-                                        isError: !success);
-                                  }
-                                },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            elevation: 0,
-                          ),
-                          child: isCancelling
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                      color: Colors.white, strokeWidth: 2.5),
-                                )
-                              : const Text("Yes, Cancel"),
-                        ),
-                      ),
-                    ],
-                  )
-                ],
-              ),
-            ),
-          );
-        });
-      },
+  Future<void> _showCancelDialog(BuildContext context) async {
+    final reason = await showAppointmentCancelReasonDialog(
+      context,
+      title: 'Cancel appointment?',
+      subtitle:
+          'This cannot be undone. Please give a short reason for cancellation.',
     );
-  }
+    if (!context.mounted || reason == null) return;
 
-  void _showRescheduleDialog(BuildContext context) {
-    showDialog(
+    final vm = Provider.of<AppointmentViewModel>(context, listen: false);
+    HomeViewModel? homeVm;
+    try {
+      homeVm = Provider.of<HomeViewModel>(context, listen: false);
+    } catch (_) {}
+
+    showDialog<void>(
       context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
+      barrierDismissible: false,
+      useRootNavigator: true,
+      builder: (_) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+          child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(height: 8),
-              const Text(
-                "Reschedule Appointment",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2.5),
               ),
-              const SizedBox(height: 8),
-              Text(
-                "Select a new date and time for your appointment.",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[600], fontSize: 14),
-              ),
-              const SizedBox(height: 24),
-              // Placeholder for Date Picker
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.calendar_today,
-                        size: 18, color: Colors.grey),
-                    const SizedBox(width: 8),
-                    Text("Select Date",
-                        style: TextStyle(color: Colors.grey.shade700)),
-                    const Spacer(),
-                    const Icon(Icons.arrow_drop_down, color: Colors.grey),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        foregroundColor: Colors.grey.shade700,
-                      ),
-                      child: const Text("Cancel"),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text("Reschedule Request Sent")));
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        elevation: 0,
-                      ),
-                      child: const Text("Confirm"),
-                    ),
-                  ),
-                ],
-              )
+              SizedBox(width: 16),
+              Text('Cancelling appointment…'),
             ],
           ),
         ),
       ),
+    );
+
+    var success = false;
+    try {
+      success =
+          await vm.cancelAppointment(appointment.id.toString(), reason);
+    } finally {
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
+    }
+
+    if (!context.mounted) return;
+
+    if (success) {
+      AppointmentSocketService.instance
+          .emitAfterCancellation(appointment.id.toString());
+      final bannerBody = reason.length > 160
+          ? '${reason.substring(0, 157)}...'
+          : reason;
+      await NotificationServices.app?.showLocalBanner(
+        title: 'Appointment cancelled',
+        body: bannerBody,
+      );
+      await homeVm?.fetchUnreadNotificationsCount();
+    }
+
+    if (!context.mounted) return;
+    Utils.toastMessage(
+      context,
+      success ? 'Appointment cancelled successfully' : 'Failed to cancel appointment',
+      isError: !success,
+    );
+  }
+
+  void _showRescheduleDialog(BuildContext context) {
+    showAppointmentRescheduleSheet(
+      context: context,
+      appointment: appointment,
+      submit: (body) => ApiServices().patientRescheduleAppointment(
+        appointment.id,
+        body,
+      ),
+      onSuccess: () {
+        try {
+          Provider.of<AppointmentViewModel>(context, listen: false)
+              .loadUpcomingAppointments();
+        } catch (_) {}
+      },
     );
   }
 
@@ -399,86 +318,90 @@ class AppointmentInfoCard extends StatelessWidget {
         return StatefulBuilder(builder: (context, setState) {
           return Dialog(
             backgroundColor: Colors.white,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(28),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     "Confirm Session",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   Text(
                     "Has this session been completed successfully?",
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                      height: 1.5,
+                    ),
                   ),
                   const SizedBox(height: 24),
                   Row(
                     children: [
                       Expanded(
-                        child: OutlinedButton(
+                        child: TextButton(
                           onPressed: isCompleting
                               ? null
                               : () => Navigator.pop(context),
-                          style: OutlinedButton.styleFrom(
+                          style: TextButton.styleFrom(
+                            backgroundColor: Colors.grey[100],
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            foregroundColor: Colors.grey.shade700,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
-                          child: const Text("No"),
+                          child: Text(
+                            "No",
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black87,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: ElevatedButton(
-                          onPressed: isCompleting
-                              ? null
-                              : () async {
-                                  setState(() => isCompleting = true);
+                        child: CustomButton(
+                          text: "Yes, Confirm",
+                          backgroundColor: AppColors.primary,
+                          height: 48,
+                          fontSize: 14,
+                          borderRadius: 16,
+                          onPressed: () async {
+                            setState(() => isCompleting = true);
 
-                                  final vm = Provider.of<AppointmentViewModel>(
-                                      context,
-                                      listen: false);
-                                  bool success = await vm.completeAppointment(
-                                      appointment.id.toString());
+                            final vm = Provider.of<AppointmentViewModel>(
+                              context,
+                              listen: false,
+                            );
+                            final success = await vm
+                                .completeAppointment(appointment.id.toString());
 
-                                  if (context.mounted) {
-                                    setState(() => isCompleting = false);
-                                    Navigator.pop(context); // Close dialog
+                            if (context.mounted) {
+                              setState(() => isCompleting = false);
+                              Navigator.pop(context); // Close dialog
 
-                                    Utils.toastMessage(
-                                        context,
-                                        success
-                                            ? "Session confirmed successfully"
-                                            : "Failed to confirm session",
-                                        isError: !success);
-                                    if (success) {
-                                      _showDoctorReviewBottomSheet(context);
-                                    }
-                                  }
-                                },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            elevation: 0,
-                          ),
-                          child: isCompleting
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                      color: Colors.white, strokeWidth: 2.5),
-                                )
-                              : const Text("Yes, Confirm"),
+                              Utils.toastMessage(
+                                context,
+                                success
+                                    ? "Session confirmed successfully"
+                                    : "Failed to confirm session",
+                                isError: !success,
+                              );
+                            }
+                          },
+                          isLoading: isCompleting,
                         ),
                       ),
                     ],
@@ -488,110 +411,6 @@ class AppointmentInfoCard extends StatelessWidget {
             ),
           );
         });
-      },
-    );
-  }
-
-  void _showDoctorReviewBottomSheet(BuildContext context) {
-    final api = ApiServices();
-    final commentController = TextEditingController();
-    int rating = 0;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) {
-        bool submitting = false;
-        return StatefulBuilder(
-          builder: (ctx, setState) => Padding(
-            padding: EdgeInsets.only(
-              left: 16,
-              right: 16,
-              top: 16,
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Rate your doctor",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: List.generate(
-                    5,
-                    (index) => IconButton(
-                      onPressed: () => setState(() => rating = index + 1),
-                      icon: Icon(
-                        index < rating ? Icons.star : Icons.star_border,
-                        color: Colors.amber,
-                      ),
-                    ),
-                  ),
-                ),
-                TextField(
-                  controller: commentController,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    hintText: "Write optional feedback",
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: submitting
-                        ? null
-                        : () async {
-                            if (rating <= 0) {
-                              Utils.toastMessage(
-                                context,
-                                "Please select a star rating first",
-                                isError: true,
-                              );
-                              return;
-                            }
-                            setState(() => submitting = true);
-                            bool ok = false;
-                            try {
-                              final res = await api.submitDoctorReview(
-                                appointment.id.toString(),
-                                rating: rating,
-                                comment: commentController.text.trim(),
-                              );
-                              ok = res != null && res['success'] == true;
-                            } catch (_) {}
-                            if (!context.mounted) return;
-                            if (ok) {
-                              Navigator.pop(ctx);
-                              Utils.toastMessage(
-                                context,
-                                "Thank you for your review!",
-                              );
-                            } else {
-                              setState(() => submitting = false);
-                              Utils.toastMessage(
-                                context,
-                                "Review could not be submitted",
-                                isError: true,
-                              );
-                            }
-                          },
-                    child: submitting
-                        ? const SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text("Submit Review"),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
       },
     );
   }
@@ -719,33 +538,12 @@ class AppointmentInfoCard extends StatelessWidget {
                                               fontSize: 12,
                                               color: Color(0xFF64748B),
                                               fontWeight: FontWeight.w500)),
-                                    Text(
-                                      DateFormat('MMM dd, yyyy • hh:mm a')
-                                          .format(ap.dateTime),
-                                      style: TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.grey[500]),
-                                    ),
+                                    AppointmentScheduleRows(
+                                        appointment: ap, dense: true),
                                   ],
                                 ),
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  ap.type == AppointmentType.online
-                                      ? 'Video'
-                                      : 'In-Person',
-                                  style: const TextStyle(
-                                      fontSize: 10,
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w600),
-                                ),
-                              ),
+                              ConsultationTypeBadge(type: ap.type, compact: true),
                             ],
                           ),
                         ),
@@ -1314,6 +1112,10 @@ class AppointmentInfoCard extends StatelessWidget {
       statusBg = Colors.red.withOpacity(0.1);
       statusColor = Colors.red;
       statusText = "Cancelled";
+    } else if (appointment.status == AppointmentStatus.rescheduled) {
+      statusBg = Colors.blue.shade50;
+      statusColor = Colors.blue.shade700;
+      statusText = "Rescheduled";
     } else if (appointment.status == AppointmentStatus.unconfirmed) {
       statusBg = Colors.orange;
       statusColor = Colors.white;
@@ -1321,7 +1123,9 @@ class AppointmentInfoCard extends StatelessWidget {
     }
 
     return GestureDetector(
-      onTap: isCancelled ? null : () => _showAppointmentOptions(context),
+      onTap: isCancelled
+          ? () => showPatientCancelledAppointmentDetail(context, appointment)
+          : () => showAppointmentOptions(context),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(12),
@@ -1350,9 +1154,16 @@ class AppointmentInfoCard extends StatelessWidget {
                     border: Border.all(color: Colors.grey.withOpacity(0.1)),
                   ),
                   child: ClipOval(
-                    child: CustomNetworkImage(
-                      imageUrl: appointment.doctor?.imageUrl ?? '',
+                    child: Image.network(
+                      appointment.doctor?.imageUrl ??
+                          'https://via.placeholder.com/150',
                       fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey[200],
+                          child: const Icon(Icons.person, color: Colors.grey),
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -1374,23 +1185,51 @@ class AppointmentInfoCard extends StatelessWidget {
                         appointment.doctor?.specialty ?? "Specialist",
                         style: TextStyle(color: Colors.grey[600], fontSize: 13),
                       ),
+                      const SizedBox(height: 4),
+                      AppointmentScheduleRows(
+                          appointment: appointment, dense: true),
                       const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Icon(Icons.access_time_rounded,
-                              size: 14,
-                              color: AppColors.primary.withOpacity(0.7)),
-                          const SizedBox(width: 4),
+                      ConsultationTypeBadge(
+                          type: appointment.type, compact: true),
+                      if (isCancelled) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'Canceled by: ${appointment.patientCancelledByLabel()}',
+                          style: TextStyle(
+                            color: Colors.grey[700],
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        if (appointment.cancelReason != null &&
+                            appointment.cancelReason!.trim().isNotEmpty) ...[
+                          const SizedBox(height: 4),
                           Text(
-                            DateFormat('MMM d, h:mm a')
-                                .format(appointment.dateTime),
+                            appointment.cancelReason!.trim(),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                                color: AppColors.primary.withOpacity(0.8),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500),
+                              color: Colors.grey[800],
+                              fontSize: 12,
+                              height: 1.25,
+                            ),
                           ),
                         ],
-                      ),
+                        if (appointment.feeAmount != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            TripFareFormat.formatCfa(
+                              appointment.feeAmount!,
+                              currencyHint: appointment.currency,
+                            ),
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ],
                     ],
                   ),
                 ),
@@ -1415,7 +1254,7 @@ class AppointmentInfoCard extends StatelessWidget {
                   )
                 else
                   GestureDetector(
-                    onTap: () => _showAppointmentOptions(context),
+                    onTap: () => showAppointmentOptions(context),
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(

@@ -12,6 +12,8 @@ class ChatViewModel extends ChangeNotifier {
   final String doctorId;
   final String patientId;
   final String token;
+  /// Logged-in user id (JWT); used to mark P2P thread read and resolve peer id.
+  int? _currentUserId;
   String? appointmentId;
   String? sosId;
   String? tripId;
@@ -23,12 +25,11 @@ class ChatViewModel extends ChangeNotifier {
   List<ChatMessageModel> get messages => _messages;
 
   StreamSubscription<Map<String, dynamic>>? _newMsgSub;
-
-  static String? _stringIdOrNull(Object? v) {
-    if (v == null) return null;
-    final s = v.toString().trim();
-    return s.isEmpty ? null : s;
-  }
+  StreamSubscription<Map<String, dynamic>>? _typingSub;
+  Timer? _typingDebounce;
+  Timer? _typingHideTimer;
+  bool _isPeerTyping = false;
+  bool get isPeerTyping => _isPeerTyping;
 
   ChatViewModel({
     required this.doctorId,
@@ -41,12 +42,26 @@ class ChatViewModel extends ChangeNotifier {
         tripId = _stringIdOrNull(tripId) {
     _socket.connect(url: '${AppUrl.baseUrl}/chat', token: token);
     _newMsgSub = _socket.newMessageStream.listen(_handleNewMessage);
+    _typingSub = _socket.typingStream.listen(_handleTypingEvent);
     _joinRoomIfPossible();
+  }
+
+  void setCurrentUserId(int? userId) {
+    _currentUserId = userId;
+  }
+
+  static String? _stringIdOrNull(Object? v) {
+    if (v == null) return null;
+    final s = v.toString().trim();
+    return s.isEmpty ? null : s;
   }
 
   @override
   void dispose() {
     _newMsgSub?.cancel();
+    _typingSub?.cancel();
+    _typingDebounce?.cancel();
+    _typingHideTimer?.cancel();
     if (appointmentId != null && appointmentId!.isNotEmpty) {
       _socket.leaveRoom(appointmentId!);
     }
@@ -63,12 +78,12 @@ class ChatViewModel extends ChangeNotifier {
       if (sosId != null && sosId!.isNotEmpty) {
         response = await _apiServices.getSosChatMessageHistory(sosId!);
       } else if (tripId != null && tripId!.isNotEmpty) {
+        // Fallback to trip history if SOS is somehow missing
         response = await _apiServices.getTripChatMessageHistory(tripId!);
       } else {
         response =
             await _apiServices.getUnifiedChatHistory(doctorId, patientId);
       }
-
       List<dynamic> messagesList = [];
       if (response is List) {
         messagesList = List<dynamic>.from(response);
@@ -102,6 +117,7 @@ class ChatViewModel extends ChangeNotifier {
           }
         }
 
+        // If server did not send latestAppointmentId, infer from newest message.
         if ((appointmentId == null || appointmentId!.isEmpty) &&
             fetchedMessages.isNotEmpty &&
             fetchedMessages.any((m) => m.appointmentId != null)) {
@@ -115,12 +131,25 @@ class ChatViewModel extends ChangeNotifier {
         _messages = fetchedMessages;
         _joinRoomIfPossible();
       }
+      if ((sosId == null || sosId!.isEmpty) &&
+          (tripId == null || tripId!.isEmpty)) {
+        unawaited(_markThreadRead());
+      }
     } catch (e) {
       debugPrint("Error fetching unified chat history: $e");
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _markThreadRead() async {
+    if (_currentUserId == null) return;
+    final d = int.tryParse(doctorId);
+    final p = int.tryParse(patientId);
+    if (d == null || p == null) return;
+    final peerId = _currentUserId == d ? p : d;
+    await _apiServices.markChatConversationRead(peerId);
   }
 
   Future<void> sendMessage(String body, String currentUserId,
@@ -153,6 +182,49 @@ class ChatViewModel extends ChangeNotifier {
     } catch (e) {
       debugPrint("Error sending message: $e");
     }
+  }
+
+  void onInputChanged(String text, String currentUserId) {
+    final recipientId = _peerIdForCurrentUser(currentUserId);
+    if (recipientId == null) return;
+
+    if (text.trim().isEmpty) {
+      _typingDebounce?.cancel();
+      _socket.sendTyping(
+        recipientId: recipientId,
+        isTyping: false,
+        appointmentId: appointmentId,
+        sosId: sosId,
+        tripId: tripId,
+      );
+      return;
+    }
+
+    _socket.sendTyping(
+      recipientId: recipientId,
+      isTyping: true,
+      appointmentId: appointmentId,
+      sosId: sosId,
+      tripId: tripId,
+    );
+
+    _typingDebounce?.cancel();
+    _typingDebounce = Timer(const Duration(milliseconds: 1200), () {
+      _socket.sendTyping(
+        recipientId: recipientId,
+        isTyping: false,
+        appointmentId: appointmentId,
+        sosId: sosId,
+        tripId: tripId,
+      );
+    });
+  }
+
+  String? _peerIdForCurrentUser(String currentUserId) {
+    if (sosId != null && sosId!.isNotEmpty) return doctorId;
+    if (tripId != null && tripId!.isNotEmpty) return doctorId;
+    if (currentUserId == doctorId) return patientId;
+    return doctorId;
   }
 
   void _joinRoomIfPossible() {
@@ -219,14 +291,79 @@ class ChatViewModel extends ChangeNotifier {
       final msg = ChatMessageModel.fromJson(msgJson);
       _insertIfNotExists(msg);
       notifyListeners();
+      if (inDm && _currentUserId != null) {
+        final d = int.tryParse(doctorId);
+        final p = int.tryParse(patientId);
+        final me = _currentUserId!;
+        final peer = me == d ? p : d;
+        if (peer != null && msg.senderId == peer) {
+          // User is already inside thread, so any incoming peer message is read.
+          unawaited(_markThreadRead());
+        }
+      }
     } catch (e) {
       debugPrint("Error handling real-time message: $e");
     }
   }
 
+  void _handleTypingEvent(Map<String, dynamic> payload) {
+    try {
+      final data = _unwrapSocketMessage(payload);
+      final sender = data['senderId']?.toString();
+      final recipient = data['recipientId']?.toString();
+      final me = _currentUserId?.toString();
+      if (me == null || me.isEmpty) return;
+      if (sender == null || sender == me) return;
+      if (recipient != null && recipient != me) return;
+
+      final d = int.tryParse(doctorId);
+      final p = int.tryParse(patientId);
+      if (d == null || p == null) return;
+      final meInt = int.tryParse(me);
+      if (meInt == null) return;
+      final peerId = meInt == d ? p : d;
+      if (sender != peerId.toString()) return;
+
+      final inSos = sosId != null && sosId!.isNotEmpty;
+      final inTrip = tripId != null && tripId!.isNotEmpty;
+      final incomingSosId = data['sosId']?.toString();
+      final incomingTripId = data['tripId']?.toString();
+      final incomingApptId = data['appointmentId']?.toString();
+
+      bool relevant = false;
+      if (inSos) {
+        relevant = incomingSosId == sosId;
+      } else if (inTrip) {
+        relevant = incomingTripId == tripId;
+      } else if (appointmentId != null && appointmentId!.isNotEmpty) {
+        // Accept both exact appointment match and fallback peer typing when
+        // backend/client payload does not include appointment context.
+        relevant = incomingApptId == appointmentId || incomingApptId == null;
+      } else {
+        relevant = sender == doctorId || sender == patientId;
+      }
+      if (!relevant) return;
+
+      final typing = data['isTyping'] == true;
+      if (_isPeerTyping != typing) {
+        _isPeerTyping = typing;
+        notifyListeners();
+      }
+
+      _typingHideTimer?.cancel();
+      if (typing) {
+        _typingHideTimer = Timer(const Duration(seconds: 2), () {
+          if (_isPeerTyping) {
+            _isPeerTyping = false;
+            notifyListeners();
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
   /// Backend may emit `{ "message": { ... } }` or flat fields like the REST API.
-  static Map<String, dynamic> _unwrapSocketMessage(
-      Map<String, dynamic> payload) {
+  static Map<String, dynamic> _unwrapSocketMessage(Map<String, dynamic> payload) {
     if (payload['message'] is Map) {
       return Map<String, dynamic>.from(payload['message'] as Map);
     }
@@ -243,8 +380,8 @@ class ChatViewModel extends ChangeNotifier {
     return value?.toString() == userId;
   }
 
-  /// Unwraps `{ success, data }`. If the controller also nested
-  /// `{ success, data: { messages } }`, unwraps one more level.
+  /// Unwraps [ResponseInterceptor] shape `{ success, data }`. If the controller
+  /// also returned `{ success, data: { messages } }`, unwraps one more level.
   static Map<String, dynamic>? _normalizeApiDataEnvelope(dynamic response) {
     if (response is! Map) return null;
     final root = Map<String, dynamic>.from(response);
@@ -258,7 +395,7 @@ class ChatViewModel extends ChangeNotifier {
     return d;
   }
 
-  /// API may return `{ success, data }` or a raw message entity.
+  /// Nest may return `{ success, data }` or a raw message entity from Prisma.
   static Map<String, dynamic>? _parseSendMessageBody(dynamic response) {
     if (response is! Map) return null;
     final map = Map<String, dynamic>.from(response);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:medlink/data/network/api_services.dart';
 import 'package:medlink/utils/utils.dart';
+import 'package:medlink/utils/user_facing_errors.dart';
 
 class ForgotPasswordViewModel extends ChangeNotifier {
   final ApiServices _apiServices = ApiServices();
@@ -47,11 +48,15 @@ class ForgotPasswordViewModel extends ChangeNotifier {
         notifyListeners();
         Utils.toastMessage(context, 'OTP sent to $identifier');
       } else {
-        Utils.toastMessage(context, response['message'] ?? 'Failed to send OTP', isError: true);
+        final msg = UserFacingErrors.forApiMessage(
+          response['message']?.toString(),
+          fallback: 'Could not send OTP. Please try again.',
+        );
+        Utils.toastMessage(context, msg, isError: true);
       }
     } catch (e) {
       setLoading(false);
-      Utils.toastMessage(context, e.toString(), isError: true);
+      Utils.toastError(context, e);
     }
   }
 
@@ -72,11 +77,15 @@ class ForgotPasswordViewModel extends ChangeNotifier {
         _currentStep = 3; // Move to Reset Password step
         notifyListeners();
       } else {
-        Utils.toastMessage(context, response['message'] ?? 'Invalid OTP', isError: true);
+        final msg = UserFacingErrors.forApiMessage(
+          response['message']?.toString(),
+          fallback: 'Invalid or expired OTP. Please try again.',
+        );
+        Utils.toastMessage(context, msg, isError: true);
       }
     } catch (e) {
       setLoading(false);
-      Utils.toastMessage(context, e.toString(), isError: true);
+      Utils.toastError(context, e);
     }
   }
 
@@ -96,11 +105,15 @@ class ForgotPasswordViewModel extends ChangeNotifier {
         Utils.toastMessage(context, 'Password reset successfully');
         Navigator.pop(context); // Close bottom sheet
       } else {
-        Utils.toastMessage(context, response['message'] ?? 'Failed to reset password', isError: true);
+        final msg = UserFacingErrors.forApiMessage(
+          response['message']?.toString(),
+          fallback: 'Could not reset password. Please try again.',
+        );
+        Utils.toastMessage(context, msg, isError: true);
       }
     } catch (e) {
       setLoading(false);
-      Utils.toastMessage(context, e.toString(), isError: true);
+      Utils.toastError(context, e);
     }
   }
 

@@ -8,10 +8,23 @@ enum AppointmentStatus {
   upcoming,
   completed,
   cancelled,
-  unconfirmed
+  unconfirmed,
+  rescheduled,
 }
 
 enum AppointmentType { online, inPerson }
+
+/// API payload for booking; must match backend enum (see `AppointmentModel.fromJson`).
+extension AppointmentTypeApi on AppointmentType {
+  String get consultKindValue =>
+      this == AppointmentType.online ? 'VIDEO' : 'IN_PERSON';
+}
+
+/// Short labels for UI lists and badges.
+extension AppointmentTypeUi on AppointmentType {
+  String get shortLabel =>
+      this == AppointmentType.online ? 'Online' : 'Physical';
+}
 
 class PrescriptionModel {
   final String id;
@@ -44,6 +57,10 @@ class AppointmentModel {
   final String doctorId;
   final String userId;
   final DateTime dateTime;
+  /// From API `scheduledStart` when present; may be null if only legacy `date`/`time` fields exist.
+  final DateTime? scheduledStart;
+  final DateTime? scheduledEnd;
+  final DateTime? createdAt;
   final AppointmentStatus status;
   final AppointmentType type;
   final String? reason;
@@ -53,11 +70,42 @@ class AppointmentModel {
   final PrescriptionModel? prescription;
   final bool isPaid;
 
+  /// From API: `PENDING` | `APPROVED` | `REJECTED` (nullable for older clients).
+  final String? doctorApproval;
+
+  /// Consultation fee snapshot on the appointment (from API `feeAmount`).
+  final double? feeAmount;
+  final String? currency;
+  final String? cancelReason;
+  final String? cancelledById;
+
+  /// Effective slot start for display and sorting (scheduledStart from API, else parsed dateTime).
+  DateTime get displayScheduledStart => (scheduledStart ?? dateTime).toLocal();
+
+  /// User-facing duration (e.g. "45 min") when both ends of the slot exist.
+  String? get scheduledDurationLabel {
+    final start = scheduledStart;
+    final end = scheduledEnd;
+    if (start == null || end == null) return null;
+    var mins = end.difference(start).inMinutes;
+    if (mins <= 0) return null;
+    if (mins >= 60) {
+      final h = mins ~/ 60;
+      final m = mins % 60;
+      if (m == 0) return '${h}h';
+      return '${h}h ${m}m';
+    }
+    return '$mins min';
+  }
+
   AppointmentModel({
     required this.id,
     required this.doctorId,
     required this.userId,
     required this.dateTime,
+    this.scheduledStart,
+    this.scheduledEnd,
+    this.createdAt,
     required this.status,
     required this.type,
     this.reason,
@@ -66,7 +114,39 @@ class AppointmentModel {
     this.vitals,
     this.prescription,
     this.isPaid = false,
+    this.doctorApproval,
+    this.feeAmount,
+    this.currency,
+    this.cancelReason,
+    this.cancelledById,
   });
+
+  static double? _parseAmount(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString().trim());
+  }
+
+  static DateTime? _parseDate(dynamic v) {
+    if (v == null) return null;
+    if (v is DateTime) return v.toLocal();
+    if (v is int) {
+      return DateTime.fromMillisecondsSinceEpoch(v, isUtc: true).toLocal();
+    }
+    if (v is double) {
+      return DateTime.fromMillisecondsSinceEpoch(v.round(), isUtc: true)
+          .toLocal();
+    }
+    String s = v.toString().trim();
+    if (s.isEmpty) return null;
+    // Some JSON encoders use space instead of "T" between date and time.
+    if (s.contains(' ') && !s.contains('T') && RegExp(r'^\d{4}-\d{2}-\d{2} ')
+        .hasMatch(s)) {
+      s = s.replaceFirst(' ', 'T');
+    }
+    final parsed = DateTime.tryParse(s);
+    return parsed?.toLocal();
+  }
 
   factory AppointmentModel.fromJson(Map<String, dynamic> json) {
     var doctorObj = json['doctor'] ?? json['doctor_id'];
@@ -78,38 +158,81 @@ class AppointmentModel {
           doctorObj['_id']?.toString() ??
           doctorId;
 
-      String clinicName = '';
-      if (doctorObj['doctorProfile'] is Map) {
-        clinicName = doctorObj['doctorProfile']['clinicName'] ?? '';
+      try {
+        final parsed = DoctorModel.fromJson(doctorObj);
+        doctorModel = parsed;
+        doctorId = parsed.id.isNotEmpty ? parsed.id : doctorId;
+      } catch (_) {
+        String clinicName = '';
+        if (doctorObj['doctorProfile'] is Map) {
+          clinicName = doctorObj['doctorProfile']['clinicName'] ?? '';
+        }
+
+        String? readSpecialtyName(dynamic raw) {
+          if (raw == null) return null;
+          if (raw is String) {
+            final value = raw.trim();
+            return value.isEmpty ? null : value;
+          }
+          if (raw is Map) {
+            final direct = raw['name'] ?? raw['title'] ?? raw['label'];
+            if (direct is String && direct.trim().isNotEmpty) {
+              return direct.trim();
+            }
+            return readSpecialtyName(
+              raw['specialty'] ?? raw['specialisation'] ?? raw['specialization'],
+            );
+          }
+          if (raw is List) {
+            for (final item in raw) {
+              final parsed = readSpecialtyName(item);
+              if (parsed != null) return parsed;
+            }
+          }
+          return null;
+        }
+
+        String photoUrl = AppUrl.getFullUrl(
+            doctorObj['profilePhotoUrl']?.toString() ??
+                doctorObj['profile_image_url']?.toString());
+
+        doctorModel = DoctorModel(
+          id: doctorId,
+          name: doctorObj['fullName'] ?? doctorObj['full_name'] ?? 'Unknown',
+          specialty: readSpecialtyName(doctorObj['doctorSpecialties']) ??
+              readSpecialtyName(doctorObj['specialties']) ??
+              readSpecialtyName(doctorObj['specialty']) ??
+              readSpecialtyName(doctorObj['specialisation']) ??
+              readSpecialtyName(doctorObj['specialization']) ??
+              readSpecialtyName(doctorObj['doctorProfile']) ??
+              'Specialist',
+          hospital: clinicName,
+          rating: 0.0,
+          imageUrl: photoUrl,
+          isAvailable: true,
+          consultationFee: 0.0,
+          about: '',
+        );
       }
-
-      String photoUrl = AppUrl.getFullUrl(
-          doctorObj['profilePhotoUrl']?.toString() ??
-              doctorObj['profile_image_url']?.toString());
-
-      // Create a partial doctor model if we have data
-      doctorModel = DoctorModel(
-        id: doctorId,
-        name: doctorObj['fullName'] ?? doctorObj['full_name'] ?? 'Unknown',
-        specialty: doctorObj['specialty'] ?? 'Specialist',
-        hospital: clinicName,
-        rating: 0.0,
-        imageUrl: photoUrl,
-        isAvailable: true,
-        consultationFee: 0.0,
-        about: '',
-      );
     } else if (doctorObj is String) {
       doctorId = doctorObj;
     }
 
+    final DateTime? scheduledStartRaw = _parseDate(
+        json['scheduledStart'] ?? json['scheduled_start']);
+    final DateTime? scheduledEndRaw = _parseDate(
+        json['scheduledEnd'] ?? json['scheduled_end']);
+    final DateTime? createdAtRaw = _parseDate(
+        json['createdAt'] ?? json['created_at']);
+
     DateTime parsedDate = DateTime.now();
-    if (json['scheduledStart'] != null) {
-      parsedDate = DateTime.tryParse(json['scheduledStart'])?.toLocal() ??
-          DateTime.now();
+    if (scheduledStartRaw != null) {
+      parsedDate = scheduledStartRaw;
     } else if (json['date'] != null && json['time'] != null) {
-      parsedDate = DateTime.tryParse("${json['date']}T${json['time']}") ??
-          DateTime.now();
+      final combined =
+          "${json['date']}T${json['time']}".replaceAll(' ', 'T');
+      final raw = DateTime.tryParse(combined);
+      parsedDate = raw != null ? raw.toLocal() : DateTime.now();
     }
 
     UserModel? patientModel;
@@ -123,10 +246,11 @@ class AppointmentModel {
       userId:
           json['patientId']?.toString() ?? json['patient_id']?.toString() ?? '',
       dateTime: parsedDate,
+      scheduledStart: scheduledStartRaw,
+      scheduledEnd: scheduledEndRaw,
+      createdAt: createdAtRaw,
       status: _parseStatus(json['status']),
-      type: json['consultKind'] == 'VIDEO'
-          ? AppointmentType.online
-          : AppointmentType.inPerson,
+      type: _parseConsultKind(json),
       reason: json['reason'],
       doctor: doctorModel,
       user: patientModel,
@@ -135,7 +259,40 @@ class AppointmentModel {
           ? PrescriptionModel.fromJson(json['prescription'])
           : null,
       isPaid: json['isPaid'] ?? false,
+      doctorApproval: json['doctorApproval']?.toString() ??
+          json['doctor_approval']?.toString(),
+      feeAmount: _parseAmount(json['feeAmount'] ?? json['fee_amount']),
+      currency: json['currency']?.toString(),
+      cancelReason: json['cancelReason']?.toString() ??
+          json['cancel_reason']?.toString(),
+      cancelledById: json['cancelledById']?.toString() ??
+          json['cancelled_by_id']?.toString(),
     );
+  }
+
+  /// Patient list: "You" vs "Doctor" vs unknown (uses [userId] / [doctorId] vs [cancelledById]).
+  String patientCancelledByLabel() {
+    final cid = cancelledById;
+    if (cid == null || cid.isEmpty) return 'Unknown';
+    if (cid == userId) return 'You';
+    if (cid == doctorId) return 'Doctor';
+    return 'Unknown';
+  }
+
+  static AppointmentType _parseConsultKind(Map<String, dynamic> json) {
+    final v = json['consultKind'] ??
+        json['consulKind'] ??
+        json['consultationType'] ??
+        json['consultation_kind'];
+    if (v == null) return AppointmentType.inPerson;
+    final s = v.toString().toUpperCase().replaceAll('-', '_');
+    if (s == 'VIDEO' ||
+        s == 'ONLINE' ||
+        s == 'VIRTUAL' ||
+        s == 'TELEMEDICINE') {
+      return AppointmentType.online;
+    }
+    return AppointmentType.inPerson;
   }
 
   static AppointmentStatus _parseStatus(String? status) {
@@ -152,9 +309,46 @@ class AppointmentModel {
       case 'past':
         return AppointmentStatus.unconfirmed;
       case 'cancelled':
+      case 'canceled': // US spelling from some APIs
         return AppointmentStatus.cancelled;
+      case 'rescheduled':
+        return AppointmentStatus.rescheduled;
       default:
         return AppointmentStatus.unconfirmed;
     }
+  }
+
+  /// Still shown on doctor "upcoming" dashboard/lists (exclude cancelled/completed).
+  bool get isDoctorUpcomingSlot {
+    switch (status) {
+      case AppointmentStatus.cancelled:
+      case AppointmentStatus.completed:
+        return false;
+      default:
+        return true;
+    }
+  }
+
+  /// Doctor may cancel these; completed/cancelled cannot be cancelled again.
+  static bool doctorCanCancel(AppointmentStatus s) {
+    switch (s) {
+      case AppointmentStatus.completed:
+      case AppointmentStatus.cancelled:
+        return false;
+      default:
+        return true;
+    }
+  }
+
+  /// Newest bookings first ([createdAt] descending). Null [createdAt] sorts last.
+  static void sortByCreatedAtDescending(List<AppointmentModel> list) {
+    list.sort((a, b) {
+      final ca = a.createdAt;
+      final cb = b.createdAt;
+      if (ca == null && cb == null) return 0;
+      if (ca == null) return 1;
+      if (cb == null) return -1;
+      return cb.compareTo(ca);
+    });
   }
 }

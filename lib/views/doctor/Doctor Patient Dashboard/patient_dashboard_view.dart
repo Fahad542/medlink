@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:medlink/core/constants/app_colors.dart';
+import 'package:medlink/core/localization/app_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:medlink/models/user_model.dart';
 import 'package:medlink/views/Patient App/consultation/chat_view.dart';
-import 'package:medlink/views/Patient App/consultation/waiting_room_view.dart';
 import 'package:medlink/views/doctor/Doctor%20Patient%20Dashboard/appointment_detail_view.dart';
 import 'package:medlink/views/doctor/past_appointments_view.dart';
 import 'package:medlink/views/doctor/past_appointments_view_model.dart';
@@ -20,6 +20,7 @@ class PatientDashboardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Consumer<DoctorPatientDashboardViewModel>(
       builder: (context, viewModel, child) {
         final patient = viewModel.patient;
@@ -30,19 +31,21 @@ class PatientDashboardView extends StatelessWidget {
           body: viewModel.isLoading
               ? _buildShimmerLoading(context)
               : SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
+                  physics: const ClampingScrollPhysics(),
                   child: Stack(
+                    clipBehavior: Clip.none,
                     children: [
                       // 1. Enhanced Header Background
                       Container(
-                        height: 240,
+                        height: 268,
                         decoration: const BoxDecoration(
                           gradient: LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [Color(0xFF00897B), AppColors.primary],
                           ),
-                          borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
+                          borderRadius: BorderRadius.vertical(
+                              bottom: Radius.circular(30)),
                         ),
                       ),
                       // Decorative Patterns (Circles)
@@ -77,7 +80,8 @@ class PatientDashboardView extends StatelessWidget {
                           // Header Content
                           SafeArea(
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
                               child: Column(
                                 children: [
                                   // Custom Navigation Bar
@@ -88,8 +92,10 @@ class PatientDashboardView extends StatelessWidget {
                                       Padding(
                                         padding: const EdgeInsets.only(top: 70),
                                         child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.start,
-                                          crossAxisAlignment: CrossAxisAlignment.center,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
                                           children: [
                                             // Profile Image
                                             Container(
@@ -99,7 +105,8 @@ class PatientDashboardView extends StatelessWidget {
                                                 color: Colors.white,
                                                 boxShadow: [
                                                   BoxShadow(
-                                                    color: Colors.black.withOpacity(0.15),
+                                                    color: Colors.black
+                                                        .withOpacity(0.15),
                                                     blurRadius: 15,
                                                     offset: const Offset(0, 5),
                                                   ),
@@ -108,18 +115,27 @@ class PatientDashboardView extends StatelessWidget {
                                               child: CircleAvatar(
                                                 radius: 35,
                                                 backgroundColor: Colors.white,
-                                                backgroundImage: (patient.profileImage != null &&
-                                                        patient.profileImage!.isNotEmpty)
-                                                    ? NetworkImage(patient.profileImage!)
+                                                backgroundImage: (patient
+                                                                .profileImage !=
+                                                            null &&
+                                                        patient.profileImage!
+                                                            .isNotEmpty)
+                                                    ? NetworkImage(
+                                                        patient.profileImage!)
                                                     : null,
-                                                child: (patient.profileImage == null ||
-                                                        patient.profileImage!.isEmpty)
+                                                child: (patient.profileImage ==
+                                                            null ||
+                                                        patient.profileImage!
+                                                            .isEmpty)
                                                     ? Text(
-                                                        viewModel.patientInitials,
+                                                        viewModel
+                                                            .patientInitials,
                                                         style: const TextStyle(
                                                             fontSize: 18,
-                                                            fontWeight: FontWeight.bold,
-                                                            color: AppColors.primary),
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color: AppColors
+                                                                .primary),
                                                       )
                                                     : null,
                                               ),
@@ -130,77 +146,123 @@ class PatientDashboardView extends StatelessWidget {
                                             // Name with Gender/Age
                                             Expanded(
                                               child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
                                                   Row(
                                                     children: [
                                                       Expanded(
                                                         child: Row(
-                                                          mainAxisSize: MainAxisSize.min,
+                                                          mainAxisSize:
+                                                              MainAxisSize.min,
                                                           children: [
                                                             Flexible(
                                                               child: Text(
-                                                                profile?.name ?? patient.name ?? "Unknown",
-                                                                style: const TextStyle(
-                                                                  color: Colors.white,
+                                                                profile?.name ??
+                                                                    patient
+                                                                        .name ??
+                                                                    l10n.tr(
+                                                                        'common.unknown'),
+                                                                style:
+                                                                    const TextStyle(
+                                                                  color: Colors
+                                                                      .white,
                                                                   fontSize: 20,
-                                                                  fontWeight: FontWeight.w700,
-                                                                  letterSpacing: -0.5,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w700,
+                                                                  letterSpacing:
+                                                                      -0.5,
                                                                 ),
                                                                 maxLines: 1,
-                                                                overflow: TextOverflow.ellipsis,
+                                                                overflow:
+                                                                    TextOverflow
+                                                                        .ellipsis,
                                                               ),
                                                             ),
                                                           ],
                                                         ),
                                                       ),
                                                       const SizedBox(width: 8),
-                                                      _buildHeaderAction("assets/Icons/chat.png", () {
-                                                        final userVM = Provider.of<UserViewModel>(context, listen: false);
-                                                        final uId = userVM.loginSession?.data?.user?.id?.toString();
-                                                        final dId = userVM.doctor?.id;
-                                                        final currentUserId = (uId != null && uId.isNotEmpty) ? uId :
-                                                                              (dId != null && dId.isNotEmpty) ? dId : "0";
+                                                      _buildHeaderAction(
+                                                          "assets/Icons/chatting.png",
+                                                          () {
+                                                        final userVM = Provider
+                                                            .of<UserViewModel>(
+                                                                context,
+                                                                listen: false);
+                                                        final uId = userVM
+                                                            .loginSession
+                                                            ?.data
+                                                            ?.user
+                                                            ?.id
+                                                            ?.toString();
+                                                        final dId =
+                                                            userVM.doctor?.id;
+                                                        final currentUserId = (uId !=
+                                                                    null &&
+                                                                uId.isNotEmpty)
+                                                            ? uId
+                                                            : (dId != null &&
+                                                                    dId.isNotEmpty)
+                                                                ? dId
+                                                                : "0";
                                                         Navigator.push(
                                                             context,
                                                             MaterialPageRoute(
-                                                                builder: (_) => ChatView(
-                                                                      recipientName: patient.name ?? "Patient",
-                                                                      profileImage: patient.profileImage ?? "",
-                                                                      appointmentId: patient.lastAppointmentId ?? "0",
-                                                                      doctorId: currentUserId.toString(),
-                                                                      patientId: patient.id.toString(),
+                                                                builder: (_) =>
+                                                                    ChatView(
+                                                                      recipientName: patient
+                                                                              .name ??
+                                                                          l10n.tr(
+                                                                              'common.patient'),
+                                                                      profileImage:
+                                                                          patient.profileImage ??
+                                                                              "",
+                                                                      appointmentId:
+                                                                          patient.lastAppointmentId ??
+                                                                              "0",
+                                                                      doctorId:
+                                                                          currentUserId
+                                                                              .toString(),
+                                                                      patientId:
+                                                                          patient
+                                                                              .id
+                                                                              .toString(),
                                                                     )));
-                                                      }, iconSize: 16, bgColor: Colors.white.withOpacity(0.15)),
-                                                      const SizedBox(width: 8),
-                                                      _buildHeaderAction("assets/Icons/video.png",
-                                                          () => Navigator.push(
-                                                              context,
-                                                              MaterialPageRoute(
-                                                                  builder: (_) => WaitingRoomView(
-                                                                      callTargetName: patient.name,
-                                                                      isDoctor: true,
-                                                                      appointmentId: patient.lastAppointmentId))),
-                                                          iconSize: 18,
-                                                          bgColor: Colors.white.withOpacity(0.15)),
+                                                      },
+                                                          iconSize: 40,
+                                                          bgColor: Colors.white
+                                                              .withOpacity(
+                                                                  0.15)),
                                                     ],
                                                   ),
                                                   const SizedBox(height: 4),
                                                   Row(
                                                     children: [
                                                       Container(
-                                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                                        decoration: BoxDecoration(
-                                                          color: Colors.white.withOpacity(0.2),
-                                                          borderRadius: BorderRadius.circular(12),
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                                horizontal: 8,
+                                                                vertical: 3),
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          color: Colors.white
+                                                              .withOpacity(0.2),
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(12),
                                                         ),
                                                         child: Text(
-                                                          "${profile?.gender ?? patient.gender ?? 'Male'}, ${profile?.age ?? patient.age ?? 0}",
-                                                          style: const TextStyle(
+                                                          "${profile?.gender ?? patient.gender ?? l10n.tr('doctor.gender.default')}, ${profile?.age ?? patient.age ?? 0}",
+                                                          style:
+                                                              const TextStyle(
                                                             color: Colors.white,
                                                             fontSize: 11,
-                                                            fontWeight: FontWeight.w600,
+                                                            fontWeight:
+                                                                FontWeight.w600,
                                                           ),
                                                         ),
                                                       ),
@@ -221,12 +283,18 @@ class PatientDashboardView extends StatelessWidget {
                                           width: 36,
                                           height: 36,
                                           decoration: BoxDecoration(
-                                            color: Colors.white.withOpacity(0.2),
-                                            borderRadius: BorderRadius.circular(12),
+                                            color:
+                                                Colors.white.withOpacity(0.2),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
                                           ),
                                           child: IconButton(
-                                            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 16),
-                                            onPressed: () => Navigator.pop(context),
+                                            icon: const Icon(
+                                                Icons.arrow_back_ios_new,
+                                                color: Colors.white,
+                                                size: 16),
+                                            onPressed: () =>
+                                                Navigator.pop(context),
                                             padding: EdgeInsets.zero,
                                             constraints: const BoxConstraints(),
                                           ),
@@ -234,13 +302,14 @@ class PatientDashboardView extends StatelessWidget {
                                       ),
 
                                       // Centered Title
-                                      const Positioned(
+                                      Positioned(
                                         top: 12,
                                         left: 0,
                                         right: 0,
                                         child: Center(
                                           child: Text(
-                                            "Patient Profile",
+                                            l10n.tr(
+                                                'doctor.patient.profile_title'),
                                             style: TextStyle(
                                               color: Colors.white,
                                               fontSize: 22,
@@ -256,52 +325,73 @@ class PatientDashboardView extends StatelessWidget {
                             ),
                           ),
 
-                          const SizedBox(height: 16),
-
-                          // 3. Latest Vitals
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-                            child: Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.03),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                      child: _buildCompactVitalItem(
-                                          "BP", profile?.bps ?? "120/80", "mmHg", Icons.favorite_outline, Colors.pink)),
-                                  Container(width: 1, height: 40, color: Colors.grey.shade200),
-                                  Expanded(
-                                      child: _buildCompactVitalItem("Heart", "${profile?.heartRate ?? 72}", "bpm",
-                                          Icons.monitor_heart_outlined, Colors.blue)),
-                                  Container(width: 1, height: 40, color: Colors.grey.shade200),
-                                  Expanded(
-                                      child: _buildCompactVitalItem("Weight", "${profile?.weight ?? 75}", "kg",
-                                          Icons.monitor_weight_outlined, Colors.orange)),
-                                ],
+                          // 3. Latest Vitals — overlap teal header (same pattern as doctor/patient profile KPIs)
+                          Transform.translate(
+                            offset: const Offset(0, -18),
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.06),
+                                      blurRadius: 14,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                        child: _buildCompactVitalItem(
+                                            "BP",
+                                            profile?.bps ?? "120/80",
+                                            "mmHg",
+                                            Icons.favorite_outline,
+                                            Colors.pink)),
+                                    Container(
+                                        width: 1,
+                                        height: 40,
+                                        color: Colors.grey.shade200),
+                                    Expanded(
+                                        child: _buildCompactVitalItem(
+                                            "Heart",
+                                            "${profile?.heartRate ?? 72}",
+                                            "bpm",
+                                            Icons.monitor_heart_outlined,
+                                            Colors.blue)),
+                                    Container(
+                                        width: 1,
+                                        height: 40,
+                                        color: Colors.grey.shade200),
+                                    Expanded(
+                                        child: _buildCompactVitalItem(
+                                            "Weight",
+                                            "${profile?.weight ?? 75}",
+                                            "kg",
+                                            Icons.monitor_weight_outlined,
+                                            Colors.orange)),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
 
-                          const SizedBox(height: 28),
+                          const SizedBox(height: 12),
 
                           // 4. Quick Actions
-                          const Padding(
+                          Padding(
                             padding: EdgeInsets.symmetric(horizontal: 20),
                             child: Row(
                               children: [
-                                Text("Quick Actions",
+                                Text(l10n.tr('doctor.patient.quick_actions'),
                                     style: TextStyle(
-                                        fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.textPrimary)),
                               ],
                             ),
                           ),
@@ -312,8 +402,14 @@ class PatientDashboardView extends StatelessWidget {
                               children: [
                                 Expanded(
                                   child: _buildInfoCard(
-                                    "Past Visits",
-                                    "${profile?.pastVisitsCount ?? 0} History",
+                                    l10n.tr('doctor.patient.past_visits'),
+                                    l10n.tr(
+                                      'doctor.patient.history_suffix',
+                                      params: {
+                                        'count':
+                                            '${profile?.pastVisitsCount ?? 0}'
+                                      },
+                                    ),
                                     Icons.history_rounded,
                                     Colors.orange,
                                   ),
@@ -321,8 +417,14 @@ class PatientDashboardView extends StatelessWidget {
                                 const SizedBox(width: 16),
                                 Expanded(
                                   child: _buildInfoCard(
-                                    "Lab Reports",
-                                    "${profile?.unsubmittedReportsCount ?? 0} New",
+                                    l10n.tr('doctor.patient.lab_reports'),
+                                    l10n.tr(
+                                      'doctor.patient.new_suffix',
+                                      params: {
+                                        'count':
+                                            '${profile?.unsubmittedReportsCount ?? 0}'
+                                      },
+                                    ),
                                     Icons.assignment_rounded,
                                     Colors.blue,
                                   ),
@@ -340,16 +442,22 @@ class PatientDashboardView extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
-                                    const Text("Past Appointments",
+                                    Text(
+                                        l10n.tr(
+                                            'doctor.patient.past_appointments'),
                                         style: TextStyle(
-                                            fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.textPrimary)),
                                     TextButton(
                                       onPressed: () => Navigator.push(
                                           context,
                                           MaterialPageRoute(
-                                              builder: (_) => ChangeNotifierProvider(
+                                              builder: (_) =>
+                                                  ChangeNotifierProvider(
                                                     create: (_) =>
                                                         PastAppointmentsViewModel(),
                                                     child: PastAppointmentsView(
@@ -357,44 +465,69 @@ class PatientDashboardView extends StatelessWidget {
                                                         history: viewModel
                                                             .appointmentHistory),
                                                   ))),
-                                      child: const Text("View All",
-                                          style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                                      child: Text(
+                                          l10n.tr('doctor.patient.view_all'),
+                                          style: TextStyle(
+                                              color: AppColors.primary,
+                                              fontWeight: FontWeight.bold)),
                                     )
                                   ],
                                 ),
                                 const SizedBox(height: 10),
                                 // This could be populated from real appointments if API provides them
                                 // For now staying with the mock visits as in original build
-                                  if (viewModel.appointmentHistory.isEmpty)
-                                    _buildEmptyHistoryState()
-                                  else
-                                    ...viewModel.appointmentHistory
-                                        .take(3)
-                                        .map((history) => Padding(
-                                              padding: const EdgeInsets.only(bottom: 12),
-                                              child: _buildVisitCard(
-                                                history.appointmentName ?? "Consultation",
-                                                history.chiefComplaint ?? "No complaint provided",
-                                                _formatAppointmentDate(history.date),
-                                                true,
-                                                AppColors.primary,
-                                                iconAsset: "assets/Icons/appointment.png",
-                                                onTap: () => Navigator.push(
-                                                  context,
-                                                  MaterialPageRoute(
-                                                    builder: (_) => ChangeNotifierProvider(
-                                                      create: (_) => PrescriptionDetailViewModel(),
-                                                      child: AppointmentDetailView(
-                                                        title: history.appointmentName ?? "Consultation",
-                                                        date: _formatAppointmentDate(history.date),
-                                                        reason: history.chiefComplaint ?? "No complaint",
-                                                        appointmentId: history.appointmentId?.toString() ?? "0",
-                                                      ),
+                                if (viewModel.appointmentHistory.isEmpty)
+                                  _buildEmptyHistoryState(context)
+                                else
+                                  ...viewModel.appointmentHistory
+                                      .take(3)
+                                      .map((history) => Padding(
+                                            padding: const EdgeInsets.only(
+                                                bottom: 12),
+                                            child: _buildVisitCard(
+                                              history.appointmentName ??
+                                                  l10n.tr(
+                                                      'doctor.patient.consultation'),
+                                              history.chiefComplaint ??
+                                                  l10n.tr(
+                                                      'doctor.patient.no_complaint_provided'),
+                                              _formatAppointmentDate(
+                                                  context, history.date),
+                                              true,
+                                              AppColors.primary,
+                                              iconAsset:
+                                                  "assets/Icons/appointment.png",
+                                              onTap: () => Navigator.push(
+                                                context,
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      ChangeNotifierProvider(
+                                                    create: (_) =>
+                                                        PrescriptionDetailViewModel(),
+                                                    child:
+                                                        AppointmentDetailView(
+                                                      title: history
+                                                              .appointmentName ??
+                                                          l10n.tr(
+                                                              'doctor.patient.consultation'),
+                                                      date:
+                                                          _formatAppointmentDate(
+                                                              context,
+                                                              history.date),
+                                                      reason: history
+                                                              .chiefComplaint ??
+                                                          l10n.tr(
+                                                              'doctor.patient.no_complaint'),
+                                                      appointmentId: history
+                                                              .appointmentId
+                                                              ?.toString() ??
+                                                          "0",
                                                     ),
                                                   ),
                                                 ),
                                               ),
-                                            )),
+                                            ),
+                                          )),
                               ],
                             ),
                           ),
@@ -438,7 +571,8 @@ class PatientDashboardView extends StatelessWidget {
                           Container(
                             width: 70,
                             height: 70,
-                            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                            decoration: const BoxDecoration(
+                                color: Colors.white, shape: BoxShape.circle),
                           ),
                           const SizedBox(width: 12),
                           Column(
@@ -447,13 +581,17 @@ class PatientDashboardView extends StatelessWidget {
                               Container(
                                 height: 20,
                                 width: 150,
-                                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4)),
+                                decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(4)),
                               ),
                               const SizedBox(height: 8),
                               Container(
                                 height: 16,
                                 width: 100,
-                                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(4)),
+                                decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(4)),
                               ),
                             ],
                           ),
@@ -474,7 +612,9 @@ class PatientDashboardView extends StatelessWidget {
               highlightColor: Colors.grey[50]!,
               child: Container(
                 height: 80,
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16)),
               ),
             ),
           ),
@@ -490,7 +630,9 @@ class PatientDashboardView extends StatelessWidget {
                     highlightColor: Colors.grey[50]!,
                     child: Container(
                       height: 120,
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
+                      decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24)),
                     ),
                   ),
                 ),
@@ -501,7 +643,9 @@ class PatientDashboardView extends StatelessWidget {
                     highlightColor: Colors.grey[50]!,
                     child: Container(
                       height: 120,
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
+                      decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24)),
                     ),
                   ),
                 ),
@@ -522,7 +666,9 @@ class PatientDashboardView extends StatelessWidget {
                           highlightColor: Colors.grey[50]!,
                           child: Container(
                             height: 70,
-                            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+                            decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16)),
                           ),
                         ),
                       )),
@@ -645,113 +791,123 @@ class PatientDashboardView extends StatelessWidget {
   Widget _buildVisitCard(
       String title, String subtitle, String time, bool highlight, Color color,
       {String? iconAsset, VoidCallback? onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 4)),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
-              child: iconAsset != null
-                  ? Image.asset(iconAsset, width: 20, height: 20, color: color)
-                  : Icon(
-                      highlight
-                          ? Icons.check_circle_rounded
-                          : Icons.history_edu_rounded,
-                      color: color,
-                      size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold,
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: color.withValues(alpha: 0.12),
+                child: iconAsset != null
+                    ? Image.asset(iconAsset,
+                        width: 22, height: 22, color: color)
+                    : Icon(
+                        highlight
+                            ? Icons.check_circle_rounded
+                            : Icons.history_edu_rounded,
+                        color: color,
+                        size: 22,
+                      ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      time,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w600,
                               fontSize: 15,
-                              color: AppColors.textPrimary),
-                          overflow: TextOverflow.ellipsis,
+                              color: const Color(0xFF1F2937),
+                            ),
+                          ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 12.5,
+                        color: Colors.grey[600],
                       ),
-                      Text(time,
-                          style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey[500],
-                              fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          subtitle,
-                          style:
-                              TextStyle(fontSize: 12, color: Colors.grey[600]),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const Row(
-                        children: [
-                          Text("See Details",
-                              style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 11)),
-                          SizedBox(width: 2),
-                          Icon(Icons.arrow_forward_ios_rounded,
-                              size: 9, color: AppColors.primary),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+              const SizedBox(width: 8),
+              Align(
+                alignment: Alignment.center,
+                child: Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 12,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildHeaderAction(String assetPath, VoidCallback onTap,
-      {double iconSize = 16.0, Color? bgColor}) {
+  Widget _buildHeaderAction(String? assetPath, VoidCallback onTap,
+      {double iconSize = 16.0, Color? bgColor, IconData? iconData}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(30),
       child: Container(
-        padding: const EdgeInsets.all(8),
+        padding: EdgeInsets.zero,
         decoration: BoxDecoration(
           color: bgColor ?? Colors.white.withOpacity(0.2),
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+          border: Border.all(color: Colors.white.withOpacity(0.25), width: 0.6),
         ),
-        child: Image.asset(assetPath,
-            width: iconSize, height: iconSize, color: Colors.white),
+        child: iconData != null
+            ? Icon(iconData, size: iconSize, color: Colors.white)
+            : ColorFiltered(
+                colorFilter:
+                    const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                child: Image.asset(
+                  assetPath!,
+                  width: iconSize,
+                  height: iconSize,
+                ),
+              ),
       ),
     );
   }
@@ -899,19 +1055,26 @@ class PatientDashboardView extends StatelessWidget {
     );
   }
 
-  String _formatAppointmentDate(String? dateStr) {
-    if (dateStr == null) return "N/A";
+  String _formatAppointmentDate(BuildContext context, String? dateStr) {
+    if (dateStr == null) return AppLocalizations.of(context).tr('common.na');
     try {
       final dateTime = DateTime.parse(dateStr).toLocal();
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
-      final appointmentDate = DateTime(dateTime.year, dateTime.month, dateTime.day);
+      final appointmentDate =
+          DateTime(dateTime.year, dateTime.month, dateTime.day);
       final difference = today.difference(appointmentDate).inDays;
 
       if (difference == 0) {
-        return "Today, ${DateFormat.jm().format(dateTime)}";
+        return AppLocalizations.of(context).tr(
+          'common.today_time',
+          params: {'time': DateFormat.jm().format(dateTime)},
+        );
       } else if (difference == 1) {
-        return "Yesterday, ${DateFormat.jm().format(dateTime)}";
+        return AppLocalizations.of(context).tr(
+          'common.yesterday_time',
+          params: {'time': DateFormat.jm().format(dateTime)},
+        );
       } else {
         return DateFormat('MMM d, yyyy - hh:mm a').format(dateTime);
       }
@@ -920,7 +1083,7 @@ class PatientDashboardView extends StatelessWidget {
     }
   }
 
-  Widget _buildEmptyHistoryState() {
+  Widget _buildEmptyHistoryState(BuildContext context) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 24),
@@ -934,8 +1097,12 @@ class PatientDashboardView extends StatelessWidget {
           Icon(Icons.event_busy_rounded, color: Colors.grey[300], size: 40),
           const SizedBox(height: 8),
           Text(
-            "No appointment history found",
-            style: TextStyle(color: Colors.grey[500], fontSize: 13, fontWeight: FontWeight.normal),
+            AppLocalizations.of(context)
+                .tr('doctor.patient.no_appointment_history'),
+            style: TextStyle(
+                color: Colors.grey[500],
+                fontSize: 13,
+                fontWeight: FontWeight.normal),
           ),
         ],
       ),
